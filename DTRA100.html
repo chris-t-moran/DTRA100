@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INSERT TITLE OF PAGE HERE</title>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+	<link rel="icon" type="image/x-icon" href="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/dtralogo_orig.png"> 
+	<style>
+	
+	blockquote {
+	  background: #f9f9f9 !important;
+	  border-left: 2px solid #ccc !important;
+	  margin: 0.5em 10px !important;
+	  padding: 0.5em 10px !important;
+	  quotes: "\201C""\201D""\2018""\2019" !important;
+	  font-style:normal !important;
+	  font-family: 'Arial', sans-serif !important;
+	}
+	blockquote:before {
+	  color: #ccc;
+	  content: open-quote !important;
+	  font-size: 4em !important;
+	  line-height: 0.1em !important;
+	  margin-right: 0.25em !important;
+	  vertical-align: -0.4em !important;
+	  font-style:normal !important;
+	}
+	blockquote p {
+	  display: inline;
+	}
+	
+	blockquote {
+    margin: 10px 0;
+    padding-left: 10px;
+    border-left: 2px solid #ddd;
+    font-style:normal;
+    line-height: 130%;
+	}
+	
+
+	.popup-box {
+		width: 300px;
+		height:150px;
+		border: 0px solid #ccc;
+		border-radius: 0px;
+		overflow: hidden;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+	}
+	.popup-box img {
+		width: 100%;
+		height: auto;
+	}
+	.popup-box .title {
+		padding: 0px;
+		background-color: #f9f9f9;
+	
+	}
+	
+	ul {
+    padding: 0;
+	}
+	
+	#article-list{
+	opacity:1;
+	transition:opacity 0.3ease-in-out;
+	}
+	
+	#article-list.fade{
+	opacity:0;
+	}
+	
+	#mainpage {
+	display: flex;
+    margin: 0;
+    font-family: Moderat, sans-serif;
+    flex-direction: row;
+	}
+	
+		
+	#content {
+	display: flex;
+    margin: 0;
+    font-family: Moderat, sans-serif;
+    flex-direction: column;
+	
+	}
+	
+	#intro {
+    display: flex;
+    margin: 0;
+    font-family: Moderat, sans-serif;
+    flex-direction: column;
+	overflow-y: auto; /* ✨ NEW ✨ scroll inside modal if needed */
+	}
+	
+	#themes {
+		width: 100%;
+		background-color: #ffffff;
+		overflow-y: auto;
+		margin-top: 20px;
+		margin-bottom: 20px;
+	}
+		
+		#themes .theme {
+		display: inline-block;
+		margin-right: 10px;
+		padding: 5px 10px;
+		background-color: #119F40;
+		color: white;
+		border-radius: 8px;
+		cursor: pointer;
+		}
+		
+		#themes .theme.active {
+		background-color: #1cfc66;
+		}
+		
+		#map{
+		display: flex;
+		flex: 1;
+		flex-direction: row;
+		}
+		
+		#article-list {
+		opacity: 1;
+		transition: opacity 0.35s ease-in-out;
+	}
+
+	.hidden {
+		display: none;
+	}
+		
+			
+	
+	#article-list {
+		width: 100%;
+		max-width: 570px;
+		background-color: #ffffff;
+		height:500px;
+		padding-bottom:10px;
+		flex-grow: 1;
+		overflow-y: auto;
+	   
+	}
+	
+	#article-list h2 {
+		font-size: 1.5em;
+		margin-top: 0;
+		color: #119F40;
+	}
+	
+
+
+	#article-list p {
+		
+		width: 100%;
+		background-color: #ffffff;
+		text-align: justify;
+		height: auto;
+		color: #119F40;
+		border-radius: 8px;
+		font-weight:100;
+	}
+	
+
+	#article-list .grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+		gap: 10px;
+		
+	}
+	
+
+
+	#article-list .theme {
+		margin-bottom: 20px;
+	}
+	#article-list .theme h3 {
+		margin-top: 0;
+		color: #555555;
+	}
+	#article-list .grid-container {
+		display: grid;
+		column-gap: 50px;
+		grid-template-columns: 1fr 1fr 1fr;
+		padding: 10px;
+	}
+	.article-list {
+		display: none;
+	}
+	.article-list.active {
+		display: block;
+	}
+	.card {
+		position: relative;
+		border: 1px solid #ddd;
+		border-radius: 8px;
+		overflow: hidden;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		transition: transform 0.2s;
+	}
+	.card:hover {
+		transform: scale(1.05);
+	}
+	.card img {
+		width: 100%;
+		height: 150px;
+		object-fit: cover;
+	}
+	.card .overlay {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: 100%;
+		background: #119F40;
+		color: #fff;
+		padding: 5px;
+		text-align: center;
+		font-size: 13px;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		letter-spacing: normal;
+		word-spacing: normal;
+	}
+	
+	
+	.card .inactiveoverlay {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: 100%;
+		background: red;
+		color: #fff;
+		padding: 5px;
+		text-align: center;
+		font-size: 13px;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		letter-spacing: normal;
+		word-spacing: normal;
+	}
+
+
+		
+	#footer{
+	padding-top: 10px;
+	padding-bottom:10px;
+	}
+	
+	#footer img{
+	height: 50%;
+	width:50%;
+	}
+	
+	#footer img{
+	object-fit:contain;
+	}
+	
+	#content{
+	color: #119F40;
+	font-weight:100;
+	width: 100%;
+    max-width: 570px;
+    background-color: #ffffff;
+	padding-right: 50px;
+	padding-left: 80px;
+	height:auto;
+	}
+	
+	#content h1 {
+    color: #119F40;
+    font-size: 35px;
+    text-align: left;
+	}
+	
+	#content h2 {
+    color: #119F40;
+    font-size: 1.5em;
+	font-weight:bold;
+    text-align: left;
+	}
+	
+
+
+/* Optionally, add a crosshatch effect */
+inactive {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: repeating-linear-gradient(
+        45deg,
+        rgba(0, 0, 0, 0.2) 0,
+        rgba(0, 0, 0, 0.2) 1px,
+        transparent 1px,
+        transparent 4px
+    );
+}
+	
+
+
+@media (max-width: 500px) {
+	
+	.leaflet-container {
+		height: 250px !important; /* Ensure the Leaflet map fills its container */
+		width: 100% !important; /* Ensure the Leaflet map fills the container */
+	
+		order:-1;
+	}
+	#content{
+		order: 1; /* Display content below the map */
+		width: 100%; /* Ensure it takes the full width */
+		padding-left: 0px !important;
+		padding-right: 0px !important;
+		padding-top: 20px;
+	}
+	#mainpage{
+		display:grid;
+	}
+	
+	blockquote {
+    margin: 10px 0;
+    padding-left: 10px;
+    border-left: 2px solid #ddd;
+    /* font-style: italic; */
+    line-height: 130%;
+	}
+	
+	#themes .theme {
+		font-weight:bold !important;
+	}
+	
+	.card .overlay{
+		font-weight:bold !important;
+	}
+	
+	#content{
+		font-weight:bold !important;
+	}
+	
+	#article-list p{
+	font-weight:bold !important;
+	
+	}
+	
+}
+
+
+
+
+.modal {
+  font-family: Moderat, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #119F40;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 10px;
+  width: 90%;
+  max-width: 500px;
+  overflow-y:auto;
+  border-radius: 10px;
+  position: relative;
+  text-align: center;
+  transform: translateY(-30px);
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+
+
+.modal.show .modal-content {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.modal-content img {
+  height: 100%;
+  width: auto;
+  margin-top: 10px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+
+/* Hide scrollbar but keep scroll */
+.modal-content div::-webkit-scrollbar {
+  display: none;
+}
+
+.descriptionWrapper {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 20px;
+  text-align: justify;
+  scrollbar-width: none; /* Firefox */
+}
+
+.modal-content imgWrapper {
+  max-height: 300px;
+  margin-top: 20px;
+  text-align: justify;
+  scrollbar-width: none; /* Firefox */
+}
+
+.descriptionWrapper::-webkit-scrollbar {
+  width: 0px;
+  background: transparent; /* Chrome/Safari */
+}
+
+img {
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.fade-out {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.fade-in {
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+
+
+.progress-bar {
+  position: sticky;   /* Stick to the top of the scrollable container */
+  top: 0;
+  left: 0;
+  height: 4px;
+  background: #4CAF50; /* Or any color you like */
+  width: 0%;
+  border-radius: 2px;
+  transition: width 0.25s ease;
+  z-index: 1000; /* Make sure it stays on top */
+  margin-bottom: 8px; 
+}
+
+.close-button {
+  display: none;
+}
+
+.modal-content h2{
+  font-size: 22px;
+  margin: 5px 0 5px 0;
+  text-align: center;
+
+
+}
+
+.modal-content h3{
+  font-size: 18px;
+  margin: 5px 0 5px 0;
+  text-align: center;
+
+
+}
+
+
+.social-share-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.social-share-buttons a {
+  display: inline-block;
+  padding: 10px;
+  background-color: #3b5998; /* Facebook Blue */
+  border-radius: 5px;
+  color: white;
+  text-decoration: none;
+  font-size: 10px;
+  transition: background-color 0.3s;
+}
+
+.social-share-buttons a.twitter {
+  background-color: #00acee; /* Twitter Blue */
+}
+
+.social-share-buttons a.linkedin {
+  background-color: #0077b5; /* LinkedIn Blue */
+}
+
+.social-share-buttons a:hover {
+  opacity: 0.8;
+}
+
+
+
+
+	
+	</style>
+	
+	</head>	
+	
+<body>
+
+	<div id = "mainpage">
+	
+		
+		<div id = "content">
+		
+			<div id="head_logo">
+			<table>
+				<tr>	
+					<td><a href="https://drumcondratriangle.com/dtra100" class="icon"><img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost Icon to Homepage" style="width:150px;height:150px;"></a></td>
+					<td><h1>Triangle 100</h1></td>
+				</tr>
+			</table>
+			</div>
+		
+			<div id = "intro">
+				<br>
+				<h2><blockquote>History is inclined to focus on the extraordinary, but the extraordinary is <i>only</i> extraordinary.<br><br>The ordinary, because it leaves no trace behind it, is precious.</h2></blockquote><i>Dermot Bolger (Ferguson Road, Sunday Press 1991)</i>
+				<p>
+				<p style="text-align:justify;">
+				Welcome to this celebration of one of Ireland's first social housing estates. In the lead up to 2028, the Drumcondra Scheme's centenary year, local citizen historians (or neighbours as they are also known!) continue the task of discovering more about our communities's rich history, it's people and their <i>ordinary</i> lives. 
+				<p style="text-align:justify;">
+				We hope to exhibit the influence of it's residents over last 100 years upon the Drumcondra Triangle, a place we are all proud to call home.
+			
+				<h1>Click on the map, or search below to explore.</h1> 
+			
+			</div>
+			
+			<div id = "themes"></div>
+			<div id = "article-list">
+			<div id = "article-select"></div>
+			</div>
+			
+			
+		
+		</div>
+	
+		<div id = "map">		
+		<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> 
+		
+		
+		
+		<script type="module">	
+		// Define custom icons for different themes
+		var icons = {};		
+		 // Define articles with coordinates, images, and themes
+        var articles = [];
+		
+		
+		// Initialize Supabase
+		console.log("Initializing")
+		import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+		const supabaseUrl = "https://vqkoapgiozhytoqscxxx.supabase.co";
+		const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxa29hcGdpb3poeXRvcXNjeHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NjEzMjIsImV4cCI6MjA2MTIzNzMyMn0.z4h2_uY-VlprsvaRZElh3ZOiGHG-fpGHO5rd7Y2nssY";
+		const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+			
+
+		// Load articles from Supabase
+		async function loadArticles() {
+			let { data, error } = await supabaseClient
+				.from('articles')
+				.select('*')
+				.eq('active', true); // Only fetch active articles
+
+			if (error) {
+				console.error('Error fetching articles:', error);
+				return;
+			}
+
+			articles = data;
+			initMapAndPage(); 
+		}
+// --------------------
+// Map and Page Setup
+// --------------------
+async function initMapAndPage() {
+    // Custom icon
+    var icons = {
+        Default: L.icon({
+            iconUrl: 'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/geometric-circle-dot-shape-with-ring-pattern_orig.png',
+            iconSize: [20, 20],
+            iconAnchor: [0, 0],
+            popupAnchor: [0, 0]
+        })
+    };
+
+    // Map
+    var map = L.map('map').setView([53.373, -6.259], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var themes = {};
+    var markers = [];
+
+    // Categorize articles by theme
+    articles.forEach(article => {
+        themes[article.theme] = themes[article.theme] || [];
+        themes[article.theme].push(article);
+
+        var popupContent = document.createElement('div');
+        popupContent.innerHTML = `
+            <div class="popup-box">
+                <img src="${escapeHTML(article.img)}" alt="Image Description" style="width:100px;height:100px;object-fit:cover;">
+            </div>
+            <div><b>${escapeHTML(article.title)}</b><br>${escapeHTML(article.short_desc)}</div>
+        `;
+
+        var marker = L.marker([article.lat, article.lon], { icon: icons[article.theme] || icons.Default }).addTo(map);
+        marker.on('click', function() {
+    openModal(article);
+});
+
+        markers.push(marker);
+    });
+
+    // Themes list
+    var themesDiv = document.getElementById('themes');
+    Object.keys(themes).forEach(theme => {
+        var themeItem = document.createElement('div');
+        themeItem.className = 'theme';
+        themeItem.textContent = theme;
+        themeItem.onclick = () => filterArticlesByCategory(theme);
+        themesDiv.appendChild(themeItem);
+    });
+
+    // Populate article list
+    filterArticlesByCategory(null);
+}
+
+// Escape HTML (for security)
+function escapeHTML(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+
+function filterArticlesByCategory(theme) {
+    var articleSelect = document.getElementById('article-select');
+    articleSelect.innerHTML = '';
+
+    var filteredArticles = theme ? articles.filter(a => a.theme === theme) : articles;
+
+    var grid = document.createElement('ul');
+    grid.className = 'grid';
+
+    filteredArticles.forEach(article => {
+        var listItem = document.createElement('li');
+        listItem.className = 'card';
+
+        var link = document.createElement('a');
+        link.href = 'javascript:void(0);';
+        
+        // Attach event listener safely
+        link.addEventListener('click', () => openModal(article));
+
+        link.innerHTML = `
+            <img src="${article.img}" alt="${article.title}"/>
+            <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${article.title}</div>
+        `;
+
+        listItem.appendChild(link);
+        grid.appendChild(listItem);
+    });
+
+    articleSelect.appendChild(grid);
+}
+
+window.openModal = function(article) {
+    // Create modal background
+    const modal = document.createElement('div');
+    modal.className = 'modal'; // no .show yet
+
+    // Create modal content
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+
+    // Close button
+    const closeButton = document.createElement('span');
+    closeButton.className = 'close-button';
+    closeButton.innerHTML = '&times;';
+    closeButton.onclick = () => document.body.removeChild(modal);
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = article.title || '';
+
+
+	// Main Image block (wrapper)
+const imgWrapper = document.createElement('div');
+imgWrapper.style.width = '100%';       // Full width of modal (or set to a fixed width if needed)
+imgWrapper.style.height = '300px';     // Fixed height for consistency
+imgWrapper.style.overflow = 'hidden';  // Hide overflow for smooth zoom effect
+imgWrapper.style.marginTop = '0px';
+imgWrapper.style.borderRadius = '8px';
+imgWrapper.style.display = 'flex';
+imgWrapper.style.alignItems = 'center';
+imgWrapper.style.justifyContent = 'center';
+imgWrapper.style.backgroundColor = '#f9f9f9'; // Optional background for smaller images
+imgWrapper.style.position = 'relative'; // Required for child image positioning
+
+// Image
+const image = document.createElement('img');
+image.src = article.img || '';
+image.alt = article.title || '';
+image.style.width = '100%';
+image.style.height = '100%';
+image.style.objectFit = 'contain'; 
+image.style.transition = 'transform 0.5s ease'; // Smooth zoom transition
+image.style.borderRadius = '8px';
+
+// Zoom-in on hover
+imgWrapper.onmouseover = () => {
+  image.style.transform = 'scale(1.1)'; // Slight zoom-in
+};
+imgWrapper.onmouseout = () => {
+  image.style.transform = 'scale(1)'; // Reset zoom
+};
+
+imgWrapper.appendChild(image);
+
+
+    // Short Description
+    const shortDesc = document.createElement('h3');
+    shortDesc.textContent = article.short_desc || '';
+
+    // Main Description with scrollable box
+    const descriptionWrapper = document.createElement('div');
+    descriptionWrapper.style.maxHeight = '200px';
+    descriptionWrapper.style.overflowY = 'auto';
+    descriptionWrapper.style.marginTop = '10px';
+    descriptionWrapper.style.textAlign = 'justify';
+    descriptionWrapper.style.padding = '0 5px';
+    descriptionWrapper.style.scrollbarWidth = 'none'; // Firefox
+    descriptionWrapper.style.msOverflowStyle = 'none'; // IE/Edge
+	
+
+	
+	// Create progress bar
+	const progressBar = document.createElement('div');
+	progressBar.classList.add('progress-bar');
+	progressBar.style.position = 'sticky';
+	progressBar.style.top = '0';
+	progressBar.style.left = '0';
+	progressBar.style.height = '8px';
+	progressBar.style.background = '#4CAF50';
+	progressBar.style.width = '0%';
+	progressBar.style.borderRadius = '2px';
+	progressBar.style.transition = 'width 0.25s ease';
+	progressBar.style.zIndex = '1000';
+	progressBar.style.marginBottom = '8px';
+	progressBar.style.marginTop = '8px';
+
+	// Add progress bar to descriptionWrapper
+	//descriptionWrapper.appendChild(progressBar);
+
+	// Scroll event listener
+	descriptionWrapper.addEventListener('scroll', () => {
+	  const scrollTop = descriptionWrapper.scrollTop;
+	  const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
+	  const scrollPercent = (scrollTop / scrollHeight) * 100;
+	  progressBar.style.width = scrollPercent + '%';
+	});
+
+
+    const description = document.createElement('div');
+    description.innerHTML = (article.description || '').replace(/\n/g, '<br>');
+    descriptionWrapper.appendChild(description);
+	
+	// Social Media Share Buttons
+    const socialButtons = document.createElement('div');
+    socialButtons.className = 'social-share-buttons';
+
+    // Facebook
+    const fbButton = document.createElement('a');
+    fbButton.href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
+    fbButton.target = '_blank';
+    fbButton.className = 'facebook';
+    fbButton.innerHTML = 'Facebook';
+    socialButtons.appendChild(fbButton);
+
+    // Twitter
+    const twitterButton = document.createElement('a');
+    twitterButton.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(article.title)}`;
+    twitterButton.target = '_blank';
+    twitterButton.className = 'twitter';
+    twitterButton.innerHTML = 'Twitter';
+    socialButtons.appendChild(twitterButton);
+
+	
+	
+	
+	
+	
+
+    // Contributor footer
+    const footer = document.createElement('footer');
+    footer.style.marginTop = '10px';
+    footer.style.fontSize = '0.8em';
+    footer.textContent = `Contributor: ${article.contributor || ''}`;
+
+    // Assemble everything
+    content.appendChild(closeButton);
+    content.appendChild(title);
+	content.appendChild(shortDesc);
+    content.appendChild(imgWrapper);
+	content.appendChild(progressBar);
+    content.appendChild(descriptionWrapper);
+	content.appendChild(socialButtons);
+    content.appendChild(footer);
+
+     modal.appendChild(content);
+    document.body.appendChild(modal);
+
+setTimeout(() => {
+    modal.classList.add('show'); // This triggers the CSS animation
+}, 100);
+
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    };
+	
+
+	// --- Image swap on scroll ---
+descriptionWrapper.addEventListener('scroll', () => {
+    const markers = descriptionWrapper.querySelectorAll('.image-change');
+    let lastPassed = null;
+
+    markers.forEach(marker => {
+        const rect = marker.getBoundingClientRect();
+        const wrapperRect = descriptionWrapper.getBoundingClientRect();
+        if (rect.top - wrapperRect.top <= 50) {
+            lastPassed = marker;
+        }
+    });
+
+    if (lastPassed) {
+        const newImg = lastPassed.getAttribute('data-img');
+        if (newImg && image.src !== newImg) {
+            // Step 1: Fade out
+            image.classList.add('fade-out');
+
+            // Step 2: After fade-out duration, change image src
+            setTimeout(() => {
+                image.src = newImg;
+
+                // Step 3: Wait a tiny bit to ensure browser registers the src change
+                setTimeout(() => {
+                    image.classList.remove('fade-out');
+                    image.classList.add('fade-in');
+                }, 50); // a very short delay
+            }, 300); // Matches fade-out timing
+
+            // Step 4: Clean up the fade-in class after animation
+            setTimeout(() => {
+                image.classList.remove('fade-in');
+            }, 700); // 300ms fade out + 400ms fade in
+        }
+    }
+});
+	
+};
+
+
+
+// Start the app
+loadArticles();
+		</script>
+		</div>
+
+		
+	</div>	
+	
+	
+	
+	
+
+
+
+  
+  <div id = "footer">
+			<!-- <img class='HC-logo-img' align='left' src='https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hc-logo-cmyk-ack-colour_orig.png' alt='Funded by the Heritage Council Logo' />	 -->
+	</div>
+
+
+</body>
+
+
+</html>
