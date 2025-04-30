@@ -657,8 +657,19 @@ async function initMapAndPage() {
         };
         themesDiv.appendChild(categoryItem);
     });
+    // Populate article list
+    filterArticlesByCategory(null);
+}
 
+	 function setActiveCategory(theme) {
+        var items = document.querySelectorAll('#themes .theme');
+        items.forEach(item => item.classList.remove('active'));
 
+        if (theme) {
+            var activeItem = Array.from(items).find(item => item.textContent === theme);
+            if (activeItem) activeItem.classList.add('active');
+        }
+    }
 
 
 // Escape HTML (for security)
