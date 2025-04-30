@@ -16,7 +16,7 @@
 	  padding: 0.5em 10px !important;
 	  quotes: "\201C""\201D""\2018""\2019" !important;
 	  font-style:normal !important;
-	  font-family: 'Arial', sans-serif !important;
+	  font-family: 'Arial', sans-serif !important; 
 	}
 	blockquote:before {
 	  color: #ccc;
@@ -638,16 +638,36 @@ async function initMapAndPage() {
     // Themes list
     var themesDiv = document.getElementById('themes');
     Object.keys(themes).forEach(theme => {
-        var themeItem = document.createElement('div');
-        themeItem.className = 'theme';
-        themeItem.textContent = theme;
-        themeItem.onclick = () => filterArticlesByCategory(theme);
-        themesDiv.appendChild(themeItem);
+        var categoryItem = document.createElement('div');
+        categoryItem.className = 'theme';
+        categoryItem.textContent = theme;
+		
+        categoryItem.onclick = () => {
+            if (activeTheme === theme) {
+                // Deselect the theme and show all articles
+                activeTheme = null;
+                filterArticlesByCategory(null);
+                setActiveCategory(null);
+            }else {
+                // Select the theme and filter articles
+                activeTheme = theme;
+                filterArticlesByCategory(theme);
+                setActiveCategory(theme);
+            }
+        };
+        themesDiv.appendChild(categoryItem);
     });
 
-    // Populate article list
-    filterArticlesByCategory(null);
-}
+	 function setActiveCategory(theme) {
+        var items = document.querySelectorAll('#themes .theme');
+        items.forEach(item => item.classList.remove('active'));
+
+        if (theme) {
+            var activeItem = Array.from(items).find(item => item.textContent === theme);
+            if (activeItem) activeItem.classList.add('active');
+        }
+    }
+
 
 // Escape HTML (for security)
 function escapeHTML(str) {
