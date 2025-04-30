@@ -605,7 +605,6 @@ async function initMapAndPage() {
         })
     };
 
-    // Map
     var map = L.map('map').setView([53.373, -6.259], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
@@ -614,11 +613,19 @@ async function initMapAndPage() {
     var themes = {};
     var markers = [];
 
+    // 📌 Fix is here — define themesDiv early!
+    var themesDiv = document.getElementById('themes');
+    if (!themesDiv) {
+        console.error("Element with ID 'themes' not found in the DOM.");
+        return;
+    }
+
     // Categorize articles by theme
     articles.forEach(article => {
         themes[article.theme] = themes[article.theme] || [];
         themes[article.theme].push(article);
 
+       
         var popupContent = document.createElement('div');
         popupContent.innerHTML = `
             <div class="popup-box">
@@ -636,10 +643,11 @@ async function initMapAndPage() {
     });
 
 
-    // Variable to track the currently active theme
+	console.log('Themes found:', Object.keys(themes)); // 👈 Add this
+
     var activeTheme = null;
-    // Themes list
-    var themesDiv = document.getElementById('themes');
+
+    
     Object.keys(themes).forEach(theme => {
         var categoryItem = document.createElement('div');
         categoryItem.className = 'theme';
@@ -660,11 +668,28 @@ async function initMapAndPage() {
         };
         themesDiv.appendChild(categoryItem);
     });
+	
+	// Add Random theme
+const randomItem = document.createElement('div');
+randomItem.className = 'theme';
+randomItem.textContent = 'Lucky Dip!';
+randomItem.style.background = 'gold';
+
+randomItem.onclick = () => {
+    activeTheme = null;  // Don't highlight 'Random'
+    filterArticlesByCategory('Random');  // Show all articles
+    setActiveCategory(null);  // No category highlighted
+};
+
+themesDiv.appendChild(randomItem);
+	
+	
     // Populate article list
     filterArticlesByCategory(null);
 }
 
-	 function setActiveCategory(theme) {
+  // Function to set the active category
+    function setActiveCategory(theme) {
         var items = document.querySelectorAll('#themes .theme');
         items.forEach(item => item.classList.remove('active'));
 
@@ -673,6 +698,8 @@ async function initMapAndPage() {
             if (activeItem) activeItem.classList.add('active');
         }
     }
+
+
 
 
 // Escape HTML (for security)
@@ -691,7 +718,17 @@ function filterArticlesByCategory(theme) {
     var articleSelect = document.getElementById('article-select');
     articleSelect.innerHTML = '';
 
-    var filteredArticles = theme ? articles.filter(a => a.theme === theme) : articles;
+    if (theme && theme.toLowerCase() === 'random') {
+        // Pick a random article and open its modal
+        const randomArticle = articles[Math.floor(Math.random() * articles.length)];
+        openModal(randomArticle);
+        //return; // Exit early, don't build the grid
+    }
+
+    // Treat empty string or "all" as "no filter"
+    var filteredArticles = (!theme || theme.toLowerCase() === 'all' || theme.toLowerCase() === 'random') 
+        ? articles 
+        : articles.filter(a => a.theme === theme);
 
     var grid = document.createElement('ul');
     grid.className = 'grid';
@@ -702,8 +739,6 @@ function filterArticlesByCategory(theme) {
 
         var link = document.createElement('a');
         link.href = 'javascript:void(0);';
-        
-        // Attach event listener safely
         link.addEventListener('click', () => openModal(article));
 
         link.innerHTML = `
@@ -717,6 +752,7 @@ function filterArticlesByCategory(theme) {
 
     articleSelect.appendChild(grid);
 }
+
 
 window.openModal = function(article) {
     // Create modal background
