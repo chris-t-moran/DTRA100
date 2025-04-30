@@ -635,6 +635,9 @@ async function initMapAndPage() {
         markers.push(marker);
     });
 
+
+    // Variable to track the currently active theme
+    var activeTheme = null;
     // Themes list
     var themesDiv = document.getElementById('themes');
     Object.keys(themes).forEach(theme => {
