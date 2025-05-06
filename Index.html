@@ -107,7 +107,7 @@
 		display: inline-block;
 		margin-right: 10px;
 		padding: 5px 10px;
-		background-color: #119F40;
+		background-color: #4CAF50;
 		color: white;
 		border-radius: 8px;
 		cursor: pointer;
@@ -148,7 +148,7 @@
 	#article-list h2 {
 		font-size: 1.5em;
 		margin-top: 0;
-		color: #119F40;
+		color: #4CAF50;
 	}
 	
 
@@ -159,7 +159,7 @@
 		background-color: #ffffff;
 		text-align: justify;
 		height: auto;
-		color: #119F40;
+		color: #4CAF50;
 		border-radius: 8px;
 		font-weight:100;
 	}
@@ -214,7 +214,7 @@
 		bottom: 0;
 		left: 0;
 		width: 100%;
-		background: #119F40;
+		background: #4CAF50;
 		color: #fff;
 		padding: 5px;
 		text-align: center;
@@ -261,7 +261,7 @@
 	}
 	
 	#content{
-	color: #119F40;
+	color: #4CAF50;
 	font-weight:100;
 	width: 100%;
     max-width: 570px;
@@ -272,13 +272,13 @@
 	}
 	
 	#content h1 {
-    color: #119F40;
+    color: #4CAF50;
     font-size: 35px;
     text-align: left;
 	}
 	
 	#content h2 {
-    color: #119F40;
+    color: #4CAF50;
     font-size: 1.5em;
 	font-weight:bold;
     text-align: left;
@@ -358,7 +358,7 @@ inactive {
 .modal {
   font-family: Moderat, sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #119F40;
+  color: #4CAF50;
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
@@ -552,6 +552,8 @@ background-color: white;
 			</div>
 			
 			
+			<button id="share-story-btn" class="theme" style="margin-top: 1.5em; padding: 0.75em 1.5em; background-color: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer;">Get Involved and Share Your Story!</button>
+
 		
 		</div>
 	
@@ -967,19 +969,114 @@ descriptionWrapper.addEventListener('scroll', () => {
 };
 
 
+function showStoryFormPage() {
+	window.scrollTo(0, 0);
+    // Replace map with an image
+    const mapDiv = document.getElementById('map');
+    mapDiv.innerHTML = ''; // Clear map
+    const img = document.createElement('img');
+    img.src = 'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/lillian-37walshroad-1937_orig.jpg'; // Replace with a local history-themed image
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover';
+    mapDiv.appendChild(img);
+
+    // Load form into article content area
+    const articleSelect = document.getElementById('content');
+    articleSelect.innerHTML = ''; // Clear current content
+
+    const form = document.createElement('form');
+    form.innerHTML = `
+	
+	
+	
+		<table>
+				<tr>	
+					<td><a href="https://drumcondratriangle.com/dtra100" class="icon"><img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost Icon to Homepage" style="width:150px;height:150px;"></a></td>
+					<td><h1>Triangle 100</h1></td>
+				</tr>
+		</table>
+		
+		<div id = "story-share">
+				<h2>Share Your Story!</h2> 
+				<p style="text-align:justify;">
+				We hope you are enjoying some of the wonderful stories that have been discovered about our neighbourhood. Behind every hall door there is a story to share so please get involved and share your memories of the people, places and things that make the Drumcondra Triangle such a wonderful place to live.
+				
+		</div>
+		
+       <div id="submission-form" style="max-width: 600px; margin: 2em auto; padding: 2em; border: 1px solid #ccc; border-radius: 12px; background-color: #f9f9f9; font-family: sans-serif;">
+  
+  <form id="storyForm">
+    <label for="title" style="display:block; margin-top: 1em;">Story Title:</label>
+    <input type="text" id="title" name="title" placeholder="e.g. Growing up on O'Daly Road" required style="width: 100%; padding: 0.5em; border-radius: 6px; border: 1px solid #aaa;">
+
+    <label for="contributor" style="display:block; margin-top: 1em;">Your Name (optional):</label>
+    <input type="text" id="contributor" name="contributor" placeholder="e.g. Harry Braine" style="width: 100%; padding: 0.5em; border-radius: 6px; border: 1px solid #aaa;">
+
+    <label for="description" style="display:block; margin-top: 1em;">Your Story:</label>
+    <textarea id="description" name="content" rows="6" placeholder="Type your story here..." required style="width: 100%; padding: 0.5em; border-radius: 6px; border: 1px solid #aaa;"></textarea>
+
+    <button type="submit" style="margin-top: 1.5em; padding: 0.75em 1.5em; background-color: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer;">
+      Submit
+    </button>
+  </form>
+  
+  
+</div>
+    `;
+
+
+   form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = form.title.value.trim();
+    const description = form.description.value.trim();
+    const contributor = form.contributor.value.trim();
+
+    const { error } = await supabaseClient.from('articles').insert([
+        {
+            title,
+            description,
+            short_desc: description.slice(0, 100) + '...',
+            contributor,
+            active: false // Let admin review first
+        }
+    ]);
+
+    if (error) {
+        alert('Error submitting your story. Please try again.');
+    } else {
+        alert('Thank you for your story! It will be reviewed and added soon.');
+
+        
+        location.href = location.href;
+		window.scrollTo(0, 0);
+	}
+});
+
+
+
+    articleSelect.appendChild(form);
+}
+
+
+
 
 // Start the app
 loadArticles();
+document.getElementById('share-story-btn').addEventListener('click', showStoryFormPage);
+
+
+
+
 		</script>
 		</div>
 
 		
 	</div>	
 	
+	
 
-  <div id = "footer">
-			<!-- <img class='HC-logo-img' align='left' src='https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hc-logo-cmyk-ack-colour_orig.png' alt='Funded by the Heritage Council Logo' />	 -->
-	</div>
+  <div id = "footer">	</div>
 
 
 </body>
