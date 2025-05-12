@@ -576,6 +576,8 @@ background-color: white;
 		const supabaseUrl = "https://vqkoapgiozhytoqscxxx.supabase.co";
 		const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxa29hcGdpb3poeXRvcXNjeHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NjEzMjIsImV4cCI6MjA2MTIzNzMyMn0.z4h2_uY-VlprsvaRZElh3ZOiGHG-fpGHO5rd7Y2nssY";
 		const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+		
+		
 			
 
 		// Load articles from Supabase
@@ -597,8 +599,7 @@ background-color: white;
 // Map and Page Setup
 // --------------------
 async function initMapAndPage() {
-    // Custom icon
-    var icons = {
+    const icons = {
         Default: L.icon({
             iconUrl: 'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/geometric-circle-dot-shape-with-ring-pattern_orig.png',
             iconSize: [20, 20],
@@ -607,28 +608,28 @@ async function initMapAndPage() {
         })
     };
 
-    var map = L.map('map').setView([53.373, -6.259], 16);
+    const map = L.map('map').setView([53.373, -6.259], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    var themes = {};
-    var markers = [];
-
-    // 📌 Fix is here — define themesDiv early!
-    var themesDiv = document.getElementById('themes');
+    const themesDiv = document.getElementById('themes');
     if (!themesDiv) {
         console.error("Element with ID 'themes' not found in the DOM.");
         return;
     }
 
-    // Categorize articles by theme
+    const themes = {};
+    const markers = [];
+    let peopleMarkers = [];
+    let peopleVisible = false;
+
+    // --- Article Markers ---
     articles.forEach(article => {
         themes[article.theme] = themes[article.theme] || [];
         themes[article.theme].push(article);
 
-       
-        var popupContent = document.createElement('div');
+        const popupContent = document.createElement('div');
         popupContent.innerHTML = `
             <div class="popup-box">
                 <img src="${escapeHTML(article.img)}" alt="Image Description" style="width:100px;height:100px;object-fit:cover;">
@@ -636,33 +637,72 @@ async function initMapAndPage() {
             <div><b>${escapeHTML(article.title)}</b><br>${escapeHTML(article.short_desc)}</div>
         `;
 
-        var marker = L.marker([article.lat, article.lon], { icon: icons[article.theme] || icons.Default }).addTo(map);
-        marker.on('click', function() {
-    openModal(article);
-});
+        const marker = L.marker([article.lat, article.lon], {
+            icon: icons[article.theme] || icons.Default
+        }).addTo(map);
 
+        marker.on('click', () => openModal(article));
         markers.push(marker);
     });
 
+    // --- People Layer Toggle ---
+    const peopleToggleButton = document.createElement('div');
+    peopleToggleButton.className = 'theme';
+    peopleToggleButton.textContent = 'Show Residents';
+    peopleToggleButton.style.background = '#add8e6'; // Light blue
+    themesDiv.appendChild(peopleToggleButton);
 
-	console.log('Themes found:', Object.keys(themes)); // 👈 Add this
+    peopleToggleButton.addEventListener('click', async () => {
+        
+		if (peopleVisible) {
+    // Show article markers again
+    markers.forEach(marker => map.addLayer(marker));
 
-    var activeTheme = null;
+    // Hide people markers
+    peopleMarkers.forEach(marker => map.removeLayer(marker));
+    peopleMarkers = [];
+    peopleVisible = false;
+    peopleToggleButton.textContent = 'Show Residents';
+} else {
+    // Hide article markers
+    markers.forEach(marker => map.removeLayer(marker));
 
-    
+    const { data: people, error } = await supabaseClient.from('residents').select('*').eq('active', true);
+    if (error) {
+        console.error('Error loading people:', error);
+        return;
+    }
+
+    people.forEach(person => {
+        const marker = L.marker([person.lat, person.lon]).addTo(map);
+        marker.bindPopup(`
+        <strong>${escapeHTML(person.lessee)}</strong><br>
+        ${escapeHTML(person.occupation)}<br>
+        ${escapeHTML(person.road)}
+    `);
+
+        peopleMarkers.push(marker);
+    });
+
+    peopleVisible = true;
+    peopleToggleButton.textContent = 'Hide Residents';
+}
+
+    });
+
+    // --- Themes / Categories ---
+    let activeTheme = null;
     Object.keys(themes).forEach(theme => {
-        var categoryItem = document.createElement('div');
+        const categoryItem = document.createElement('div');
         categoryItem.className = 'theme';
         categoryItem.textContent = theme;
-		
+
         categoryItem.onclick = () => {
             if (activeTheme === theme) {
-                // Deselect the theme and show all articles
                 activeTheme = null;
                 filterArticlesByCategory(null);
                 setActiveCategory(null);
-            }else {
-                // Select the theme and filter articles
+            } else {
                 activeTheme = theme;
                 filterArticlesByCategory(theme);
                 setActiveCategory(theme);
@@ -670,25 +710,22 @@ async function initMapAndPage() {
         };
         themesDiv.appendChild(categoryItem);
     });
-	
-	// Add Random theme
-const randomItem = document.createElement('div');
-randomItem.className = 'theme';
-randomItem.textContent = 'Lucky Dip!';
-randomItem.style.background = 'gold';
 
-randomItem.onclick = () => {
-    activeTheme = null;  // Don't highlight 'Random'
-    filterArticlesByCategory('Random');  // Show all articles
-    setActiveCategory(null);  // No category highlighted
-};
+    // --- Lucky Dip ---
+    const randomItem = document.createElement('div');
+    randomItem.className = 'theme';
+    randomItem.textContent = 'Lucky Dip!';
+    randomItem.style.background = 'gold';
+    randomItem.onclick = () => {
+        activeTheme = null;
+        filterArticlesByCategory('Random');
+        setActiveCategory(null);
+    };
+    themesDiv.appendChild(randomItem);
 
-themesDiv.appendChild(randomItem);
-	
-	
-    // Populate article list
     filterArticlesByCategory(null);
 }
+
 
   // Function to set the active category
     function setActiveCategory(theme) {
