@@ -526,6 +526,11 @@ background-color: white;
   text-decoration: none;
 }
 
+.leaflet-popup-content-wrapper{
+background-color:#4CAF50 ;
+
+}
+
 
 
 
@@ -652,10 +657,10 @@ async function initMapAndPage() {
 //button.style.justifyContent = 'center';
 button.style.width = '100px';  // adjust size as needed
 button.style.height = '30px';
-button.style.background = 'gold';
-button.style.border = '1px solid #4CAF50';
+button.style.background = '#4CAF50';
+button.style.border = '1px solid gold';
 button.style.borderRadius = '4px';
-button.style.color = '#4CAF50';
+button.style.color = 'white';
 button.style.fontWeight = 'bold';
 button.style.textAlign = 'center';
 button.style.cursor = 'pointer';
@@ -787,20 +792,28 @@ async function loadResidents() {
     return;
   }
 
+
+//set the residents markers and bind the resident popup
   residents.forEach(resident => {
     const marker = L.circleMarker([resident.lat, resident.lon], {
   radius: 5, // smaller = smaller dot
-  fillColor: 'gold',
-  color: '#4CAF50',
+  fillColor: '#4CAF50',
+  color: 'gold',
   weight: 1,
   opacity: 1,
   fillOpacity: 0.8
 })
       .bindPopup(`
+	 
+	  <div style="padding: 0px; background: #4CAF50;"><h2 style="color: white;">
+    <h3 style="color: white;">First Resident of ${resident.housenumber} ${escapeHTML(resident.road)}</h3></div>
+	<div style="background: #4CAF50; color:white;">	  
+	  
         <strong>${escapeHTML(resident.lessee)}</strong><br>
         ${escapeHTML(resident.occupation)}<br>
-        ${resident.housenumber} ${escapeHTML(resident.road)}
-      `);
+        
+     <div> 
+	  `);
     peopleMarkers.push(marker); // don't add to map yet
   });
 }
