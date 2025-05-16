@@ -509,6 +509,23 @@ background-color: white;
   opacity: 0.8;
 }
 
+.residents-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 30px;
+  background-color: #add8e6;
+  color: #000;
+  border: 1px solid #666;
+  border-radius: 4px;
+  
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: none;
+}
+
 
 
 
@@ -569,6 +586,10 @@ background-color: white;
 		 // Define articles with coordinates, images, and themes
         var articles = [];
 		
+		let map;
+		let peopleMarkers = [];
+		let markers = [];
+		
 		
 		// Initialize Supabase
 		console.log("Initializing")
@@ -608,10 +629,54 @@ async function initMapAndPage() {
         })
     };
 
-    const map = L.map('map').setView([53.373, -6.259], 16);
+    map = L.map('map').setView([53.373, -6.259], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+	
+	const ResidentsToggleControl = L.Control.extend({
+  options: {
+    position: 'topright' // topright, topleft, bottomright, bottomleft
+  },
+
+  onAdd: function () {
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+
+    const button = L.DomUtil.create('a', '', container);
+	button.className = 'residents-toggle-btn';
+    button.href = '#';
+    button.innerHTML = '1929'; // optional emoji or text
+    button.title = 'Show/Hide First Residents';
+    button.style.display = 'flex';
+//button.style.alignItems = 'center';
+//button.style.justifyContent = 'center';
+button.style.width = '100px';  // adjust size as needed
+button.style.height = '30px';
+button.style.background = 'gold';
+button.style.border = '1px solid #4CAF50';
+button.style.borderRadius = '4px';
+button.style.color = '#4CAF50';
+button.style.fontWeight = 'bold';
+button.style.textAlign = 'center';
+button.style.cursor = 'pointer';
+
+    L.DomEvent.on(button, 'click', function (e) {
+      L.DomEvent.stopPropagation(e);
+      L.DomEvent.preventDefault(e);
+      togglePeopleMarkers(button);
+    });
+
+    return container;
+  }
+});
+
+map.addControl(new ResidentsToggleControl());
+	
+	
+	
+	
+	
+	
 
     const themesDiv = document.getElementById('themes');
     if (!themesDiv) {
@@ -620,8 +685,8 @@ async function initMapAndPage() {
     }
 
     const themes = {};
-    const markers = [];
-    let peopleMarkers = [];
+    
+    //let peopleMarkers = [];
     let peopleVisible = false;
 
     // --- Article Markers ---
@@ -645,50 +710,7 @@ async function initMapAndPage() {
         markers.push(marker);
     });
 
-    // --- People Layer Toggle ---
-    const peopleToggleButton = document.createElement('div');
-    peopleToggleButton.className = 'theme';
-    peopleToggleButton.textContent = 'Show Residents';
-    peopleToggleButton.style.background = '#add8e6'; // Light blue
-    themesDiv.appendChild(peopleToggleButton);
-
-    peopleToggleButton.addEventListener('click', async () => {
-        
-		if (peopleVisible) {
-    // Show article markers again
-    markers.forEach(marker => map.addLayer(marker));
-
-    // Hide people markers
-    peopleMarkers.forEach(marker => map.removeLayer(marker));
-    peopleMarkers = [];
-    peopleVisible = false;
-    peopleToggleButton.textContent = 'Show Residents';
-} else {
-    // Hide article markers
-    markers.forEach(marker => map.removeLayer(marker));
-
-    const { data: people, error } = await supabaseClient.from('residents').select('*').eq('active', true);
-    if (error) {
-        console.error('Error loading people:', error);
-        return;
-    }
-
-    people.forEach(person => {
-        const marker = L.marker([person.lat, person.lon]).addTo(map);
-        marker.bindPopup(`
-        <strong>${escapeHTML(person.lessee)}</strong><br>
-        ${escapeHTML(person.occupation)}<br>
-        ${escapeHTML(person.road)}
-    `);
-
-        peopleMarkers.push(marker);
-    });
-
-    peopleVisible = true;
-    peopleToggleButton.textContent = 'Hide Residents';
-}
-
-    });
+    
 
     // --- Themes / Categories ---
     let activeTheme = null;
@@ -724,6 +746,7 @@ async function initMapAndPage() {
     themesDiv.appendChild(randomItem);
 
     filterArticlesByCategory(null);
+	await loadResidents();
 }
 
 
@@ -738,7 +761,49 @@ async function initMapAndPage() {
         }
     }
 
+function togglePeopleMarkers(button) {
+  const isVisible = peopleMarkers.length > 0 && map.hasLayer(peopleMarkers[0]);
 
+  if (isVisible) {
+    peopleMarkers.forEach(marker => map.removeLayer(marker));
+	markers.forEach(marker => map.addLayer(marker));
+    button.innerHTML = '1929';
+  } else {
+	markers.forEach(marker => map.removeLayer(marker));
+    peopleMarkers.forEach(marker => marker.addTo(map));
+    button.innerHTML = 'Stories'; // toggle icon if desired
+  }
+}
+
+
+async function loadResidents() {
+  const { data: residents, error } = await supabaseClient
+    .from('residents')
+    .select('*')
+	.eq('active', true);
+
+  if (error) {
+    console.error('Error fetching residents:', error);
+    return;
+  }
+
+  residents.forEach(resident => {
+    const marker = L.circleMarker([resident.lat, resident.lon], {
+  radius: 5, // smaller = smaller dot
+  fillColor: 'gold',
+  color: '#4CAF50',
+  weight: 1,
+  opacity: 1,
+  fillOpacity: 0.8
+})
+      .bindPopup(`
+        <strong>${escapeHTML(resident.lessee)}</strong><br>
+        ${escapeHTML(resident.occupation)}<br>
+        ${resident.housenumber} ${escapeHTML(resident.road)}
+      `);
+    peopleMarkers.push(marker); // don't add to map yet
+  });
+}
 
 
 // Escape HTML (for security)
