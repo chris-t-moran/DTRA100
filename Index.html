@@ -93,13 +93,13 @@
     margin: 0;
     font-family: Moderat, sans-serif;
     flex-direction: column;
-	overflow-y: auto; /* ✨ NEW ✨ scroll inside modal if needed */
+	
 	}
 	
 	#themes {
 		width: 100%;
 		background-color: #ffffff;
-		overflow-y: auto;
+		
 		margin-top: 20px;
 		margin-bottom: 20px;
 	}
@@ -142,7 +142,7 @@
 		height:500px;
 		padding-bottom:10px;
 		flex-grow: 1;
-		overflow-y: auto;
+		
 	   
 	}
 	
@@ -269,7 +269,8 @@
     background-color: #ffffff;
 	padding-right: 50px;
 	padding-left: 80px;
-	height:auto;
+	height:1000px;
+	overflow-y:auto
 	}
 	
 	#content h1 {
@@ -527,11 +528,10 @@ background-color: white;
   text-decoration: none;
 }
 
-.leaflet-popup-content-wrapper{
-	background-color:#4CAF50 ;
-
+.leaflet-container .leaflet-popup-content-wrapper {
+  background-color: #4CAF50 !important;
+  opacity: 0.9;
 }
-
 
 
 
@@ -550,12 +550,12 @@ background-color: white;
 		<div id = "content">
 		
 			<div id="head_logo">
-			<table>
-				<tr>	
-					<td><a href="https://drumcondratriangle.com/dtra100" class="icon"><img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost Icon to Homepage" style="width:150px;height:150px;"></a></td>
-					<td><h1>Triangle 100</h1></td>
-				</tr>
-			</table>
+				<table>
+					<tr>	
+						<td><a href="https://drumcondratriangle.com/dtra100" class="icon"><img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost Icon to Homepage" style="width:150px;height:150px;"></a></td>
+						<td><h1>Triangle 100</h1></td>
+					</tr>
+				</table>
 			</div>
 		
 			<div id = "intro">
@@ -572,28 +572,14 @@ background-color: white;
 			</div>
 			
 			<div id = "themes"></div>
+			<button id="share-story-btn" class="theme" style="margin-top: 1.5em; padding: 0.75em 1.5em; background-color: orange; color: white; border: none; border-radius: 6px; cursor: pointer;">Get Involved and Share Your Story!</button>
+
 			<div id = "article-list">
-			<div id = "article-select"></div>
+				<div id = "article-select"></div>
 			</div>
 			
 			
-			<button id="share-story-btn" class="theme" style="margin-top: 1.5em; padding: 0.75em 1.5em; background-color: orange; color: white; border: none; border-radius: 6px; cursor: pointer;">Get Involved and Share Your Story!</button>
-
 		
-		</div>
-	
-		<div id = "map">		
-		<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-		<!-- MarkerCluster JS -->
-		<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> 
-		
-		<!-- Leaflet CSS (already needed for maps) -->
-		<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-		<!-- MarkerCluster CSS -->
-		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
-		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
 
 
 
@@ -835,11 +821,11 @@ async function loadResidents() {
       .bindPopup(`
 	 
 	  <div style="padding: 0px; background: #4CAF50;"><h2 style="color: white;">
-    <h3 style="color: white;">First Resident of ${resident.housenumber} ${escapeHTML(resident.road)}</h3></div>
+    <h3 style="color: white;">A Triangle 100 First Resident <p>${resident.housenumber} ${escapeHTML(resident.road)}</h3></div>
 	<div style="background: #4CAF50; color:white;">	  
 	  
-        <strong>${escapeHTML(resident.lessee)}</strong><br>
-        ${escapeHTML(resident.occupation)}<br>
+        <strong>Name : </strong>${escapeHTML(resident.lessee)}<p>
+        Occupation according to the original 1929 lease : <strong>${escapeHTML(resident.occupation)}</strong><br>
         
      <div> 
 	  `);
@@ -1145,7 +1131,7 @@ const container = document.getElementById("content");
 		</div>
   
   
-  <div id="submission-form" style="max-width: 600px; margin: 2em auto; padding: 2em; border: 1px solid #ccc; border-radius: 12px; background-color: #f9f9f9; font-family: sans-serif;">
+  <div id="submission-form" style="max-width: 600px; padding: 2em; border: 1px solid #ccc; border-radius: 12px; background-color: #f9f9f9; font-family: sans-serif;">
 
     <form id="story-form">
 	  <label for="title" style="display:block; margin-top: 1em;">Story Title:</label>
@@ -1215,18 +1201,36 @@ document.getElementById('share-story-btn').addEventListener('click', showStoryFo
 
 
 
-		</script>
-		</div>
+	</script>
+	
+	</div>
+		
+		
+	
+	
+	<div id = "map">		
+		<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+		<!-- MarkerCluster JS -->
+		<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> 
+		
+		<!-- Leaflet CSS (already needed for maps) -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+		<!-- MarkerCluster CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+
+			
+	</div>	
 
 		
-	</div>	
-	
-	
-
-  <div id = "footer">	</div>
-
+	</div>
 
 </body>
 
+
+	
+			
 
 </html>
