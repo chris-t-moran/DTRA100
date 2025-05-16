@@ -84,6 +84,7 @@
     margin: 0;
     font-family: Moderat, sans-serif;
     flex-direction: column;
+
 	
 	}
 	
@@ -527,9 +528,11 @@ background-color: white;
 }
 
 .leaflet-popup-content-wrapper{
-background-color:#4CAF50 ;
+	background-color:#4CAF50 ;
 
 }
+
+
 
 
 
@@ -581,7 +584,22 @@ background-color:#4CAF50 ;
 	
 		<div id = "map">		
 		<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+		<!-- MarkerCluster JS -->
+		<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> 
+		
+		<!-- Leaflet CSS (already needed for maps) -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+		<!-- MarkerCluster CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+
+
+
+
+		
+		
 		
 		
 		
@@ -594,6 +612,7 @@ background-color:#4CAF50 ;
 		let map;
 		let peopleMarkers = [];
 		let markers = [];
+		let articleMarkers = [];
 		
 		
 		// Initialize Supabase
@@ -678,7 +697,12 @@ button.style.cursor = 'pointer';
 map.addControl(new ResidentsToggleControl());
 	
 	
-	
+	articleMarkers = L.markerClusterGroup({
+    // Optional: customize cluster options if needed
+    maxClusterRadius: 40,
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: true,
+});
 	
 	
 	
@@ -694,26 +718,26 @@ map.addControl(new ResidentsToggleControl());
     //let peopleMarkers = [];
     let peopleVisible = false;
 
-    // --- Article Markers ---
     articles.forEach(article => {
-        themes[article.theme] = themes[article.theme] || [];
-        themes[article.theme].push(article);
+    themes[article.theme] = themes[article.theme] || [];
+    themes[article.theme].push(article);
 
-        const popupContent = document.createElement('div');
-        popupContent.innerHTML = `
-            <div class="popup-box">
-                <img src="${escapeHTML(article.img)}" alt="Image Description" style="width:100px;height:100px;object-fit:cover;">
-            </div>
-            <div><b>${escapeHTML(article.title)}</b><br>${escapeHTML(article.short_desc)}</div>
-        `;
+    
 
-        const marker = L.marker([article.lat, article.lon], {
-            icon: icons[article.theme] || icons.Default
-        }).addTo(map);
-
-        marker.on('click', () => openModal(article));
-        markers.push(marker);
+    const circleMarker = L.circleMarker([article.lat, article.lon], {
+        radius: 6,
+        color: '#4CAF50', // or set based on theme
+        fillColor: '#4CAF50	',
+        fillOpacity: 0.8,
+        weight: 1,
     });
+
+    circleMarker.on('click', () => openModal(article));
+
+    articleMarkers.addLayer(circleMarker);
+});
+
+map.addLayer(articleMarkers);
 
     
 
@@ -770,15 +794,20 @@ function togglePeopleMarkers(button) {
   const isVisible = peopleMarkers.length > 0 && map.hasLayer(peopleMarkers[0]);
 
   if (isVisible) {
+    // Hide people markers, show article markers
     peopleMarkers.forEach(marker => map.removeLayer(marker));
-	markers.forEach(marker => map.addLayer(marker));
+    if (articleMarkers) map.addLayer(articleMarkers);
+
     button.innerHTML = '1929';
   } else {
-	markers.forEach(marker => map.removeLayer(marker));
+    // Hide article markers, show people markers
+    if (articleMarkers) map.removeLayer(articleMarkers);
     peopleMarkers.forEach(marker => marker.addTo(map));
-    button.innerHTML = 'Stories'; // toggle icon if desired
+
+    button.innerHTML = 'Stories';
   }
 }
+
 
 
 async function loadResidents() {
@@ -796,12 +825,12 @@ async function loadResidents() {
 //set the residents markers and bind the resident popup
   residents.forEach(resident => {
     const marker = L.circleMarker([resident.lat, resident.lon], {
-  radius: 5, // smaller = smaller dot
+  radius: 7, // smaller = smaller dot
   fillColor: '#4CAF50',
   color: 'gold',
   weight: 1,
   opacity: 1,
-  fillOpacity: 0.8
+  fillOpacity: 1
 })
       .bindPopup(`
 	 
