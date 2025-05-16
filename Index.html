@@ -534,7 +534,9 @@ background-color: white;
 }
 
 
-
+#map.sepia {
+  filter: sepia(.6);
+}
 
 
 	
@@ -655,12 +657,12 @@ async function initMapAndPage() {
     const button = L.DomUtil.create('a', '', container);
 	button.className = 'residents-toggle-btn';
     button.href = '#';
-    button.innerHTML = '1929'; // optional emoji or text
+    button.innerHTML = 'Switch to 1929'; // optional emoji or text
     button.title = 'Show/Hide First Residents';
     button.style.display = 'flex';
 //button.style.alignItems = 'center';
 //button.style.justifyContent = 'center';
-button.style.width = '100px';  // adjust size as needed
+button.style.width = '150px';  // adjust size as needed
 button.style.height = '30px';
 button.style.background = '#4CAF50';
 button.style.border = '1px solid gold';
@@ -777,6 +779,8 @@ map.addLayer(articleMarkers);
     }
 
 function togglePeopleMarkers(button) {
+
+document.getElementById('map').classList.toggle('sepia');
   const isVisible = peopleMarkers.length > 0 && map.hasLayer(peopleMarkers[0]);
 
   if (isVisible) {
@@ -784,13 +788,13 @@ function togglePeopleMarkers(button) {
     peopleMarkers.forEach(marker => map.removeLayer(marker));
     if (articleMarkers) map.addLayer(articleMarkers);
 
-    button.innerHTML = '1929';
+    button.innerHTML = 'Switch to 1929';
   } else {
     // Hide article markers, show people markers
     if (articleMarkers) map.removeLayer(articleMarkers);
     peopleMarkers.forEach(marker => marker.addTo(map));
 
-    button.innerHTML = 'Stories';
+    button.innerHTML = 'Switch to Stories';
   }
 }
 
