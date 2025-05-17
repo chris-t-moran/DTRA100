@@ -534,10 +534,27 @@ background-color: white;
 }
 
 
+#map {
+  transition: filter 0.5s ease-in-out;
+}
+
 #map.sepia {
   filter: sepia(.6);
 }
 
+
+.leaflet-marker-icon {
+  opacity: 0;
+  animation: fadeInMarker 0.8s ease-in-out forwards ;
+}
+
+
+
+@keyframes fadeInMarker {
+  to {
+    opacity: 1;
+  }
+}
 
 	
 	</style>
@@ -720,7 +737,8 @@ map.addControl(new ResidentsToggleControl());
         weight: 1,
     });
 
-    circleMarker.on('click', () => openModal(article));
+   circleMarker.on('click', () => openModal(article));
+
 
     articleMarkers.addLayer(circleMarker);
 });
@@ -800,40 +818,44 @@ document.getElementById('map').classList.toggle('sepia');
 
 
 
-async function loadResidents() {
+async function loadResidents() { 
   const { data: residents, error } = await supabaseClient
     .from('residents')
     .select('*')
-	.eq('active', true);
+    .eq('active', true);
 
   if (error) {
     console.error('Error fetching residents:', error);
     return;
   }
 
-
-//set the residents markers and bind the resident popup
-  residents.forEach(resident => {
+  // set the residents markers and bind the resident popup
+  residents.forEach((resident, i) => {
     const marker = L.circleMarker([resident.lat, resident.lon], {
-  radius: 7, // smaller = smaller dot
-  fillColor: '#4CAF50',
-  color: 'gold',
-  weight: 1,
-  opacity: 1,
-  fillOpacity: 1
-})
-      .bindPopup(`
-	 
-	  <div style="padding: 0px; background: #4CAF50;"><h2 style="color: white;">
-    <h3 style="color: white;">A Triangle 100 First Resident <p>${resident.housenumber} ${escapeHTML(resident.road)}</h3></div>
-	<div style="background: #4CAF50; color:white;">	  
-	  
+      radius: 7,
+      fillColor: '#4CAF50',
+      color: 'gold',
+      weight: 1,
+      opacity: 0,         // Start invisible
+      fillOpacity: 0      // Also start fill invisible
+    })
+    .bindPopup(`
+      <div style="padding: 0px; background: #4CAF50;"><h2 style="color: white;">
+      <h3 style="color: white;">A Triangle 100 First Resident <p>${resident.housenumber} ${escapeHTML(resident.road)}</h3></div>
+      <div style="background: #4CAF50; color:white;">	  
         <strong>Name : </strong>${escapeHTML(resident.lessee)}<p>
         Occupation according to the original 1929 lease : <strong>${escapeHTML(resident.occupation)}</strong><br>
-        
-     <div> 
-	  `);
+      </div>
+    `);
+
     peopleMarkers.push(marker); // don't add to map yet
+
+    // Add marker to map and fade in
+    //marker.addTo(map);
+
+    setTimeout(() => {
+      marker.setStyle({ opacity: 1, fillOpacity: 1 });
+    }, 50 + i * 30); // stagger slightly
   });
 }
 
