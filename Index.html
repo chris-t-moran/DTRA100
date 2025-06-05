@@ -311,7 +311,7 @@ inactive {
 @media (max-width: 500px) {
 	
 	.leaflet-container {
-		height: 250px !important; /* Ensure the Leaflet map fills its container */
+		height: 1500px !important; /* Ensure the Leaflet map fills its container */
 		width: 100% !important; /* Ensure the Leaflet map fills the container */
 	
 		order:-1;
@@ -351,6 +351,47 @@ inactive {
 	font-weight:bold !important;
 	
 	}
+	
+	 html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+	
+	
+	 #map {
+      
+      top: 0;
+      bottom: 0;
+      width: 100%;
+      z-index: 1;
+    }
+
+    #content.draggable-content {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+      z-index: 2;
+      overflow-y: auto;
+      touch-action: none;
+      transition: top 0.3s ease;
+    }
+
+    #content::before {
+      content: "";
+      display: block;
+      width: 40px;
+      height: 5px;
+      background: #ccc;
+      border-radius: 3px;
+      margin: 10px auto;
+    }
+	
 	
 }
 
@@ -586,7 +627,7 @@ background-color:rgb(255,165,0, 0.6) !important;
 	<div id = "mainpage">
 	
 		
-		<div id = "content">
+		<div id = "content" class="draggable-content">
 		
 			<div id="head_logo">
 				<table>
@@ -629,6 +670,46 @@ background-color:rgb(255,165,0, 0.6) !important;
 		
 		
 		<script type="module">	
+		
+		const content = document.getElementById("content");
+    let startY, startTop, dragging = false;
+
+    content.addEventListener("touchstart", (e) => {
+      dragging = true;
+      startY = e.touches[0].clientY;
+      startTop = content.getBoundingClientRect().top;
+    });
+
+    content.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+
+      const deltaY = e.touches[0].clientY - startY;
+      let newTop = startTop + deltaY;
+      newTop = Math.max(80, Math.min(window.innerHeight - 100, newTop));
+      content.style.top = `${newTop}px`;
+    });
+
+    content.addEventListener("touchend", () => {
+      dragging = false;
+ 
+  // Snap to top or bottom based on position
+  //const threshold = window.innerHeight / 2;
+  //if (startY < threshold) {
+   // content.style.top = '0px'; // Fully expanded
+  //} else {
+  //  content.style.top = '60vh'; // Partially collapsed
+  //}
+
+  // Resize Leaflet map to fit new visible area
+  setTimeout(() => {
+    if (window.map && typeof window.map.invalidateSize === 'function') {
+      map.invalidateSize();
+    }
+  }, 300); // delay slightly to allow layout transition to finish
+});
+	
+	
+	
 		// Define custom icons for different themes
 		var icons = {};		
 		 // Define articles with coordinates, images, and themes
@@ -678,7 +759,20 @@ async function initMapAndPage() {
         })
     };
 
-    map = L.map('map').setView([53.37155, -6.25873], 16);
+    //map = L.map('map').setView([53.37155, -6.25873], 16);
+	
+	 const isMobile = window.innerWidth <= 500; // Adjust if needed
+
+    // Set different center and zoom based on device
+    const initialCenter = isMobile 
+        ? [53.35811545361238, -6.2603012741409065]   // Slightly shifted or zoomed-out for mobile
+        : [53.37155, -6.25873]; // Original desktop center
+
+    const initialZoom = isMobile ? 15 : 16;
+
+    map = L.map('map').setView(initialCenter, initialZoom);
+	
+	
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
