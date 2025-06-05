@@ -372,6 +372,7 @@ inactive {
       top: 50%;
       left: 0;
       right: 0;
+      height: 100%;
       background: white;
       border-top-left-radius: 12px;
       border-top-right-radius: 12px;
@@ -626,7 +627,7 @@ background-color:rgb(255,165,0, 0.6) !important;
 
 	<div id = "mainpage">
 	
-		
+	
 		<div id = "content" class="draggable-content">
 		
 			<div id="head_logo">
@@ -765,7 +766,7 @@ async function initMapAndPage() {
 
     // Set different center and zoom based on device
     const initialCenter = isMobile 
-        ? [53.35811545361238, -6.2603012741409065]   // Slightly shifted or zoomed-out for mobile
+        ? [53.35811545361238, -6.25944296723346]   // Slightly shifted or zoomed-out for mobile
         : [53.37155, -6.25873]; // Original desktop center
 
     const initialZoom = isMobile ? 15 : 16;
