@@ -436,8 +436,14 @@ img {
 }
 
 .fade-in {
-  opacity: 1;
-  transition: opacity 0.4s ease;
+  opacity: 0;
+  animation: fadeInAnim 0.6s ease forwards;
+}
+
+@keyframes fadeInAnim {
+  to {
+    opacity: 1;
+  }
 }
 
 .progress{
@@ -549,6 +555,20 @@ background-color: white;
 }
 
 
+.leaflet-interactive {
+  opacity: 0;
+  animation: fadeInMarker 1s ease-in-out forwards ;
+}
+
+
+
+.marker-cluster-small div{
+background-color:rgb(255,165,0, 0.6) !important;
+}
+
+.marker-cluster-small {
+    background-color: rgba(255, 165, 0, 0.2)!important;
+}
 
 @keyframes fadeInMarker {
   to {
@@ -658,7 +678,7 @@ async function initMapAndPage() {
         })
     };
 
-    map = L.map('map').setView([53.373, -6.259], 16);
+    map = L.map('map').setView([53.37155, -6.25873], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
@@ -707,6 +727,7 @@ map.addControl(new ResidentsToggleControl());
     maxClusterRadius: 40,
     showCoverageOnHover: false,
     spiderfyOnMaxZoom: true,
+	
 });
 	
 	
@@ -730,17 +751,19 @@ map.addControl(new ResidentsToggleControl());
     
 
     const circleMarker = L.circleMarker([article.lat, article.lon], {
-        radius: 6,
+        radius: 7,
         color: '#4CAF50', // or set based on theme
-        fillColor: '#4CAF50	',
+        fillColor: 'orange',
         fillOpacity: 0.8,
         weight: 1,
     });
 
    circleMarker.on('click', () => openModal(article));
 
-
+	//setTimeout(() => {
     articleMarkers.addLayer(circleMarker);
+    //}, 50 + i * 30); // stagger slightly
+    
 });
 
 map.addLayer(articleMarkers);
@@ -811,6 +834,7 @@ document.getElementById('map').classList.toggle('sepia');
     // Hide article markers, show people markers
     if (articleMarkers) map.removeLayer(articleMarkers);
     peopleMarkers.forEach(marker => marker.addTo(map));
+	
 
     button.innerHTML = 'Switch to Stories';
   }
@@ -837,7 +861,7 @@ async function loadResidents() {
       color: 'gold',
       weight: 1,
       opacity: 0,         // Start invisible
-      fillOpacity: 0      // Also start fill invisible
+      fillOpacity: 0     // Also start fill invisible
     })
     .bindPopup(`
       <div style="padding: 0px; background: #4CAF50;"><h2 style="color: white;">
@@ -852,10 +876,11 @@ async function loadResidents() {
 
     // Add marker to map and fade in
     //marker.addTo(map);
+	marker.setStyle({ opacity: 1, fillOpacity: 1 });
 
-    setTimeout(() => {
-      marker.setStyle({ opacity: 1, fillOpacity: 1 });
-    }, 50 + i * 30); // stagger slightly
+    //setTimeout(() => {
+    //  marker.setStyle({ opacity: 1, fillOpacity: 1 });
+    //}, 50 + i * 30); // stagger slightly
   });
 }
 
@@ -1135,6 +1160,7 @@ function showStoryFormPage() {
     img.style.width = '100%';
     img.style.height = '100%';
     img.style.objectFit = 'cover';
+	img.classList.add('fade-in');
     mapDiv.appendChild(img);
 
     
@@ -1177,41 +1203,52 @@ const container = document.getElementById("content");
 	
 	</div>
   `;
+	container.style.opacity = 0; // Optional: reset opacity before animation
+	container.classList.add('fade-in');
+
 
   // Now that the back button is in the DOM, attach the listener:
   const form = document.getElementById("story-form");
   const backButton = document.getElementById("back-button");
 
   if (backButton) {
-    backButton.addEventListener("click", () => {
+  backButton.addEventListener("click", () => {
+    document.body.classList.add("fade-out");
+    setTimeout(() => {
       window.location.replace(window.location.pathname);
-    });
-  }
+    }, 500); // match animation duration
+  });
+}
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const title = form.title.value.trim();
-    const description = form.description.value.trim();
-    const contributor = form.contributor.value.trim();
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-    const { error } = await supabaseClient.from('articles').insert([
-      {
-        title,
-        description,
-        short_desc: description.slice(0, 100) + '...',
-        contributor,
-        active: false
-      }
-    ]);
+  const title = form.title.value.trim();
+  const description = form.description.value.trim();
+  const contributor = form.contributor.value.trim();
 
-    if (error) {
-      alert('Error submitting your story. Please try again.');
-    } else {
+  const { error } = await supabaseClient.from('articles').insert([
+    {
+      title,
+      description,
+      short_desc: description.slice(0, 100) + '...',
+      contributor,
+      active: false
+    }
+  ]);
+
+  if (error) {
+    alert('Error submitting your story. Please try again.');
+  } else {
+    document.body.classList.add("fade-out");
+    setTimeout(() => {
       alert('Thank you for your story! It will be reviewed and added soon.');
       location.href = location.href;
       window.scrollTo(0, 0);
-    }
-  });
+    }, 500);
+  }
+});
+
 
 
     //articleSelect.appendChild(form);
@@ -1222,8 +1259,18 @@ const container = document.getElementById("content");
 
 // Start the app
 loadArticles();
-document.getElementById('share-story-btn').addEventListener('click', showStoryFormPage);
+//document.getElementById('share-story-btn').addEventListener('click', showStoryFormPage);
+document.getElementById('share-story-btn').addEventListener('click', function (e) {
+    e.preventDefault(); // Prevent immediate navigation
 
+    const pageContent = document.getElementById('content');
+    pageContent.classList.add('fade-out');
+
+    // Wait for the fade-out to complete before navigating
+    setTimeout(() => {
+      showStoryFormPage();
+    }, 600); // Match the duration in CSS
+  });
 
 
 
