@@ -368,20 +368,22 @@ inactive {
     }
 
     #content.draggable-content {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      right: 0;
-      height: 100%;
-      background: white;
-      border-top-left-radius: 12px;
-      border-top-right-radius: 12px;
-      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
-      z-index: 2;
-      overflow-y: auto;
-      touch-action: none;
-      transition: top 0.3s ease;
+  position: absolute;
+  top: 50%; /* or whatever your dragged top is */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  overflow-y: auto;          /* Enable vertical scroll */
+  -webkit-overflow-scrolling: touch;  /* Smooth scrolling for iOS */
+  padding: 1em;
+  z-index: 999;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
     }
+	
+	
+	
 
     #content::before {
       content: "";
@@ -675,12 +677,15 @@ background-color:rgb(255,165,0, 0.6) !important;
 		const content = document.getElementById("content");
     let startY, startTop, dragging = false;
 
-    content.addEventListener("touchstart", (e) => {
-      dragging = true;
-      startY = e.touches[0].clientY;
-      startTop = content.getBoundingClientRect().top;
-    });
-
+content.addEventListener('touchstart', (e) => {
+  if (e.target.closest('form') || e.target.closest('#content')) {
+    // Let the scroll happen naturally
+    return;
+  }
+  startY = e.touches[0].clientY;
+  contentTop = content.offsetTop;
+  isDragging = true;
+});
     content.addEventListener("touchmove", (e) => {
       if (!dragging) return;
 
