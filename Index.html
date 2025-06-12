@@ -318,7 +318,7 @@ inactive {
 	}
 	
 	
-	#head_logo {
+	#head_logo.draggable-content{
   cursor: grab;
   padding: 0.5em;
   background: #fff; /* Optional: visual cue */
@@ -378,7 +378,7 @@ inactive {
       z-index: 1;
     }
 
-    #content.draggable-content {
+    #content {
       position: absolute;
       top: 50%;
       left: 0;
@@ -639,9 +639,9 @@ background-color:rgb(255,165,0, 0.6) !important;
 	<div id = "mainpage">
 	
 	
-		<div id = "content" class="draggable-content">
+		<div id = "content" >
 		
-			<div id="head_logo">
+			<div id="head_logo" class="draggable-content">
 				<table>
 					<tr>	
 						<td><a href="https://drumcondratriangle.com/dtra100" class="icon"><img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost Icon to Homepage" style="width:150px;height:150px;"></a></td>
