@@ -698,11 +698,14 @@ dragHandle.addEventListener('touchstart', (e) => {
 
 window.addEventListener('touchmove', (e) => {
   if (!isDragging) return;
+
   const deltaY = e.touches[0].clientY - startY;
   const newTop = Math.min(Math.max(contentTop + deltaY, 100), window.innerHeight - 100);
   content.style.top = `${newTop}px`;
-  e.preventDefault(); // prevent scroll while dragging
-}, { passive: false });
+
+  // Only prevent default while actually dragging the handle
+  e.preventDefault();
+}, { passive: false }); // important: passive false to allow preventDefault
 
 window.addEventListener('touchend', () => {
   isDragging = false;
