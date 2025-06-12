@@ -316,6 +316,17 @@ inactive {
 	
 		order:-1;
 	}
+	
+	
+	#head_logo {
+  cursor: grab;
+  padding: 0.5em;
+  background: #fff; /* Optional: visual cue */
+  text-align: center;
+}
+	
+	
+	
 	#content{
 		order: 1; /* Display content below the map */
 		width: 100%; /* Ensure it takes the full width */
@@ -672,41 +683,29 @@ background-color:rgb(255,165,0, 0.6) !important;
 		
 		<script type="module">	
 		
-		const content = document.getElementById("content");
-    let startY, startTop, dragging = false;
+let isDragging = false;
+let startY = 0;
+let contentTop = 0;
 
-    content.addEventListener("touchstart", (e) => {
-      dragging = true;
-      startY = e.touches[0].clientY;
-      startTop = content.getBoundingClientRect().top;
-    });
+const content = document.getElementById('content');
+const dragHandle = document.getElementById('head_logo');
 
-    content.addEventListener("touchmove", (e) => {
-      if (!dragging) return;
+dragHandle.addEventListener('touchstart', (e) => {
+  isDragging = true;
+  startY = e.touches[0].clientY;
+  contentTop = content.offsetTop;
+});
 
-      const deltaY = e.touches[0].clientY - startY;
-      let newTop = startTop + deltaY;
-      newTop = Math.max(80, Math.min(window.innerHeight - 100, newTop));
-      content.style.top = `${newTop}px`;
-    });
+window.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+  const deltaY = e.touches[0].clientY - startY;
+  const newTop = Math.min(Math.max(contentTop + deltaY, 100), window.innerHeight - 100);
+  content.style.top = `${newTop}px`;
+  e.preventDefault(); // prevent scroll while dragging
+}, { passive: false });
 
-    content.addEventListener("touchend", () => {
-      dragging = false;
- 
-  // Snap to top or bottom based on position
-  //const threshold = window.innerHeight / 2;
-  //if (startY < threshold) {
-   // content.style.top = '0px'; // Fully expanded
-  //} else {
-  //  content.style.top = '60vh'; // Partially collapsed
-  //}
-
-  // Resize Leaflet map to fit new visible area
-  setTimeout(() => {
-    if (window.map && typeof window.map.invalidateSize === 'function') {
-      map.invalidateSize();
-    }
-  }, 300); // delay slightly to allow layout transition to finish
+window.addEventListener('touchend', () => {
+  isDragging = false;
 });
 	
 	
