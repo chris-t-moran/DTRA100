@@ -4,7 +4,7 @@
 	
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Triangle100 - 100 years of stories from the Drumcondra Triangle</title>
+    <title>DTRA100 - 100 years of stories from the Drumcondra Triangle</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 	<link rel="icon" type="image/x-icon" href="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/dtralogo_orig.png"> 
 	<style>
@@ -325,6 +325,7 @@ inactive {
 	
 	
 	#content{
+	will-change: transform;
 		order: 1; /* Display content below the map */
 		width: 100%; /* Ensure it takes the full width */
 		padding-left: 0px !important;
@@ -383,7 +384,7 @@ inactive {
       top: 50%;
       left: 0;
       right: 0;
-      height: 100%;
+      /*height: 100%;*/
       background: white;
       border-top-left-radius: 12px;
       border-top-right-radius: 12px;
@@ -391,20 +392,11 @@ inactive {
       z-index: 2;
       
       transition: top 0.3s ease;
-	  
 	    -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
     }
 
-    #content::before {
-      content: "";
-      display: block;
-      width: 40px;
-      height: 5px;
-      background: #ccc;
-      border-radius: 3px;
-      margin: 10px auto;
-    }
+   
 	
 	
 }
@@ -685,9 +677,14 @@ background-color:rgb(255,165,0, 0.6) !important;
 		
 		<script type="module">	
 		
+		
+		
+		const dragSensitivity = 1.2; // try values between 1.1 and 2.0
+
+		
 let isDragging = false;
 let startY = 0;
-let contentTop = 0;
+let startTransform = 0;
 
 const content = document.getElementById('content');
 const dragHandle = document.getElementById('head_logo');
@@ -695,15 +692,18 @@ const dragHandle = document.getElementById('head_logo');
 dragHandle.addEventListener('touchstart', (e) => {
   isDragging = true;
   startY = e.touches[0].clientY;
-  contentTop = content.offsetTop;
+
+  const transform = getComputedStyle(content).transform;
+  const match = transform.match(/matrix.*\((.+)\)/);
+  startTransform = match ? parseFloat(match[1].split(',')[5]) : 0;
 });
 
 window.addEventListener('touchmove', (e) => {
   if (!isDragging) return;
-  const deltaY = e.touches[0].clientY - startY;
-  const newTop = Math.min(Math.max(contentTop + deltaY, 100), window.innerHeight - 100);
-  content.style.top = `${newTop}px`;
-  e.preventDefault(); // prevent scroll while dragging
+
+  const deltaY = (e.touches[0].clientY - startY) * 1.2;
+  content.style.transform = `translateY(${startTransform + deltaY}px)`;
+  e.preventDefault();
 }, { passive: false });
 
 window.addEventListener('touchend', () => {
