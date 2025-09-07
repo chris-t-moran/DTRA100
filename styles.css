@@ -340,6 +340,18 @@ footer {
   white-space: nowrap;
 }
 
+/*
+ * Leaflet applies default dimensions and line-heights to control
+ * anchors (e.g. width/height of 26px).  Override these for our
+ * custom residents toggle button so it sizes itself to the text
+ * content.  Use !important to ensure it takes precedence.
+ */
+.leaflet-bar .residents-toggle-btn {
+  width: auto !important;
+  height: auto !important;
+  line-height: normal !important;
+}
+
 /* Fade animations */
 .fade-out {
   opacity: 0;
