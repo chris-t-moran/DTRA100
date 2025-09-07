@@ -376,6 +376,11 @@ footer {
     touch-action: pan-y;
     /* Enable scrolling within the panel on mobile */
     overflow-y: auto;
+    /* Extra padding at the bottom to ensure the last row of articles
+       is fully visible when scrolled to the end.  Without this
+       padding, the panel may reveal the map underneath before the
+       content has scrolled completely. */
+    padding-bottom: 80px;
   }
   /* Hide the pseudo-element handle on small screens; a dedicated
      element (#content-handle) is used instead so that touch events
