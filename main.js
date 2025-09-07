@@ -103,7 +103,7 @@ async function initMapAndPage() {
   // Determine map centre/zoom for mobile vs desktop
   const isMobile = window.innerWidth <= 500;
   const initialCenter = isMobile
-    ? [53.35811545361238, -6.25944296723346]
+    ? [53.36873328276553, -6.258910850717367]
     : [53.37155, -6.25873];
   const initialZoom = isMobile ? 15 : 16;
 
