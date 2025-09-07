@@ -377,16 +377,23 @@ footer {
     /* Enable scrolling within the panel on mobile */
     overflow-y: auto;
   }
-  /* Grab handle for the mobile panel */
+  /* Hide the pseudo-element handle on small screens; a dedicated
+     element (#content-handle) is used instead so that touch events
+     can be bound to the handle. */
   #content::before {
-    content: "-";
-    display: block;
+    display: none;
+  }
+
+  /* Visible drag handle for the content panel on mobile.  This
+     replicates the appearance of the original pseudo-element but as
+     a real DOM node so it can receive touch events. */
+  #content-handle {
     width: 40px;
     height: 5px;
     background: #ccc;
     border-radius: 3px;
-    margin: 10px auto;
-    color: white;
+    margin: 10px auto 5px auto;
+    cursor: grab;
   }
   #map {
     /* Make the map fill the entire viewport underneath the content */

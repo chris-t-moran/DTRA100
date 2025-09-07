@@ -383,6 +383,8 @@ function showStoryFormPage() {
       </a>
       <h1>Triangle&nbsp;100</h1>
     </header>
+    <!-- Drag handle replicating the desktop/mobile handle for the form view -->
+    <div id="content-handle" class="content-handle"></div>
     <section id="story-share">
       <h2>Share Your Story!</h2>
       <p style="text-align:justify;">
@@ -448,29 +450,62 @@ function showStoryFormPage() {
 
 // Set up drag-to-move behaviour on mobile for the content section
 // This replicates the original drag functionality using touch events.
+/*
+ * Enable drag-to-move on mobile screens.  The content panel is
+ * absolutely positioned with a CSS top and bottom; dragging adjusts
+ * the top value in pixels.  Both the logo header and the dedicated
+ * drag handle (#content-handle) act as handles.  The panel cannot
+ * move above the top of the viewport (top=0) or below a maximum
+ * threshold to prevent it disappearing off screen.  This behaviour
+ * replicates the original design where dragging down reveals more of
+ * the map and dragging up allows the content to cover the map.
+ */
 (function setupDrag() {
   const content = document.getElementById('content');
-  const dragHandle = document.getElementById('head_logo');
+  // Potential drag handles: the logo/header and the explicit handle element.
+  const handles = [];
+  const logo = document.getElementById('head_logo');
+  if (logo) handles.push(logo);
+  const handleEl = document.getElementById('content-handle');
+  if (handleEl) handles.push(handleEl);
+  if (handles.length === 0) return;
   let isDragging = false;
   let startY = 0;
-  let startTransform = 0;
+  let startTop = 0;
   const dragSensitivity = 1.2;
-  if (!dragHandle) return;
-  dragHandle.addEventListener('touchstart', (e) => {
-    isDragging = true;
-    startY = e.touches[0].clientY;
-    const transform = getComputedStyle(content).transform;
-    const match = transform.match(/matrix.*\((.+)\)/);
-    startTransform = match ? parseFloat(match[1].split(',')[5]) : 0;
+  handles.forEach((h) => {
+    h.addEventListener('touchstart', (e) => {
+      // Only engage dragging on mobile sizes
+      if (window.innerWidth > 500) return;
+      isDragging = true;
+      // Starting finger position
+      startY = e.touches[0].clientY;
+      // Starting top position of the content panel (in pixels)
+      startTop = content.getBoundingClientRect().top;
+      // Remove any transform so we can control top directly
+      content.style.transform = '';
+      // Temporarily disable internal scrolling during drag
+      content.style.overflowY = 'hidden';
+      // Prevent default to avoid selecting text
+      e.preventDefault();
+    });
   });
   window.addEventListener('touchmove', (e) => {
     if (!isDragging) return;
     const deltaY = (e.touches[0].clientY - startY) * dragSensitivity;
-    content.style.transform = `translateY(${startTransform + deltaY}px)`;
+    // Compute new top value in px
+    let newTop = startTop + deltaY;
+    // Clamp between 0 (cover map) and a maximum to prevent overscroll
+    const maxTop = window.innerHeight - 100; // leave at least 100px visible
+    if (newTop < 0) newTop = 0;
+    if (newTop > maxTop) newTop = maxTop;
+    content.style.top = `${newTop}px`;
     e.preventDefault();
   }, { passive: false });
   window.addEventListener('touchend', () => {
     isDragging = false;
+    // Restore scrollability once the drag ends
+    content.style.overflowY = 'auto';
   });
 })();
 
