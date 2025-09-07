@@ -54,7 +54,8 @@ async function loadArticles() {
     return;
   }
   state.articles = data;
-  initMapAndPage();
+  // Ensure the map and residents are fully initialised
+  await initMapAndPage();
 }
 
 // Fetch all active residents and prepare their markers (but do not
@@ -94,7 +95,7 @@ async function loadResidents() {
 // Map initialization & UI setup
 // -----------------------------------------------------------------------------
 
-function initMapAndPage() {
+async function initMapAndPage() {
   // Determine map centre/zoom for mobile vs desktop
   const isMobile = window.innerWidth <= 500;
   const initialCenter = isMobile
@@ -156,8 +157,9 @@ function initMapAndPage() {
   renderThemes(themes);
   // Filter to show all articles initially
   filterArticlesByCategory(null);
-  // Load resident markers (not yet added to map)
-  loadResidents();
+  // Load resident markers (not yet added to map).  Await to ensure markers
+  // are available before the user toggles between stories and residents.
+  await loadResidents();
 }
 
 // Create category buttons, including a "Lucky Dip" option
