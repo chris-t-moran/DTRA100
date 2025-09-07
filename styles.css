@@ -359,6 +359,8 @@ footer {
     background: white;
     position: absolute;
     top: 50%;
+    /* Extend the panel to the bottom of the viewport so overflow-y can take effect */
+    bottom: 0;
     left: 0;
     right: 0;
     border-top-left-radius: 12px;
