@@ -356,7 +356,6 @@ footer {
     order: 1;
     width: 100%;
     padding: 20px;
-    -webkit-overflow-scrolling: touch;
     background: white;
     position: absolute;
     top: 50%;
@@ -365,10 +364,33 @@ footer {
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+    /* Smooth animation for sliding the panel */
+    transition: top 0.3s ease;
+    /* Allow the GPU to optimise transforms during dragging */
+    will-change: transform;
+    /* Enable smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  /* Grab handle for the mobile panel */
+  #content::before {
+    content: "-";
+    display: block;
+    width: 40px;
+    height: 5px;
+    background: #ccc;
+    border-radius: 3px;
+    margin: 10px auto;
+    color: white;
   }
   #map {
-    height: 1500px !important;
-    width: 100% !important;
+    /* Make the map fill the entire viewport underneath the content */
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    z-index: 1;
   }
   #themes .theme {
     font-weight: bold;

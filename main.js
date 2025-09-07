@@ -29,7 +29,7 @@ const state = {
 };
 
 // HTML helpers
-function escapeHTML(str) {
+function htmlEscape(str) {
   // Coerce non‑string values to strings.  If str is null or undefined, return
   // an empty string.  Numbers and booleans will be cast to their string
   // representation before escaping.
@@ -83,11 +83,11 @@ async function loadResidents() {
       opacity: 1,
       fillOpacity: 1
     }).bindPopup(
-      `<div style="padding:0; background:#4caf50;"><h2 style="color:white;">A Triangle 100 First Resident</h2><h3 style="color:white;">${escapeHTML(
+      `<div style="padding:0; background:#4caf50;"><h2 style="color:white;">A Triangle 100 First Resident</h2><h3 style="color:white;">${htmlEscape(
         resident.housenumber
-      )} ${escapeHTML(resident.road)}</h3></div><div style="background:#4caf50;color:white;"><strong>Name :</strong> ${escapeHTML(
+      )} ${htmlEscape(resident.road)}</h3></div><div style="background:#4caf50;color:white;"><strong>Name :</strong> ${htmlEscape(
         resident.lessee
-      )}<br>Occupation according to the original 1929 lease : <strong>${escapeHTML(
+      )}<br>Occupation according to the original 1929 lease : <strong>${htmlEscape(
         resident.occupation
       )}</strong></div>`
     );
@@ -236,8 +236,8 @@ function filterArticlesByCategory(theme) {
     link.addEventListener('click', () => openModal(article));
     // Build card inner HTML
     link.innerHTML = `
-      <img src="${article.img}" alt="${escapeHTML(article.title)}" />
-      <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${escapeHTML(article.title)}</div>
+      <img src="${article.img}" alt="${htmlEscape(article.title)}" />
+      <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${htmlEscape(article.title)}</div>
     `;
     listItem.appendChild(link);
     grid.appendChild(listItem);
