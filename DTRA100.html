@@ -4,7 +4,7 @@
 	
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DTRA100 - 100 years of stories from the Drumcondra Triangle</title>
+    <title>Triangle100 - 100 years of stories from the Drumcondra Triangle</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 	<link rel="icon" type="image/x-icon" href="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/dtralogo_orig.png"> 
 	<style>
@@ -311,17 +311,29 @@ inactive {
 @media (max-width: 500px) {
 	
 	.leaflet-container {
-		height: 250px !important; /* Ensure the Leaflet map fills its container */
+		height: 1500px !important; /* Ensure the Leaflet map fills its container */
 		width: 100% !important; /* Ensure the Leaflet map fills the container */
 	
 		order:-1;
 	}
+	
+	
+#head_logo {
+  touch-action: none; /* block gestures here for drag */
+}
+	
+	
+	
 	#content{
+	will-change: transform;
+		font-weight:200;
 		order: 1; /* Display content below the map */
 		width: 100%; /* Ensure it takes the full width */
 		padding-left: 0px !important;
 		padding-right: 0px !important;
-		padding-top: 20px;
+		  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+		
 	}
 	#mainpage{
 		display:grid;
@@ -342,15 +354,57 @@ inactive {
 	.card .overlay{
 		font-weight:bold !important;
 	}
-	
-	#content{
-		font-weight:bold !important;
-	}
+
 	
 	#article-list p{
 	font-weight:bold !important;
 	
 	}
+	
+	 html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+	
+	
+	 #map {
+      
+      top: 0;
+      bottom: 0;
+      width: 100%;
+      z-index: 1;
+    }
+
+    #content {
+	font-weight:200;
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      /*height: 100%;*/
+      background: white;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+      z-index: 2;
+      
+      transition: top 0.3s ease;
+	    -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+    }
+
+    #content::before {
+      content: "-";
+      display: block;
+      width: 40px;
+      height: 5px;
+      background: #ccc;
+      border-radius: 3px;
+      margin: 10px auto;
+	  color:white;
+    }
+	
 	
 }
 
@@ -585,10 +639,10 @@ background-color:rgb(255,165,0, 0.6) !important;
 
 	<div id = "mainpage">
 	
+	
+		<div id = "content" >
 		
-		<div id = "content">
-		
-			<div id="head_logo">
+			<div id="head_logo" class="draggable-content">
 				<table>
 					<tr>	
 						<td><a href="https://drumcondratriangle.com/dtra100" class="icon"><img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost Icon to Homepage" style="width:150px;height:150px;"></a></td>
@@ -604,9 +658,9 @@ background-color:rgb(255,165,0, 0.6) !important;
 				<p style="text-align:justify;">
 				Welcome to this celebration of one of Ireland's first social housing estates. In the lead up to 2028, the Drumcondra Scheme's centenary year, local citizen historians (or neighbours as they are also known!) continue the task of discovering more about our communities's rich history, it's people and their <i>ordinary</i> lives. 
 				<p style="text-align:justify;">
-				We hope to exhibit the influence of it's residents over last 100 years upon the Drumcondra Triangle, a place we are all proud to call home.
+				Travel back in time to meet the first residents of 1929 and explore the stories and curiousities of 100 years of the Drumcondra Triangle, a place we are all proud to call home.
 			
-				<h1>Click on the map, or search below to explore.</h1> 
+				<h1>Click on the map to view the Triangle's first residents or explore it's stories below.</h1> 
 			
 			</div>
 			
@@ -629,6 +683,42 @@ background-color:rgb(255,165,0, 0.6) !important;
 		
 		
 		<script type="module">	
+		
+		
+		
+		const dragSensitivity = 1.2; // try values between 1.1 and 2.0
+
+		
+let isDragging = false;
+let startY = 0;
+let startTransform = 0;
+
+const content = document.getElementById('content');
+const dragHandle = document.getElementById('head_logo');
+
+dragHandle.addEventListener('touchstart', (e) => {
+  isDragging = true;
+  startY = e.touches[0].clientY;
+
+  const transform = getComputedStyle(content).transform;
+  const match = transform.match(/matrix.*\((.+)\)/);
+  startTransform = match ? parseFloat(match[1].split(',')[5]) : 0;
+});
+
+window.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+
+  const deltaY = (e.touches[0].clientY - startY) * 1.2;
+  content.style.transform = `translateY(${startTransform + deltaY}px)`;
+  e.preventDefault();
+}, { passive: false });
+
+window.addEventListener('touchend', () => {
+  isDragging = false;
+});
+	
+	
+	
 		// Define custom icons for different themes
 		var icons = {};		
 		 // Define articles with coordinates, images, and themes
@@ -678,7 +768,20 @@ async function initMapAndPage() {
         })
     };
 
-    map = L.map('map').setView([53.37155, -6.25873], 16);
+    //map = L.map('map').setView([53.37155, -6.25873], 16);
+	
+	 const isMobile = window.innerWidth <= 500; // Adjust if needed
+
+    // Set different center and zoom based on device
+    const initialCenter = isMobile 
+        ? [53.35811545361238, -6.25944296723346]   // Slightly shifted or zoomed-out for mobile
+        : [53.37155, -6.25873]; // Original desktop center
+
+    const initialZoom = isMobile ? 15 : 16;
+
+    map = L.map('map').setView(initialCenter, initialZoom);
+	
+	
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
