@@ -157,6 +157,16 @@ async function initMapAndPage() {
   });
   state.map.addLayer(state.articleMarkers);
 
+  // Expose the map and application state globally so that developers
+  // can inspect or modify them via the browser console.  For example,
+  // you can call `triMap.setView([lat, lon], zoom)` from DevTools to
+  // experiment with different centre coordinates or zoom levels on
+  // mobile.  Attaching these objects to the `window` object does not
+  // affect normal usage but makes them reachable outside of this
+  // module scope.
+  window.triMap = state.map;
+  window.triState = state;
+
   // Render category buttons
   renderThemes(themes);
   // Filter to show all articles initially
