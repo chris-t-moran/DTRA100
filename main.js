@@ -1,0 +1,482 @@
+// Main application logic for Triangle100
+// The code here initializes the map, loads data from Supabase,
+// renders story categories and article cards, displays modals, and
+// handles the story submission form.  It is designed to mirror the
+// functionality of the original single–file page while improving
+// organisation and readability.
+
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// -----------------------------------------------------------------------------
+// Configuration
+// -----------------------------------------------------------------------------
+
+// NOTE: exposing API keys in client‑side code is insecure.  Consider
+// proxying requests through a backend service or using environment
+// variables during the build process.
+const supabaseUrl = 'https://vqkoapgiozhytoqscxxx.supabase.co';
+const supabaseKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxa29hcGdpb3poeXRvcXNjeHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NjEzMjIsImV4cCI6MjA2MTIzNzMyMn0.z4h2_uY-VlprsvaRZElh3ZOiGHG-fpGHO5rd7Y2nssY';
+const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+// Global application state
+const state = {
+  articles: [],
+  peopleMarkers: [],
+  articleMarkers: null,
+  map: null,
+  activeTheme: null
+};
+
+// HTML helpers
+function escapeHTML(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// -----------------------------------------------------------------------------
+// Data loading
+// -----------------------------------------------------------------------------
+
+// Fetch all active articles from Supabase and kick off map/page setup.
+async function loadArticles() {
+  const { data, error } = await supabaseClient
+    .from('articles')
+    .select('*')
+    .eq('active', true);
+  if (error) {
+    console.error('Error fetching articles:', error);
+    return;
+  }
+  state.articles = data;
+  initMapAndPage();
+}
+
+// Fetch all active residents and prepare their markers (but do not
+// automatically add to the map).  People markers are stored in
+// state.peopleMarkers and toggled via the residents toggle button.
+async function loadResidents() {
+  const { data: residents, error } = await supabaseClient
+    .from('residents')
+    .select('*')
+    .eq('active', true);
+  if (error) {
+    console.error('Error fetching residents:', error);
+    return;
+  }
+  residents.forEach((resident) => {
+    const marker = L.circleMarker([resident.lat, resident.lon], {
+      radius: 7,
+      fillColor: '#4caf50',
+      color: 'gold',
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 1
+    }).bindPopup(
+      `<div style="padding:0; background:#4caf50;"><h2 style="color:white;">A Triangle 100 First Resident</h2><h3 style="color:white;">${escapeHTML(
+        resident.housenumber
+      )} ${escapeHTML(resident.road)}</h3></div><div style="background:#4caf50;color:white;"><strong>Name :</strong> ${escapeHTML(
+        resident.lessee
+      )}<br>Occupation according to the original 1929 lease : <strong>${escapeHTML(
+        resident.occupation
+      )}</strong></div>`
+    );
+    state.peopleMarkers.push(marker);
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Map initialization & UI setup
+// -----------------------------------------------------------------------------
+
+function initMapAndPage() {
+  // Determine map centre/zoom for mobile vs desktop
+  const isMobile = window.innerWidth <= 500;
+  const initialCenter = isMobile
+    ? [53.35811545361238, -6.25944296723346]
+    : [53.37155, -6.25873];
+  const initialZoom = isMobile ? 15 : 16;
+
+  // Create map
+  state.map = L.map('map').setView(initialCenter, initialZoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(state.map);
+
+  // Residents toggle control
+  const ResidentsToggleControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      const button = L.DomUtil.create('a', '', container);
+      button.className = 'residents-toggle-btn';
+      button.href = '#';
+      button.innerHTML = 'Switch to 1929';
+      button.title = 'Show/Hide First Residents';
+      L.DomEvent.on(button, 'click', function (e) {
+        L.DomEvent.stopPropagation(e);
+        L.DomEvent.preventDefault(e);
+        togglePeopleMarkers(button);
+      });
+      return container;
+    }
+  });
+  state.map.addControl(new ResidentsToggleControl());
+
+  // Prepare article marker cluster group
+  state.articleMarkers = L.markerClusterGroup({
+    maxClusterRadius: 40,
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: true
+  });
+
+  // Group articles by theme and create markers
+  const themes = {};
+  state.articles.forEach((article) => {
+    themes[article.theme] = themes[article.theme] || [];
+    themes[article.theme].push(article);
+    const marker = L.circleMarker([article.lat, article.lon], {
+      radius: 7,
+      color: '#4caf50',
+      fillColor: 'orange',
+      fillOpacity: 0.8,
+      weight: 1
+    });
+    marker.on('click', () => openModal(article));
+    state.articleMarkers.addLayer(marker);
+  });
+  state.map.addLayer(state.articleMarkers);
+
+  // Render category buttons
+  renderThemes(themes);
+  // Filter to show all articles initially
+  filterArticlesByCategory(null);
+  // Load resident markers (not yet added to map)
+  loadResidents();
+}
+
+// Create category buttons, including a "Lucky Dip" option
+function renderThemes(themes) {
+  const themesDiv = document.getElementById('themes');
+  themesDiv.innerHTML = '';
+  Object.keys(themes).forEach((theme) => {
+    const item = document.createElement('div');
+    item.className = 'theme';
+    item.textContent = theme;
+    item.addEventListener('click', () => {
+      if (state.activeTheme === theme) {
+        state.activeTheme = null;
+        filterArticlesByCategory(null);
+        setActiveCategory(null);
+      } else {
+        state.activeTheme = theme;
+        filterArticlesByCategory(theme);
+        setActiveCategory(theme);
+      }
+    });
+    themesDiv.appendChild(item);
+  });
+  // Lucky Dip button
+  const lucky = document.createElement('div');
+  lucky.className = 'theme';
+  lucky.textContent = 'Lucky Dip!';
+  lucky.style.background = 'gold';
+  lucky.addEventListener('click', () => {
+    state.activeTheme = null;
+    filterArticlesByCategory('Random');
+    setActiveCategory(null);
+  });
+  themesDiv.appendChild(lucky);
+}
+
+// Highlight the active category button
+function setActiveCategory(theme) {
+  const items = document.querySelectorAll('#themes .theme');
+  items.forEach((item) => item.classList.remove('active'));
+  if (theme) {
+    const activeItem = Array.from(items).find(
+      (item) => item.textContent === theme
+    );
+    if (activeItem) activeItem.classList.add('active');
+  }
+}
+
+// Build the article grid based on the selected category or "Random"
+function filterArticlesByCategory(theme) {
+  const articleList = document.getElementById('article-list');
+  articleList.innerHTML = '';
+  // Random selection triggers a modal on a random article and exits
+  if (theme && theme.toLowerCase() === 'random') {
+    const randomArticle = state.articles[Math.floor(Math.random() * state.articles.length)];
+    openModal(randomArticle);
+    return;
+  }
+  // Determine which articles to display
+  const filtered = !theme || theme.toLowerCase() === 'all'
+    ? state.articles
+    : state.articles.filter((a) => a.theme === theme);
+  const grid = document.createElement('ul');
+  grid.className = 'grid';
+  filtered.forEach((article) => {
+    const listItem = document.createElement('li');
+    listItem.className = 'card';
+    const link = document.createElement('a');
+    link.href = 'javascript:void(0)';
+    link.addEventListener('click', () => openModal(article));
+    // Build card inner HTML
+    link.innerHTML = `
+      <img src="${article.img}" alt="${escapeHTML(article.title)}" />
+      <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${escapeHTML(article.title)}</div>
+    `;
+    listItem.appendChild(link);
+    grid.appendChild(listItem);
+  });
+  articleList.appendChild(grid);
+}
+
+// Toggle the visibility of story markers vs resident markers
+function togglePeopleMarkers(button) {
+  const visible =
+    state.peopleMarkers.length > 0 && state.map.hasLayer(state.peopleMarkers[0]);
+  const mapEl = document.getElementById('map');
+  // toggle sepia filter
+  mapEl.classList.toggle('sepia');
+  if (visible) {
+    // hide residents, show articles
+    state.peopleMarkers.forEach((m) => state.map.removeLayer(m));
+    if (state.articleMarkers) state.map.addLayer(state.articleMarkers);
+    button.innerHTML = 'Switch to 1929';
+  } else {
+    // hide articles, show residents
+    if (state.articleMarkers) state.map.removeLayer(state.articleMarkers);
+    state.peopleMarkers.forEach((m) => m.addTo(state.map));
+    button.innerHTML = 'Switch to Stories';
+  }
+}
+
+// Create and display a modal for a given article
+function openModal(article) {
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  // Create modal content wrapper
+  const content = document.createElement('div');
+  content.className = 'modal-content';
+  // Header section with title and short description
+  const header = document.createElement('header');
+  const title = document.createElement('h2');
+  title.textContent = article.title || '';
+  const shortDesc = document.createElement('h3');
+  shortDesc.textContent = article.short_desc || '';
+  header.appendChild(title);
+  header.appendChild(shortDesc);
+  // Image wrapper
+  const imgWrapper = document.createElement('div');
+  imgWrapper.className = 'imgWrapper';
+  const image = document.createElement('img');
+  image.src = article.img || '';
+  image.alt = article.title || '';
+  imgWrapper.appendChild(image);
+  // Description container with progress bar
+  const descriptionWrapper = document.createElement('div');
+  descriptionWrapper.className = 'descriptionWrapper';
+  // Progress bar (sticky)
+  const progressBar = document.createElement('div');
+  progressBar.className = 'progress-bar';
+  descriptionWrapper.appendChild(progressBar);
+  // Description content
+  const description = document.createElement('div');
+  description.innerHTML = (article.description || '').replace(/\n/g, '<br>');
+  descriptionWrapper.appendChild(description);
+  // Footer with contributor
+  const footer = document.createElement('footer');
+  footer.textContent = `Shared by: ${article.contributor || ''}`;
+  // Assemble modal
+  content.appendChild(header);
+  content.appendChild(imgWrapper);
+  content.appendChild(descriptionWrapper);
+  content.appendChild(footer);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+  // Animate show after small delay
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 100);
+  // Clicking outside content closes modal
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal);
+    }
+  });
+  // Update progress bar on scroll
+  descriptionWrapper.addEventListener('scroll', () => {
+    const scrollTop = descriptionWrapper.scrollTop;
+    const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
+    const percent = (scrollTop / scrollHeight) * 100;
+    progressBar.style.width = `${percent}%`;
+  });
+  // Swap image on scroll markers
+  descriptionWrapper.addEventListener('scroll', () => {
+    const markers = descriptionWrapper.querySelectorAll('.image-change');
+    let lastPassed = null;
+    markers.forEach((marker) => {
+      const rect = marker.getBoundingClientRect();
+      const wrapperRect = descriptionWrapper.getBoundingClientRect();
+      if (rect.top - wrapperRect.top <= 50) {
+        lastPassed = marker;
+      }
+    });
+    if (lastPassed) {
+      const newImg = lastPassed.getAttribute('data-img');
+      if (newImg && image.src !== newImg) {
+        // Fade out image
+        image.classList.add('fade-out');
+        setTimeout(() => {
+          image.src = newImg;
+          setTimeout(() => {
+            image.classList.remove('fade-out');
+            image.classList.add('fade-in');
+          }, 50);
+        }, 300);
+        setTimeout(() => {
+          image.classList.remove('fade-in');
+        }, 700);
+      }
+    }
+  });
+}
+
+// Render the story submission form and replace the map when the user
+// clicks the "Get involved" button.  This function also wires up
+// submission handling and the back button.
+function showStoryFormPage() {
+  // Scroll to top of page
+  window.scrollTo(0, 0);
+  // Replace map with a static image for the form
+  const mapDiv = document.getElementById('map');
+  mapDiv.innerHTML = '';
+  const img = document.createElement('img');
+  img.src =
+    'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/lillian-37walshroad-1937_orig.jpg';
+  img.style.width = '100%';
+  img.style.height = '100%';
+  img.style.objectFit = 'cover';
+  img.classList.add('fade-in');
+  mapDiv.appendChild(img);
+  // Build the form inside content
+  const container = document.getElementById('content');
+  container.innerHTML = `
+    <header id="head_logo" class="draggable-content">
+      <a href="https://drumcondratriangle.com/dtra100" class="icon" title="Return to the home page">
+        <img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost ‒ link to homepage" width="150" height="150" />
+      </a>
+      <h1>Triangle&nbsp;100</h1>
+    </header>
+    <section id="story-share">
+      <h2>Share Your Story!</h2>
+      <p style="text-align:justify;">
+        We hope you are enjoying some of the wonderful stories that have been discovered about our neighbourhood. Behind every hall door there is a story to share so please get involved and share your memories of the people, places and things that make the Drumcondra Triangle such a wonderful place to live.
+      </p>
+    </section>
+    <div id="submission-form" style="max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;">
+      <form id="story-form">
+        <label for="title" style="display:block;margin-top:1em;">Story Title:</label>
+        <input name="title" placeholder="e.g. Life on O'Daly Road" required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
+        <label for="contributor" style="display:block;margin-top:1em;">Your Email Address:</label>
+        <input name="contributor" placeholder="e.g. harry@brainesgarages.com" style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
+        <label for="description" style="display:block;margin-top:1em;">Your Story:</label>
+        <textarea name="description" placeholder="Your memories of people, places, traditions and memorable events." required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;"></textarea>
+        <button type="submit" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Submit</button>
+        <button id="back-button" type="button" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Back</button>
+      </form>
+    </div>
+  `;
+  container.style.opacity = 0;
+  container.classList.add('fade-in');
+  // Attach event listeners after injecting the form
+  const form = document.getElementById('story-form');
+  const backButton = document.getElementById('back-button');
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      document.body.classList.add('fade-out');
+      setTimeout(() => {
+        window.location.replace(window.location.pathname);
+      }, 500);
+    });
+  }
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = form.title.value.trim();
+    const description = form.description.value.trim();
+    const contributor = form.contributor.value.trim();
+    const { error } = await supabaseClient.from('articles').insert([
+      {
+        title,
+        description,
+        short_desc: description.slice(0, 100) + '...',
+        contributor,
+        active: false
+      }
+    ]);
+    if (error) {
+      alert('Error submitting your story. Please try again.');
+    } else {
+      document.body.classList.add('fade-out');
+      setTimeout(() => {
+        alert('Thank you for your story! It will be reviewed and added soon.');
+        location.href = location.href;
+        window.scrollTo(0, 0);
+      }, 500);
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Event listeners and init
+// -----------------------------------------------------------------------------
+
+// Set up drag-to-move behaviour on mobile for the content section
+// This replicates the original drag functionality using touch events.
+(function setupDrag() {
+  const content = document.getElementById('content');
+  const dragHandle = document.getElementById('head_logo');
+  let isDragging = false;
+  let startY = 0;
+  let startTransform = 0;
+  const dragSensitivity = 1.2;
+  if (!dragHandle) return;
+  dragHandle.addEventListener('touchstart', (e) => {
+    isDragging = true;
+    startY = e.touches[0].clientY;
+    const transform = getComputedStyle(content).transform;
+    const match = transform.match(/matrix.*\((.+)\)/);
+    startTransform = match ? parseFloat(match[1].split(',')[5]) : 0;
+  });
+  window.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const deltaY = (e.touches[0].clientY - startY) * dragSensitivity;
+    content.style.transform = `translateY(${startTransform + deltaY}px)`;
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', () => {
+    isDragging = false;
+  });
+})();
+
+// Attach click handler for the share story button
+document.getElementById('share-story-btn').addEventListener('click', (e) => {
+  e.preventDefault();
+  const pageContent = document.getElementById('content');
+  pageContent.classList.add('fade-out');
+  setTimeout(() => {
+    showStoryFormPage();
+  }, 600);
+});
+
+// Kick off loading the site
+loadArticles();

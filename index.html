@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Triangle100 ‒ 100&nbsp;years of stories from the Drumcondra Triangle</title>
+
+  <!-- Global styles for the site -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Leaflet CSS & marker cluster CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
+  />
+
+  <!-- Favicon for the site -->
+  <link
+    rel="icon"
+    type="image/png"
+    href="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/dtralogo_orig.png"
+  />
+</head>
+
+<body>
+  <div id="mainpage">
+    <!-- Sidebar / content section -->
+    <section id="content" aria-label="Site content">
+      <!-- Logo and heading -->
+      <header id="head_logo" class="draggable-content">
+        <a
+          href="https://drumcondratriangle.com/dtra100"
+          class="icon"
+          title="Return to the home page"
+        >
+          <img
+            src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png"
+            alt="Hardiman Road Lamppost ‒ link to homepage"
+            width="150"
+            height="150"
+          />
+        </a>
+        <h1>Triangle&nbsp;100</h1>
+      </header>
+
+      <!-- Introductory text -->
+      <section id="intro">
+        <blockquote>
+          History is inclined to focus on the extraordinary, but the
+          extraordinary is <i>only</i> extraordinary. The ordinary, because it
+          leaves no trace behind it, is precious.
+        </blockquote>
+        <em>Dermot&nbsp;Bolger (Ferguson&nbsp;Road, Sunday&nbsp;Press&nbsp;1991)</em>
+        <p>
+          Welcome to this celebration of one of Ireland's first social housing
+          estates. In the lead up to&nbsp;2028, the Drumcondra Scheme's centenary
+          year, local citizen historians (or neighbours as they are also known!)
+          continue the task of discovering more about our communities's rich
+          history, its people and their <i>ordinary</i> lives.
+        </p>
+        <p>
+          Travel back in time to meet the first residents of&nbsp;1929 and
+          explore the stories and curiosities of&nbsp;100&nbsp;years of the
+          Drumcondra Triangle, a place we are all proud to call home.
+        </p>
+        <h2>Click on the map to view the Triangle's first residents or explore its stories below.</h2>
+      </section>
+
+      <!-- Theme/category buttons will be injected here -->
+      <nav id="themes" aria-label="Story categories"></nav>
+
+      <!-- Share your story button -->
+      <button
+        id="share-story-btn"
+        class="btn-share"
+        title="Get involved and share your story"
+        type="button"
+      >
+        Get&nbsp;Involved and Share&nbsp;Your&nbsp;Story!
+      </button>
+
+      <!-- Article listing will be injected here -->
+      <section id="article-list" aria-live="polite"></section>
+    </section>
+
+    <!-- Map container -->
+    <section id="map" aria-label="Interactive map"></section>
+  </div>
+
+  <!-- Leaflet and marker cluster scripts -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+  <!-- Main application module -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>

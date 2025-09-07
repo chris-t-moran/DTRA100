@@ -1,0 +1,382 @@
+/* Base resets */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Moderat, sans-serif;
+  overflow: hidden;
+  color: #4caf50;
+}
+
+/* Layout containers */
+#mainpage {
+  display: flex;
+  height: 100vh;
+  margin: 0;
+  flex-direction: row;
+  background: #fff;
+}
+
+#content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 570px;
+  background-color: #ffffff;
+  padding: 20px 50px 10px 80px;
+  overflow-y: auto;
+  font-weight: 100;
+}
+
+#map {
+  flex: 1;
+  height: 100vh;
+  transition: filter 0.5s ease-in-out;
+}
+
+/* Draggable logo header */
+#head_logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  touch-action: none;
+}
+
+#head_logo h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+/* Introductory section */
+#intro {
+  margin-bottom: 1.5rem;
+}
+
+#intro blockquote {
+  background: #f9f9f9;
+  border-left: 2px solid #ccc;
+  margin: 0.5em 0;
+  padding: 0.5em 10px;
+  font-style: normal;
+  position: relative;
+}
+
+#intro blockquote::before {
+  content: open-quote;
+  color: #ccc;
+  font-size: 3rem;
+  line-height: 0;
+  margin-right: 0.25em;
+  position: absolute;
+  left: -0.25em;
+  top: -0.25em;
+}
+
+#intro p {
+  text-align: justify;
+  margin: 0.8rem 0;
+  font-weight: 200;
+}
+
+#intro h2 {
+  font-size: 1.5em;
+  margin: 1rem 0 0;
+  color: #4caf50;
+}
+
+/* Theme/category buttons */
+#themes {
+  width: 100%;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.theme {
+  display: inline-block;
+  margin-right: 0;
+  padding: 5px 10px;
+  background-color: #4caf50;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  user-select: none;
+}
+
+.theme.active {
+  background-color: #1cfc66;
+}
+
+/* Share your story button */
+.btn-share {
+  margin-top: 1rem;
+  padding: 0.75em 1.5em;
+  background-color: orange;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Article listing */
+#article-list {
+  width: 100%;
+  max-width: 570px;
+}
+
+#article-list ul.grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.card {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+  background: #fff;
+}
+
+.card:hover {
+  transform: scale(1.05);
+}
+
+.card img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+}
+
+.overlay,
+.inactiveoverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 5px;
+  font-size: 0.8rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay {
+  background: #4caf50;
+  color: #fff;
+}
+
+.inactiveoverlay {
+  background: red;
+  color: #fff;
+}
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #ffffff;
+  width: 90%;
+  max-width: 500px;
+  overflow-y: auto;
+  border-radius: 10px;
+  position: relative;
+  text-align: center;
+  animation: modalFadeIn 0.4s ease forwards;
+}
+
+@keyframes modalFadeIn {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-content header {
+  padding: 0.5rem;
+  background: #4caf50;
+  color: #ffffff;
+}
+
+.modal-content header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.modal-content header h3 {
+  margin: 0.3rem 0;
+  font-size: 1rem;
+}
+
+.imgWrapper {
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9f9f9;
+  position: relative;
+}
+
+.imgWrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.5s ease;
+  border-radius: 8px;
+}
+
+.imgWrapper:hover img {
+  transform: scale(1.1);
+}
+
+.descriptionWrapper {
+  background-color: #ffffff;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 10px;
+  text-align: justify;
+  scrollbar-width: none;
+  padding: 25px;
+}
+
+.descriptionWrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.progress-bar {
+  height: 4px;
+  width: 0%;
+  background-color: #4caf50;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  transition: width 0.25s ease;
+}
+
+footer {
+  background: #4caf50;
+  color: #ffffff;
+  font-size: 0.9rem;
+  height: 20px;
+  padding: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Residents toggle button */
+.residents-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 150px;
+  height: 30px;
+  background: #4caf50;
+  border: 1px solid gold;
+  border-radius: 4px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* Fade animations */
+.fade-out {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeInAnim 0.6s ease forwards;
+}
+
+@keyframes fadeInAnim {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Marker clusters custom colours */
+.marker-cluster-small div {
+  background-color: rgba(255, 165, 0, 0.6) !important;
+}
+
+.marker-cluster-small {
+  background-color: rgba(255, 165, 0, 0.2) !important;
+}
+
+/* Sepia filter when toggling people markers */
+#map.sepia {
+  filter: sepia(0.6);
+}
+
+/* Responsive adjustments */
+@media (max-width: 500px) {
+  #mainpage {
+    display: grid;
+  }
+  #content {
+    order: 1;
+    width: 100%;
+    padding: 20px;
+    -webkit-overflow-scrolling: touch;
+    background: white;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+  }
+  #map {
+    height: 1500px !important;
+    width: 100% !important;
+  }
+  #themes .theme {
+    font-weight: bold;
+  }
+  .card .overlay {
+    font-weight: bold;
+  }
+  #article-list p {
+    font-weight: bold;
+  }
+}
