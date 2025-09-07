@@ -62,10 +62,17 @@ body {
    neutral dark colour and regular font weight so that the text in
    the introduction reads like the body text inside modals.  The h2
    heading retains its distinctive colour defined separately. */
+/* Colour all intro text (including blockquotes and italics) with the
+   brand green and adjust weights.  Paragraphs use a slightly
+   heavier weight (500) per request.  Blockquotes and italic text
+   retain the normal weight (400). */
+#intro p {
+  color: #4caf50;
+  font-weight: 500;
+}
 #intro blockquote,
-#intro p,
 #intro em {
-  color: #222;
+  color: #4caf50;
   font-weight: 400;
 }
 
@@ -314,18 +321,23 @@ footer {
 
 /* Residents toggle button */
 .residents-toggle-btn {
-  display: flex;
+  /* Style the map toggle button to match the intro text.  Use the
+     brand green for the background with white lettering, and apply
+     the same font weight (500) as the intro paragraphs.  Remove the
+     fixed width so the button sizes to its text content.  Add some
+     padding for readability and drop the coloured border. */
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 150px;
-  height: 30px;
   background: #4caf50;
-  border: 1px solid gold;
+  color: #ffffff;
+  font-weight: 500;
+  border: none;
   border-radius: 4px;
-  color: white;
-  font-weight: bold;
+  padding: 0.3em 0.7em;
   cursor: pointer;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 /* Fade animations */
