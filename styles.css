@@ -58,6 +58,18 @@ body {
   margin-bottom: 1.5rem;
 }
 
+/* Style the intro text to match the modal description.  We use a
+   neutral dark colour and regular font weight so that the text in
+   the introduction reads like the body text inside modals.  The h2
+   heading retains its distinctive colour defined separately. */
+#intro blockquote,
+#intro p,
+#intro em {
+  color: #222;
+  font-weight: 400;
+}
+
+/* Blockquote appearance */
 #intro blockquote {
   background: #f9f9f9;
   border-left: 2px solid #ccc;

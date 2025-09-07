@@ -102,6 +102,9 @@ async function loadResidents() {
 async function initMapAndPage() {
   // Determine map centre/zoom for mobile vs desktop
   const isMobile = window.innerWidth <= 500;
+  // Set different map centres for mobile vs desktop.  The mobile
+  // coordinates have been updated per user request to focus the view
+  // slightly further north and west.
   const initialCenter = isMobile
     ? [53.36873328276553, -6.258910850717367]
     : [53.37155, -6.25873];
