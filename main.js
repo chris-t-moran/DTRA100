@@ -30,8 +30,12 @@ const state = {
 
 // HTML helpers
 function escapeHTML(str) {
-  if (!str) return '';
-  return str
+  // Coerce non‑string values to strings.  If str is null or undefined, return
+  // an empty string.  Numbers and booleans will be cast to their string
+  // representation before escaping.
+  if (str === null || str === undefined) return '';
+  const s = String(str);
+  return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
