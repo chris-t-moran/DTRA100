@@ -372,6 +372,8 @@ footer {
     /* Enable smooth scrolling on iOS */
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
+    /* Enable scrolling within the panel on mobile */
+    overflow-y: auto;
   }
   /* Grab handle for the mobile panel */
   #content::before {

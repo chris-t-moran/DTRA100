@@ -216,11 +216,11 @@ function setActiveCategory(theme) {
 function filterArticlesByCategory(theme) {
   const articleList = document.getElementById('article-list');
   articleList.innerHTML = '';
-  // Random selection triggers a modal on a random article and exits
+  // Random selection triggers a modal on a random article but does not clear the grid
   if (theme && theme.toLowerCase() === 'random') {
     const randomArticle = state.articles[Math.floor(Math.random() * state.articles.length)];
     openModal(randomArticle);
-    return;
+    // Do not return; continue to render all articles
   }
   // Determine which articles to display
   const filtered = !theme || theme.toLowerCase() === 'all'
