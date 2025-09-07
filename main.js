@@ -193,9 +193,16 @@ function renderThemes(themes) {
   lucky.textContent = 'Lucky Dip!';
   lucky.style.background = 'gold';
   lucky.addEventListener('click', () => {
+    // Reset active theme
     state.activeTheme = null;
-    filterArticlesByCategory('Random');
+    // Render all articles first so the grid stays populated
+    filterArticlesByCategory(null);
     setActiveCategory(null);
+    // Then pick a random article and show it in a modal
+    const randomArticle = state.articles[Math.floor(Math.random() * state.articles.length)];
+    if (randomArticle) {
+      openModal(randomArticle);
+    }
   });
   themesDiv.appendChild(lucky);
 }
@@ -223,7 +230,10 @@ function filterArticlesByCategory(theme) {
     // Do not return; continue to render all articles
   }
   // Determine which articles to display
-  const filtered = !theme || theme.toLowerCase() === 'all'
+  // Determine which articles to display.  Treat "random" as showing all
+  // articles (the random article modal is already shown separately).
+  const isRandom = theme && theme.toLowerCase() === 'random';
+  const filtered = !theme || theme.toLowerCase() === 'all' || isRandom
     ? state.articles
     : state.articles.filter((a) => a.theme === theme);
   const grid = document.createElement('ul');
