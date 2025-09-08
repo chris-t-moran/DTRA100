@@ -328,12 +328,9 @@ const state = {
   articles: [],
   peopleMarkers: [],
   articleMarkers: null,
-  articleMarkerIndex: new Map(),
   map: null,
   activeTheme: null
 };
-
-try { window.state = state; } catch {}
 
 // HTML helpers
 function htmlEscape(str) {
@@ -351,86 +348,53 @@ function htmlEscape(str) {
 }
 
 
-// --- Lucky Dip → Map highlight integration ---
-function _articleKey(a) {
-  if (a && a.id != null) return `id:${a.id}`;
-  return `at:${a.lat},${a.lon}|${a.title ?? ''}`;
-}
-function getArticleMarker(article) {
-  // Fast path: index
-  const k = _articleKey(article);
-  if (state.articleMarkerIndex?.has(k)) return state.articleMarkerIndex.get(k);
-  // Cluster scan
-  try {
-    const layers = state.articleMarkers?.getLayers?.() || [];
-    for (const lyr of layers) {
-      if (lyr && lyr._article) {
-        if ((article.id != null && lyr._article.id === article.id) ||
-            (lyr._article.lat === article.lat && lyr._article.lon === article.lon && lyr._article.title === article.title)) {
-          return lyr;
-        }
-      }
-    }
-  } catch {}
-  return null;
-}
-function highlightSelectedArticleMarker(marker, opts = {}) {
-  const {
-    zoomTo = true,
-    targetZoom = 17,
-    haloColor = '#2563eb',
-    haloDurationMs = 3200,
-    dimOthers = true,
-  } = opts;
-  if (!marker || !state?.map) return;
+// --- Lucky Dip: highlight article marker after modal close ---
+function highlightAfterModalClose(article, options = {}) {
+  const opts = Object.assign({ targetZoom: 17, haloColor: '#2563eb', haloDurationMs: 3200 }, options);
 
-  const doHighlight = () => {
-    const latlng = marker.getLatLng();
-    if (zoomTo) {
-      if (state.map.getZoom() < targetZoom) {
-        state.map.flyTo(latlng, targetZoom, { duration: 0.6, easeLinearity: 0.25 });
+  function attach(modal) {
+    if (!modal) return;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      try { observer.disconnect(); } catch {}
+      window.removeEventListener('keydown', onKey, true);
+      const mk = (typeof getArticleMarker === 'function') ? getArticleMarker(article) : null;
+      if (mk && typeof highlightSelectedArticleMarker === 'function') {
+        highlightSelectedArticleMarker(mk, { targetZoom: opts.targetZoom, haloColor: opts.haloColor, haloDurationMs: opts.haloDurationMs, dimOthers: true });
       } else {
-        state.map.panTo(latlng, { animate: true, duration: 0.6 });
+        console.warn('Lucky Dip highlight: missing helpers or marker', { mk });
       }
-    }
-    const ring = L.circleMarker(latlng, {
-      radius: 11,
-      color: haloColor,
-      weight: 3,
-      fill: false,
-      opacity: 0.95
-    }).addTo(state.map);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') finish(); };
+    window.addEventListener('keydown', onKey, true);
 
-    try { marker.bringToFront?.(); } catch {}
-    const el = marker.getElement?.();
-    const prev = el ? el.style.filter : '';
-    if (el) el.style.filter = 'brightness(1.25) drop-shadow(0 0 6px rgba(37,99,235,.6))';
+    // backdrop click
+    modal.addEventListener('click', (e) => { if (e.target === modal) finish(); });
 
-    let restore = [];
-    if (dimOthers && state.articleMarkers?.getLayers) {
-      try {
-        const layers = state.articleMarkers.getLayers();
-        restore = layers.filter(m => m !== marker).map(m => {
-          const e = m.getElement?.(); if (!e) return null;
-          const p = e.style.opacity; e.style.opacity = '0.45'; return () => { e.style.opacity = p; };
-        }).filter(Boolean);
-      } catch {}
-    }
+    // close button if present
+    const closeBtn = modal.querySelector('.modal-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', finish, { once: true });
 
-    setTimeout(() => {
-      try { state.map.removeLayer(ring); } catch {}
-      if (el) el.style.filter = prev;
-      restore.forEach(fn => fn && fn());
-    }, haloDurationMs);
-  };
+    // detect removal
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(modal)) finish();
+    });
+    observer.observe(document.body, { childList: true });
+  }
 
-  if (state.articleMarkers?.zoomToShowLayer) state.articleMarkers.zoomToShowLayer(marker, doHighlight);
-  else doHighlight();
+  // Wait for modal element to exist (openModal may create it async)
+  const start = performance.now();
+  (function waitForModal(){
+    const modal = document.querySelector('.modal');
+    if (modal) return attach(modal);
+    if (performance.now() - start > 4000) return console.warn('Lucky Dip highlight: modal not found');
+    requestAnimationFrame(waitForModal);
+  })();
 }
-// --- end Lucky Dip → Map highlight integration ---
+// --- end Lucky Dip: after-close highlight ---
 
-
-try { window.getArticleMarker = getArticleMarker; window.highlightSelectedArticleMarker = highlightSelectedArticleMarker; } catch {}
 // -----------------------------------------------------------------------------
 // Data loading
 // -----------------------------------------------------------------------------
@@ -587,9 +551,6 @@ async function initMapAndPage() {
     });
     marker.on('click', () => openModal(article));
     state.articleMarkers.addLayer(marker);
-    // attach article for lookup and index it
-    marker._article = article;
-    try { state.articleMarkerIndex.set(_articleKey(article), marker); } catch (e) { console.warn('Index set failed', e); }
   });
   state.map.addLayer(state.articleMarkers);
 
@@ -1005,27 +966,3 @@ document.getElementById('share-story-btn').addEventListener('click', (e) => {
 
 // Kick off loading the site
 loadArticles();
-
-
-// Inject minimal CSS for article modal close button
-(function ensureModalCloseCSS3(){
-  if (document.getElementById('modal-close-css3')) return;
-  const css = `.modal .modal-close-btn {
-    margin-left: auto;
-    appearance: none;
-    border: 1px solid #2563eb;
-    background: #fff;
-    color: #1e3a8a;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .modal .modal-close-btn:hover { background: #eff6ff; }`;
-  const style = document.createElement('style');
-  style.id = 'modal-close-css3';
-  style.type = 'text/css';
-  style.appendChild(document.createTextNode(css));
-  document.head.appendChild(style);
-})();
