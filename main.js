@@ -442,17 +442,18 @@ function openModal(article) {
 function showStoryFormPage() {
   // Scroll to top of page
   window.scrollTo(0, 0);
+
   // Replace map with a static image for the form
   const mapDiv = document.getElementById('map');
   mapDiv.innerHTML = '';
   const img = document.createElement('img');
-  img.src =
-    'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/lillian-37walshroad-1937_orig.jpg';
+  img.src = 'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/lillian-37walshroad-1937_orig.jpg';
   img.style.width = '100%';
   img.style.height = '100%';
   img.style.objectFit = 'cover';
   img.classList.add('fade-in');
   mapDiv.appendChild(img);
+
   // Build the form inside content
   const container = document.getElementById('content');
   container.innerHTML = `
@@ -464,9 +465,12 @@ function showStoryFormPage() {
     </header>
     <!-- Drag handle replicating the desktop/mobile handle for the form view -->
     <div id="content-handle" class="content-handle"></div>
+
+    <!-- STORY-SHARE dynamic section -->
     <section id="story-share">
-      <!-- populated dynamically -->
+      <div id="story-share-content" style="min-height: 1rem;"></div>
     </section>
+
     <div id="submission-form" style="max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;">
       <form id="story-form">
         <label for="title" style="display:block;margin-top:1em;">Story Title:</label>
@@ -480,8 +484,32 @@ function showStoryFormPage() {
       </form>
     </div>
   `;
+
   container.style.opacity = 0;
   container.classList.add('fade-in');
+
+  // --- Inject STORY-SHARE content now that #story-share exists ---
+  (async () => {
+    try {
+      // Optional: temporary loading text
+      const placeholder = document.getElementById('story-share-content');
+      if (placeholder) placeholder.textContent = 'Loading…';
+
+      const shareHtml = await fetchContentByType('STORY-SHARE');
+      const target = document.getElementById('story-share-content') || document.getElementById('story-share');
+      if (target) {
+        target.innerHTML = shareHtml || '';
+        // Safety: ensure any share button has a label
+        const btn = target.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]');
+        if (btn && !btn.textContent.trim()) {
+          btn.textContent = 'Share your story';
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load STORY-SHARE content:', e);
+    }
+  })();
+
   // Attach event listeners after injecting the form
   const form = document.getElementById('story-form');
   const backButton = document.getElementById('back-button');
