@@ -138,6 +138,113 @@
   document.head.appendChild(style);
 })();
 
+
+// --- Resident popup template & styles ---
+function residentPopupHTML(r) {
+  const esc = (v) => (typeof htmlEscape === 'function' ? htmlEscape(String(v ?? '')) : String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])));
+  const addr = `${r.housenumber ?? ''} ${r.road ?? ''}`.trim();
+  const former = r.formeraddress ? `
+    <div class="rp-row">
+      <span class="rp-label">Former:</span>
+      <span class="rp-value">${esc(r.formeraddress)}</span>
+    </div>` : '';
+
+  const occ = r.occupation ? `
+    <div class="rp-row">
+      <span class="rp-label">Occupation (1929):</span>
+      <span class="rp-value">${esc(r.occupation)}</span>
+    </div>` : '';
+
+  const name = r.lessee ? esc(r.lessee) : 'First Resident';
+
+  return `
+    <div class="resident-popup">
+      <header class="rp-header">
+        <div class="rp-avatar" aria-hidden="true">🏠</div>
+        <div class="rp-headings">
+          <h2 class="rp-title">${esc(addr) || 'Address unknown'}</h2>
+          <div class="rp-subtitle">${name}</div>
+        </div>
+      </header>
+
+      <div class="rp-body">
+        ${former}
+        ${occ}
+      </div>
+
+      <footer class="rp-footer">
+        <button type="button" class="rp-cta" data-action="show-move">Show move</button>
+      </footer>
+    </div>
+  `;
+}
+
+// Inject popup CSS once
+(function ensureResidentPopupCSS(){
+  if (document.getElementById('resident-popup-css')) return;
+  const css = `
+.leaflet-popup.resident-popup-wrap .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.08);
+}
+.leaflet-popup.resident-popup-wrap .leaflet-popup-tip {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.15));
+}
+.resident-popup { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:#1f2937; }
+.rp-header {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  background: linear-gradient(0deg, #fff7ed 0%, #ffedd5 100%);
+  border-bottom: 1px solid #fde6c9;
+}
+.rp-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: #f97316; color: #fff; font-size: 18px;
+  box-shadow: 0 0 0 3px #fff inset;
+}
+.rp-headings { min-width: 0; }
+.rp-title {
+  margin: 0; font-size: 15px; font-weight: 700; color:#111827;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rp-subtitle {
+  font-size: 12px; color:#6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rp-body { padding: 12px 14px; display: grid; gap: 8px; }
+.rp-row { display: grid; grid-template-columns: 130px 1fr; gap: 8px; align-items: start; }
+.rp-label { color:#6b7280; font-size: 12px; }
+.rp-value { color:#1f2937; }
+.rp-footer {
+  display:flex; justify-content:flex-end; padding: 10px 14px; gap:8px;
+  border-top: 1px solid #f3f4f6; background: #fff;
+}
+.rp-cta {
+  appearance:none; border:1px solid #f97316; background:#fff;
+  color:#b45309; font-weight:600; font-size:13px;
+  padding: 6px 10px; border-radius: 8px; cursor:pointer;
+}
+.rp-cta:hover { background:#fff7ed; }
+.rp-cta:active { transform: translateY(1px); }
+@media (max-width: 420px) {
+  .rp-row { grid-template-columns: 1fr; }
+  .leaflet-popup.resident-popup-wrap .leaflet-popup-content { margin: 8px 10px; }
+}`;
+  const style = document.createElement('style');
+  style.id = 'resident-popup-css';
+  style.type = 'text/css';
+  style.appendChild(document.createTextNode(css));
+  document.head.appendChild(style);
+})();
+// --- end Resident popup template & styles ---
+
+
 // Main application logic for Triangle100
 // The code here initializes the map, loads data from Supabase,
 // renders story categories and article cards, displays modals, and
@@ -289,15 +396,13 @@ async function loadResidents() {
       fillColor: '#4caf50',    // original green
       fillOpacity: 1,
       opacity: 1
-    }).bindPopup(
-      `<div style="padding:0; background:#4caf50;"><h2 style="color:white;">A Triangle 100 First Resident</h2><h3 style="color:white;">${htmlEscape(
-        resident.housenumber
-      )} ${htmlEscape(resident.road)}</h3></div><div style="background:#4caf50;color:white;"><strong>Name :</strong> ${htmlEscape(
-        resident.lessee
-      )}<br>Occupation according to the original 1929 lease : <strong>${htmlEscape(
-        resident.occupation
-      )}</strong></div>`
-    );
+    }).bindPopup(residentPopupHTML(resident), {
+      className: 'resident-popup-wrap',
+      maxWidth: 320,
+      autoPan: true,
+      autoPanPadding: [20, 20],
+      keepInView: true
+    });
     if (hasFormer) {
       marker.on('add', () => {
         const el = marker.getElement();
@@ -306,7 +411,7 @@ async function loadResidents() {
     }
 
     if (hasFormer) {
-      marker.bindTooltip('See where I came from', {direction: 'top', offset: [0, -8]});
+      marker.bindTooltip('Has former address — tap to see route', {direction: 'top', offset: [0, -8]});
     }
     // Attach resident data and click handler for the easter egg
     marker._resident = resident;
@@ -316,7 +421,18 @@ async function loadResidents() {
       ResidentMoveEgg.show(state.map, marker._resident, e.latlng);
     });
 
-    state.peopleMarkers.push(marker);
+    // Wire CTA in popup to trigger the move highlight
+  marker.on('popupopen', (e) => {
+    const btn = e.popup.getElement().querySelector('.rp-cta[data-action="show-move"]');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        ResidentMoveEgg.showLayer(state.map);
+        ResidentMoveEgg.show(state.map, resident, marker.getLatLng());
+      }, { once: true });
+    }
+  });
+
+  state.peopleMarkers.push(marker);
   });
 }
 
