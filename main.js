@@ -124,6 +124,25 @@
 })(window);
 // --- end Resident Move 'Easter Egg' ---
 
+(function ensurePulseCSS(){
+  if (document.getElementById('resident-pulse-css')) return;
+  const css = `
+  .leaflet-interactive.resident-hasformer {
+    animation: pulse 2s infinite;
+    transform-origin: center center;
+  }
+  @keyframes pulse {
+    0%   { transform: scale(1);   opacity: 1; }
+    50%  { transform: scale(1.3); opacity: 0.7; }
+    100% { transform: scale(1);   opacity: 1; }
+  }`;
+  const style = document.createElement('style');
+  style.id = 'resident-pulse-css';
+  style.type = 'text/css';
+  style.appendChild(document.createTextNode(css));
+  document.head.appendChild(style);
+})();
+
 // Main application logic for Triangle100
 // The code here initializes the map, loads data from Supabase,
 // renders story categories and article cards, displays modals, and
@@ -260,13 +279,21 @@ async function loadResidents() {
     return;
   }
   residents.forEach((resident) => {
-    const marker = L.circleMarker([resident.lat, resident.lon], {
+    const hasFormer = Number.isFinite(resident.formerAddr_lat) && Number.isFinite(resident.formerAddr_lon);
+    const marker = L.circleMarker([resident.lat, resident.lon], hasFormer ? {
+      radius: 8,
+      color: '#f97316',        // orange stroke
+      weight: 2,
+      fillColor: '#ffedd5',    // light orange fill
+      fillOpacity: 0.95,
+      opacity: 1
+    } : {
       radius: 7,
-      fillColor: '#4caf50',
       color: 'gold',
       weight: 1,
-      opacity: 1,
-      fillOpacity: 1
+      fillColor: '#4caf50',    // original green
+      fillOpacity: 1,
+      opacity: 1
     }).bindPopup(
       `<div style="padding:0; background:#4caf50;"><h2 style="color:white;">A Triangle 100 First Resident</h2><h3 style="color:white;">${htmlEscape(
         resident.housenumber
@@ -276,6 +303,16 @@ async function loadResidents() {
         resident.occupation
       )}</strong></div>`
     );
+    if (hasFormer) {
+      marker.on('add', () => {
+        const el = marker.getElement();
+        if (el) el.classList.add('resident-hasformer');
+      });
+    }
+
+    if (hasFormer) {
+      marker.bindTooltip('Has former address — tap to see route', {direction: 'top', offset: [0, -8]});
+    }
     // Attach resident data and click handler for the easter egg
     marker._resident = resident;
     marker.on('click', (e) => {
