@@ -1,3 +1,88 @@
+/*! Resident Moves helper (embedded) */
+(function (global) {
+  async function addResidentMovesOverlay(map, supabaseClient, opts) {
+    opts = opts || {};
+    const minDistanceMeters = typeof opts.minDistanceMeters === 'number' ? opts.minDistanceMeters : 5;
+
+    const { data, error } = await supabaseClient
+      .from('residents')
+      .select('id, lessee, housenumber, road, lat, lon, formeraddress, formerAddr_lat, formerAddr_lon')
+      .eq('active', true)
+      .not('lat', 'is', null)
+      .not('lon', 'is', null)
+      .not('formerAddr_lat', 'is', null)
+      .not('formerAddr_lon', 'is', null);
+
+    if (error) {
+      console.error('Supabase (residents) error:', error);
+      return { layer: null, count: 0, error };
+    }
+
+    const layer = L.layerGroup();
+    let count = 0;
+
+    (data || []).forEach(r => {
+      const from = [r.formerAddr_lat, r.formerAddr_lon];
+      const to   = [r.lat, r.lon];
+
+      try {
+        const d = map.distance(from, to);
+        if (!isFinite(d) || d < minDistanceMeters) return;
+      } catch (_) {
+        return;
+      }
+
+      const info = `
+        <div style="font-size:0.9rem; line-height:1.2;">
+          <strong>${(r.lessee ?? 'Resident')}</strong><br/>
+          ${(r.formeraddress ? escapeHtml(r.formeraddress) + ' → ' : '')}
+          ${[r.housenumber, r.road].filter(Boolean).join(' ')}
+        </div>
+      `;
+
+      const line = L.polyline([from, to], {
+        color: '#2b6cb0',
+        weight: 2.5,
+        opacity: 0.85,
+        dashArray: '6 6'
+      }).bindTooltip(info, { sticky: true });
+
+      const fromMarker = L.circleMarker(from, { radius: 4, weight: 1, opacity: 0.9, fillOpacity: 0.7 })
+        .bindTooltip(`<div><em>Former:</em><br/>${escapeHtml(r.formeraddress ?? 'Unknown')}</div>`);
+
+      const toLabel = [r.housenumber, r.road].filter(Boolean).join(' ') || 'Current';
+      const toMarker = L.circleMarker(to, { radius: 4, weight: 1, opacity: 0.9, fillOpacity: 0.7 })
+        .bindTooltip(`<div><em>Current:</em><br/>${escapeHtml(toLabel)}</div>`);
+
+      layer.addLayer(line);
+      layer.addLayer(fromMarker);
+      layer.addLayer(toMarker);
+      count++;
+    });
+
+    layer.addTo(map);
+    if (!global.state) global.state = {};
+    if (!global.state.layerControl) {
+      global.state.layerControl = L.control.layers(undefined, {}, { collapsed: true }).addTo(map);
+    }
+    global.state.layerControl.addOverlay(layer, 'Resident Moves');
+
+    return { layer, count };
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  }
+
+  global.addResidentMovesOverlay = addResidentMovesOverlay;
+})(window);
+// --- end Resident Moves helper ---
+
 // Main application logic for Triangle100
 // The code here initializes the map, loads data from Supabase,
 // renders story categories and article cards, displays modals, and
@@ -161,18 +246,7 @@ async function loadResidents() {
 // Map initialization & UI setup
 // -----------------------------------------------------------------------------
 
-<script type="module">
-  import { loadResidentConnections } from './residents_connections.js';
 
-  // assuming you already have:
-  //   const map = L.map('map')...
-  //   const supabaseClient = createClient(supabaseUrl, supabaseKey);
-
-  (async () => {
-    const { layer, count } = await loadResidentConnections(map, supabaseClient);
-    console.log(`Resident connection lines drawn: ${count}`);
-  })();
-</script>
 
 
 
@@ -254,6 +328,15 @@ async function initMapAndPage() {
   // Load resident markers (not yet added to map).  Await to ensure markers
   // are available before the user toggles between stories and residents.
   await loadResidents();
+
+  // Add overlay showing connections from former → current addresses
+  try {
+    const result = await addResidentMovesOverlay(state.map, supabaseClient);
+    console.log('Resident Moves overlay:', result);
+  } catch (e) {
+    console.error('Failed to add Resident Moves overlay:', e);
+  }
+
 }
 
 // Create category buttons, including a "Lucky Dip" option
