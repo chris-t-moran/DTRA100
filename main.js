@@ -124,20 +124,15 @@
 })(window);
 // --- end Resident Move 'Easter Egg' ---
 
-(function ensurePulseCSS(){
-  if (document.getElementById('resident-pulse-css')) return;
+(function ensureGlowCSS(){
+  if (document.getElementById('resident-glow-css')) return;
   const css = `
-  .leaflet-interactive.resident-hasformer {
-    animation: pulse 2s infinite;
-    transform-origin: center center;
-  }
-  @keyframes pulse {
-    0%   { transform: scale(1);   opacity: 1; }
-    50%  { transform: scale(1.3); opacity: 0.7; }
-    100% { transform: scale(1);   opacity: 1; }
+  .leaflet-interactive.resident-hasformer-glow {
+    filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.8))
+            drop-shadow(0 0 12px rgba(249, 115, 22, 0.5));
   }`;
   const style = document.createElement('style');
-  style.id = 'resident-pulse-css';
+  style.id = 'resident-glow-css';
   style.type = 'text/css';
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
@@ -306,7 +301,7 @@ async function loadResidents() {
     if (hasFormer) {
       marker.on('add', () => {
         const el = marker.getElement();
-        if (el) el.classList.add('resident-hasformer');
+        if (el) el.classList.add('resident-hasformer-glow');
       });
     }
 
