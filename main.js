@@ -158,13 +158,15 @@ function residentPopupHTML(r) {
   const name = r.lessee ? esc(r.lessee) : 'First Resident';
 
   return `
-    <div class="resident-popup">
+      <div class="resident-popup">
       <header class="rp-header">
+        <div class="rp-avatar" aria-hidden="true"></div>
         <div class="rp-headings">
           <h2 class="rp-title">${name}</h2>
           <div class="rp-subtitle">${esc(addr) || 'Address unknown'}</div>
         </div>
       </header>
+
 
       <div class="rp-body">
         ${former}
