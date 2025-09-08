@@ -116,6 +116,12 @@ async function loadArticles() {
   state.articles = data;
   // Ensure the map and residents are fully initialised
   await initMapAndPage();
+
+  (async () => {
+  const { layer, count } = await loadResidentConnections(map, supabaseClient);
+  console.log('Connections layer ready:', layer, 'count:', count);
+  })();
+  
 }
 
 // Fetch all active residents and prepare their markers (but do not
@@ -154,6 +160,21 @@ async function loadResidents() {
 // -----------------------------------------------------------------------------
 // Map initialization & UI setup
 // -----------------------------------------------------------------------------
+
+<script type="module">
+  import { loadResidentConnections } from './residents_connections.js';
+
+  // assuming you already have:
+  //   const map = L.map('map')...
+  //   const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+  (async () => {
+    const { layer, count } = await loadResidentConnections(map, supabaseClient);
+    console.log(`Resident connection lines drawn: ${count}`);
+  })();
+</script>
+
+
 
 async function initMapAndPage() {
   // Determine map centre/zoom for mobile vs desktop
