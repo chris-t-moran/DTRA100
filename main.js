@@ -465,10 +465,7 @@ function showStoryFormPage() {
     <!-- Drag handle replicating the desktop/mobile handle for the form view -->
     <div id="content-handle" class="content-handle"></div>
     <section id="story-share">
-      <h2>Share Your Story!</h2>
-      <p style="text-align:justify;">
-        We hope you are enjoying some of the wonderful stories that have been discovered about our neighbourhood. Behind every hall door there is a story to share so please get involved and share your memories of the people, places and things that make the Drumcondra Triangle such a wonderful place to live.
-      </p>
+      <!-- populated dynamically -->
     </section>
     <div id="submission-form" style="max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;">
       <form id="story-form">
