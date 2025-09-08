@@ -349,21 +349,16 @@ function htmlEscape(str) {
 }
 
 
-// --- Lucky Dip Article Highlight (hardened) ---
+// --- Lucky Dip → Map highlight integration ---
 function _articleKey(a) {
   if (a && a.id != null) return `id:${a.id}`;
   return `at:${a.lat},${a.lon}|${a.title ?? ''}`;
 }
-function _geoDistSq(a, b) {
-  const dx = a.lat - b.lat, dy = a.lng - b.lng;
-  return dx*dx + dy*dy;
-}
 function getArticleMarker(article) {
-  if (!state) return null;
-  // 1) Index lookup
+  // Fast path: index
   const k = _articleKey(article);
   if (state.articleMarkerIndex?.has(k)) return state.articleMarkerIndex.get(k);
-  // 2) Scan cluster/group layers
+  // Cluster scan
   try {
     const layers = state.articleMarkers?.getLayers?.() || [];
     for (const lyr of layers) {
@@ -375,19 +370,6 @@ function getArticleMarker(article) {
       }
     }
   } catch {}
-  // 3) Nearest by coords (fallback)
-  try {
-    const tgt = L.latLng(article.lat, article.lon);
-    let best = null, bestD = 1e9;
-    const layers = state.articleMarkers?.getLayers?.() || [];
-    for (const lyr of layers) {
-      const ll = lyr.getLatLng?.();
-      if (!ll) continue;
-      const d = _geoDistSq(ll, tgt);
-      if (d < bestD) { bestD = d; best = lyr; }
-    }
-    return best;
-  } catch {}
   return null;
 }
 function highlightSelectedArticleMarker(marker, opts = {}) {
@@ -395,21 +377,33 @@ function highlightSelectedArticleMarker(marker, opts = {}) {
     zoomTo = true,
     targetZoom = 17,
     haloColor = '#2563eb',
-    haloDurationMs = 3500,
+    haloDurationMs = 3200,
     dimOthers = true,
   } = opts;
   if (!marker || !state?.map) return;
+
   const doHighlight = () => {
     const latlng = marker.getLatLng();
     if (zoomTo) {
-      if (state.map.getZoom() < targetZoom) state.map.flyTo(latlng, targetZoom, { duration: 0.6, easeLinearity: 0.25 });
-      else state.map.panTo(latlng, { animate: true, duration: 0.6 });
+      if (state.map.getZoom() < targetZoom) {
+        state.map.flyTo(latlng, targetZoom, { duration: 0.6, easeLinearity: 0.25 });
+      } else {
+        state.map.panTo(latlng, { animate: true, duration: 0.6 });
+      }
     }
-    const ring = L.circleMarker(latlng, { radius: 11, color: haloColor, weight: 3, fill: false, opacity: 0.95 }).addTo(state.map);
+    const ring = L.circleMarker(latlng, {
+      radius: 11,
+      color: haloColor,
+      weight: 3,
+      fill: false,
+      opacity: 0.95
+    }).addTo(state.map);
+
     try { marker.bringToFront?.(); } catch {}
     const el = marker.getElement?.();
     const prev = el ? el.style.filter : '';
     if (el) el.style.filter = 'brightness(1.25) drop-shadow(0 0 6px rgba(37,99,235,.6))';
+
     let restore = [];
     if (dimOthers && state.articleMarkers?.getLayers) {
       try {
@@ -420,16 +414,18 @@ function highlightSelectedArticleMarker(marker, opts = {}) {
         }).filter(Boolean);
       } catch {}
     }
+
     setTimeout(() => {
       try { state.map.removeLayer(ring); } catch {}
       if (el) el.style.filter = prev;
       restore.forEach(fn => fn && fn());
     }, haloDurationMs);
   };
+
   if (state.articleMarkers?.zoomToShowLayer) state.articleMarkers.zoomToShowLayer(marker, doHighlight);
   else doHighlight();
 }
-// --- end Lucky Dip Article Highlight ---
+// --- end Lucky Dip → Map highlight integration ---
 
 // -----------------------------------------------------------------------------
 // Data loading
@@ -585,10 +581,11 @@ async function initMapAndPage() {
       fillOpacity: 0.8,
       weight: 1
     });
-    marker._article = article;
-try { state.articleMarkerIndex.set(_articleKey(article), marker); } catch {}
-marker.on('click', () => openModal(article));
+    marker.on('click', () => openModal(article));
     state.articleMarkers.addLayer(marker);
+    // attach article for lookup and index it
+    marker._article = article;
+    try { state.articleMarkerIndex.set(_articleKey(article), marker); } catch (e) { console.warn('Index set failed', e); }
   });
   state.map.addLayer(state.articleMarkers);
 
@@ -1006,9 +1003,9 @@ document.getElementById('share-story-btn').addEventListener('click', (e) => {
 loadArticles();
 
 
-// Inject minimal CSS for Lucky Dip modal close button
-(function ensureModalCloseCSS2(){
-  if (document.getElementById('modal-close-css2')) return;
+// Inject minimal CSS for article modal close button
+(function ensureModalCloseCSS3(){
+  if (document.getElementById('modal-close-css3')) return;
   const css = `.modal .modal-close-btn {
     margin-left: auto;
     appearance: none;
@@ -1023,7 +1020,7 @@ loadArticles();
   }
   .modal .modal-close-btn:hover { background: #eff6ff; }`;
   const style = document.createElement('style');
-  style.id = 'modal-close-css2';
+  style.id = 'modal-close-css3';
   style.type = 'text/css';
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
