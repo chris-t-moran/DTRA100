@@ -245,6 +245,30 @@ function residentPopupHTML(r) {
 })();
 // --- end Resident popup template & styles ---
 
+// Inject minimal CSS for modal close button (optional)
+(function ensureModalCloseCSS(){
+  if (document.getElementById('modal-close-css')) return;
+  const css = `.modal .modal-close-btn {
+    margin-left: auto;
+    appearance: none;
+    border: 1px solid #2563eb;
+    background: #fff;
+    color: #1e3a8a;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .modal .modal-close-btn:hover { background: #eff6ff; }`;
+  const style = document.createElement('style');
+  style.id = 'modal-close-css';
+  style.type = 'text/css';
+  style.appendChild(document.createTextNode(css));
+  document.head.appendChild(style);
+})();
+
+
 
 // Main application logic for Triangle100
 // The code here initializes the map, loads data from Supabase,
@@ -328,6 +352,7 @@ const state = {
   articles: [],
   peopleMarkers: [],
   articleMarkers: null,
+  articleMarkerIndex: new Map(),
   map: null,
   activeTheme: null
 };
@@ -346,6 +371,107 @@ function htmlEscape(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+
+// --- Article marker helpers ---
+function articleKey(a) {
+  if (a && a.id != null) return `id:${a.id}`;
+  // fallback key if id absent
+  return `at:${a.lat},${a.lon}|${a.title ?? ''}`;
+}
+
+function getArticleMarker(article) {
+  // Try fast lookup
+  const key = articleKey(article);
+  if (state.articleMarkerIndex && state.articleMarkerIndex.has(key)) {
+    return state.articleMarkerIndex.get(key);
+  }
+  // Fallback: scan cluster layers
+  try {
+    const layers = state.articleMarkers ? state.articleMarkers.getLayers() : [];
+    for (const lyr of layers) {
+      if (lyr && lyr._article) {
+        if ((article.id != null && lyr._article.id === article.id) ||
+            (lyr._article.lat === article.lat && lyr._article.lon === article.lon && lyr._article.title === article.title)) {
+          return lyr;
+        }
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+function highlightSelectedArticleMarker(marker, opts = {}) {
+  const {
+    zoomTo = true,
+    targetZoom = 17,
+    openPopup = false,      // articles don't have a Leaflet popup currently
+    haloColor = '#2563eb',  // blue accent distinct from residents
+    haloDurationMs = 3500,
+    dimOthers = true,
+  } = opts;
+
+  if (!marker || !state?.map) return;
+
+  const performHighlight = () => {
+    const latlng = marker.getLatLng();
+    // 1) Zoom/pan
+    if (zoomTo) {
+      if (state.map.getZoom() < targetZoom) {
+        state.map.flyTo(latlng, targetZoom, { duration: 0.6, easeLinearity: 0.25 });
+      } else {
+        state.map.panTo(latlng, { animate: true, duration: 0.6 });
+      }
+    }
+
+    // 2) Temporary halo ring
+    const ring = L.circleMarker(latlng, {
+      radius: 11,
+      color: haloColor,
+      weight: 3,
+      fill: false,
+      opacity: 0.95
+    }).addTo(state.map);
+
+    // 3) Bring to front & slight brighten
+    try { marker.bringToFront?.(); } catch {}
+    const el = marker.getElement?.();
+    const prevFilter = el ? el.style.filter : '';
+    if (el) el.style.filter = 'brightness(1.25) drop-shadow(0 0 6px rgba(37,99,235,.6))';
+
+    // 4) Dim others briefly (optional)
+    let restore = [];
+    if (dimOthers && Array.isArray(state.articles) && state.articleMarkers) {
+      try {
+        const layers = state.articleMarkers.getLayers();
+        restore = layers
+          .filter(m => m !== marker)
+          .map(m => {
+            const e = m.getElement?.();
+            if (!e) return null;
+            const prev = e.style.opacity;
+            e.style.opacity = '0.45';
+            return () => { e.style.opacity = prev; };
+          })
+          .filter(Boolean);
+      } catch {}
+    }
+
+    setTimeout(() => {
+      try { state.map.removeLayer(ring); } catch {}
+      if (el) el.style.filter = prevFilter;
+      restore.forEach(fn => fn && fn());
+    }, haloDurationMs);
+  };
+
+  // If using clusters, ensure marker is visible first
+  if (state.articleMarkers && state.articleMarkers.zoomToShowLayer) {
+    state.articleMarkers.zoomToShowLayer(marker, performHighlight);
+  } else {
+    performHighlight();
+  }
+}
+
 
 // -----------------------------------------------------------------------------
 // Data loading
@@ -502,6 +628,9 @@ async function initMapAndPage() {
       weight: 1
     });
     marker.on('click', () => openModal(article));
+    marker._article = article;
+    // index for quick lookup
+    try { state.articleMarkerIndex.set(articleKey(article), marker); } catch {}
     state.articleMarkers.addLayer(marker);
   });
   state.map.addLayer(state.articleMarkers);
