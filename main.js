@@ -1,13 +1,13 @@
 /*! Resident Move 'Easter Egg' (highlight on selection only) */
 (function (global) {
-  const ORANGE = '#f97316'; // Tailwind orange-500
-  const ORANGE_FILL = '#fb923c'; // orange-400-ish
+  const ORANGE = '#f97316';
+  const ORANGE_FILL = '#fb923c';
 
   function ensureLayers(map) {
     if (!global.state) global.state = {};
     if (!global.state.residentMoveLayer) {
       global.state.residentMoveLayer = L.layerGroup();
-      global.state.residentMoveLayer.addTo(map);
+      // Do NOT add by default; only when Residents view is active
     }
     if (!global.state._residentMoveCurrent) global.state._residentMoveCurrent = null;
   }
@@ -28,13 +28,11 @@
     const from = [resident.formerAddr_lat, resident.formerAddr_lon];
     const to   = currentLatLng ? [currentLatLng.lat, currentLatLng.lng] : [resident.lat, resident.lon];
 
-    // Safety: skip tiny distances
     try {
       const d = map.distance(from, to);
       if (!isFinite(d) || d < 5) return;
     } catch (_) { return; }
 
-    // Orange curved arc (use a simple midpoint offset for a subtle bend)
     const curve = bezierCurvePoints(from, to, 0.25, 48);
     const line = L.polyline(curve, {
       color: ORANGE,
@@ -43,7 +41,6 @@
       dashArray: '4 6'
     });
 
-    // Highlight current location with an orange halo (overlay circle marker)
     const halo = L.circleMarker(to, {
       radius: 7,
       color: ORANGE,
@@ -52,7 +49,6 @@
       fillOpacity: 0.6
     });
 
-    // Small marker on the former location
     const former = L.circleMarker(from, {
       radius: 5,
       color: ORANGE,
@@ -64,15 +60,12 @@
     global.state.residentMoveLayer.addLayer(line);
     global.state.residentMoveLayer.addLayer(halo);
     global.state.residentMoveLayer.addLayer(former);
-
-    global.state._residentMoveCurrent = { line, halo, former };
   }
 
-  // Hook you can call when leaving Residents view
   function hideResidentMoveEasterEgg(map) {
     clearResidentMoveHighlight(map);
-    if (global.state && global.state.residentMoveLayer) {
-      try { map.removeLayer(global.state.residentMoveLayer); } catch (_) {}
+    if (global.state && global.state.residentMoveLayer && map.hasLayer(global.state.residentMoveLayer)) {
+      map.removeLayer(global.state.residentMoveLayer);
     }
   }
 
@@ -83,7 +76,6 @@
     }
   }
 
-  // Quadratic Bezier helper (same as earlier)
   function bezierCurvePoints(from, to, curvature = 0.25, segments = 48) {
     const lat1 = from[0], lon1 = from[1];
     const lat2 = to[0],   lon2 = to[1];
@@ -123,7 +115,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  // Expose API
   global.ResidentMoveEgg = {
     show: showResidentMoveHighlight,
     clear: clearResidentMoveHighlight,
@@ -131,23 +122,650 @@
     showLayer: showResidentMoveEasterEgg
   };
 })(window);
+// --- end Resident Move 'Easter Egg' ---
 
-/* === Integration example ===
-  // 1) Include this script after Leaflet and after your Supabase client + main.js.
-  // 2) In loadResidents(), when you create each resident marker, attach data & click handler:
-  //
-  //   const marker = L.circleMarker([row.lat, row.lon], {...});
-  //   marker._resident = row; // attach full row so we can read formerAddr_* later
-  //   marker.on('click', (e) => {
-  //     // Ensure the special layer is visible only in Residents mode
-  //     ResidentMoveEgg.showLayer(state.map);
-  //     ResidentMoveEgg.show(state.map, marker._resident, e.latlng);
-  //   });
-  //
-  // 3) When switching away from the Residents view (your "Switch to 1929" etc):
-  //
-  //   ResidentMoveEgg.hideLayer(state.map); // also clears any highlight
-  //
-  // This keeps the line invisible by default, only shows on resident selection,
-  // and styles the highlight in orange.
-=== */
+// Main application logic for Triangle100
+// The code here initializes the map, loads data from Supabase,
+// renders story categories and article cards, displays modals, and
+// handles the story submission form.  It is designed to mirror the
+// functionality of the original single–file page while improving
+// organisation and readability.
+
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// -----------------------------------------------------------------------------
+// Configuration
+// -----------------------------------------------------------------------------
+
+// NOTE: exposing API keys in client‑side code is insecure.  Consider
+// proxying requests through a backend service or using environment
+// variables during the build process.
+const supabaseUrl = 'https://vqkoapgiozhytoqscxxx.supabase.co';
+const supabaseKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxa29hcGdpb3poeXRvcXNjeHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NjEzMjIsImV4cCI6MjA2MTIzNzMyMn0.z4h2_uY-VlprsvaRZElh3ZOiGHG-fpGHO5rd7Y2nssY';
+const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+/* === BEGIN: site_content dynamic injection (append after supabaseClient is created) === */
+
+async function fetchContentByType(contentType) {
+  const { data, error } = await supabaseClient
+    .from('site_content')
+    .select('str_content')
+    .eq('str_contentType', contentType)
+    .eq('active', true)                        // boolean
+    .order('created_at', { ascending: false }) // latest active first
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`Supabase (${contentType}) error:`, error);
+    return null;
+  }
+  return data?.str_content ?? null;
+}
+
+async function injectDynamicContent() {
+  try {
+    // INTRO -> <intro id="intro">...</intro>
+    const introHtml = await fetchContentByType('INTRO');
+    const introEl = document.getElementById('intro');
+    if (introEl && introHtml) introEl.innerHTML = introHtml;
+
+    // TITLE -> document.title (strip tags to keep tab title tidy)
+    const titleHtml = await fetchContentByType('TITLE');
+    if (titleHtml) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = titleHtml;
+      document.title = (tmp.textContent || '').trim() || document.title;
+    }
+
+    // STORY-SHARE -> <story-share id="story-share">...</story-share>
+    const shareHtml = await fetchContentByType('STORY-SHARE');
+    const shareEl = document.getElementById('story-share');
+    if (shareEl && shareHtml) shareEl.innerHTML = shareHtml;
+
+  } catch (e) {
+    console.error('Injection error:', e);
+  }
+}
+
+// Run when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', injectDynamicContent);
+} else {
+  injectDynamicContent();
+}
+
+/* === END: site_content dynamic injection === */
+
+
+
+
+// Global application state
+const state = {
+  articles: [],
+  peopleMarkers: [],
+  articleMarkers: null,
+  map: null,
+  activeTheme: null
+};
+
+// HTML helpers
+function htmlEscape(str) {
+  // Coerce non‑string values to strings.  If str is null or undefined, return
+  // an empty string.  Numbers and booleans will be cast to their string
+  // representation before escaping.
+  if (str === null || str === undefined) return '';
+  const s = String(str);
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// -----------------------------------------------------------------------------
+// Data loading
+// -----------------------------------------------------------------------------
+
+// Fetch all active articles from Supabase and kick off map/page setup.
+async function loadArticles() {
+  const { data, error } = await supabaseClient
+    .from('articles')
+    .select('*')
+    .eq('active', true);
+  if (error) {
+    console.error('Error fetching articles:', error);
+    return;
+  }
+  state.articles = data;
+  // Ensure the map and residents are fully initialised
+  await initMapAndPage();
+
+  /* removed old loadResidentConnections block */
+  
+}
+
+// Fetch all active residents and prepare their markers (but do not
+// automatically add to the map).  People markers are stored in
+// state.peopleMarkers and toggled via the residents toggle button.
+async function loadResidents() {
+  const { data: residents, error } = await supabaseClient
+    .from('residents')
+    .select('*')
+    .eq('active', true);
+  if (error) {
+    console.error('Error fetching residents:', error);
+    return;
+  }
+  residents.forEach((resident) => {
+    const marker = L.circleMarker([resident.lat, resident.lon], {
+      radius: 7,
+      fillColor: '#4caf50',
+      color: 'gold',
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 1
+    }).bindPopup(
+      `<div style="padding:0; background:#4caf50;"><h2 style="color:white;">A Triangle 100 First Resident</h2><h3 style="color:white;">${htmlEscape(
+        resident.housenumber
+      )} ${htmlEscape(resident.road)}</h3></div><div style="background:#4caf50;color:white;"><strong>Name :</strong> ${htmlEscape(
+        resident.lessee
+      )}<br>Occupation according to the original 1929 lease : <strong>${htmlEscape(
+        resident.occupation
+      )}</strong></div>`
+    );
+    // Attach resident data and click handler for the easter egg
+    marker._resident = resident;
+    marker.on('click', (e) => {
+      // Only show the special layer in Residents mode
+      ResidentMoveEgg.showLayer(state.map);
+      ResidentMoveEgg.show(state.map, marker._resident, e.latlng);
+    });
+
+    state.peopleMarkers.push(marker);
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Map initialization & UI setup
+// -----------------------------------------------------------------------------
+
+
+
+
+
+async function initMapAndPage() {
+  // Determine map centre/zoom for mobile vs desktop
+  const isMobile = window.innerWidth <= 500;
+  // Set different map centres for mobile vs desktop.  The mobile
+  // coordinates have been updated per user request to focus the view
+  // slightly further north and west.
+  const initialCenter = isMobile
+    ? [53.36873328276553, -6.258910850717367]
+    : [53.37155, -6.25873];
+  const initialZoom = isMobile ? 15 : 16;
+
+  // Create map
+  state.map = L.map('map').setView(initialCenter, initialZoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(state.map);
+
+  // Residents toggle control
+  const ResidentsToggleControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      const button = L.DomUtil.create('a', '', container);
+      button.className = 'residents-toggle-btn';
+      button.href = '#';
+      button.innerHTML = 'Switch to 1929';
+      button.title = 'Show/Hide First Residents';
+      L.DomEvent.on(button, 'click', function (e) {
+        L.DomEvent.stopPropagation(e);
+        L.DomEvent.preventDefault(e);
+        togglePeopleMarkers(button);
+      });
+      return container;
+    }
+  });
+  state.map.addControl(new ResidentsToggleControl());
+
+  // Prepare article marker cluster group
+  state.articleMarkers = L.markerClusterGroup({
+    maxClusterRadius: 40,
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: true
+  });
+
+  // Group articles by theme and create markers
+  const themes = {};
+  state.articles.forEach((article) => {
+    themes[article.theme] = themes[article.theme] || [];
+    themes[article.theme].push(article);
+    const marker = L.circleMarker([article.lat, article.lon], {
+      radius: 7,
+      color: '#4caf50',
+      fillColor: 'orange',
+      fillOpacity: 0.8,
+      weight: 1
+    });
+    marker.on('click', () => openModal(article));
+    state.articleMarkers.addLayer(marker);
+  });
+  state.map.addLayer(state.articleMarkers);
+
+  // Expose the map and application state globally so that developers
+  // can inspect or modify them via the browser console.  For example,
+  // you can call `triMap.setView([lat, lon], zoom)` from DevTools to
+  // experiment with different centre coordinates or zoom levels on
+  // mobile.  Attaching these objects to the `window` object does not
+  // affect normal usage but makes them reachable outside of this
+  // module scope.
+  window.triMap = state.map;
+  window.triState = state;
+
+  // Render category buttons
+  renderThemes(themes);
+  // Filter to show all articles initially
+  filterArticlesByCategory(null);
+  // Load resident markers (not yet added to map).  Await to ensure markers
+  // are available before the user toggles between stories and residents.
+  await loadResidents();
+}
+
+// Create category buttons, including a "Lucky Dip" option
+function renderThemes(themes) {
+  const themesDiv = document.getElementById('themes');
+  themesDiv.innerHTML = '';
+  Object.keys(themes).forEach((theme) => {
+    const item = document.createElement('div');
+    item.className = 'theme';
+    item.textContent = theme;
+    item.addEventListener('click', () => {
+      if (state.activeTheme === theme) {
+        state.activeTheme = null;
+        filterArticlesByCategory(null);
+        setActiveCategory(null);
+      } else {
+        state.activeTheme = theme;
+        filterArticlesByCategory(theme);
+        setActiveCategory(theme);
+      }
+    });
+    themesDiv.appendChild(item);
+  });
+  // Lucky Dip button
+  const lucky = document.createElement('div');
+  lucky.className = 'theme';
+  lucky.textContent = 'Lucky Dip!';
+  lucky.style.background = 'gold';
+  lucky.addEventListener('click', () => {
+    // Reset active theme
+    state.activeTheme = null;
+    // Render all articles first so the grid stays populated
+    filterArticlesByCategory(null);
+    setActiveCategory(null);
+    // Then pick a random article and show it in a modal
+    const randomArticle = state.articles[Math.floor(Math.random() * state.articles.length)];
+    if (randomArticle) {
+      openModal(randomArticle);
+    }
+  });
+  themesDiv.appendChild(lucky);
+}
+
+// Highlight the active category button
+function setActiveCategory(theme) {
+  const items = document.querySelectorAll('#themes .theme');
+  items.forEach((item) => item.classList.remove('active'));
+  if (theme) {
+    const activeItem = Array.from(items).find(
+      (item) => item.textContent === theme
+    );
+    if (activeItem) activeItem.classList.add('active');
+  }
+}
+
+// Build the article grid based on the selected category or "Random"
+function filterArticlesByCategory(theme) {
+  const articleList = document.getElementById('article-list');
+  articleList.innerHTML = '';
+  // Random selection triggers a modal on a random article but does not clear the grid
+  if (theme && theme.toLowerCase() === 'random') {
+    const randomArticle = state.articles[Math.floor(Math.random() * state.articles.length)];
+    openModal(randomArticle);
+    // Do not return; continue to render all articles
+  }
+  // Determine which articles to display
+  // Determine which articles to display.  Treat "random" as showing all
+  // articles (the random article modal is already shown separately).
+  const isRandom = theme && theme.toLowerCase() === 'random';
+  const filtered = !theme || theme.toLowerCase() === 'all' || isRandom
+    ? state.articles
+    : state.articles.filter((a) => a.theme === theme);
+  const grid = document.createElement('ul');
+  grid.className = 'grid';
+  filtered.forEach((article) => {
+    const listItem = document.createElement('li');
+    listItem.className = 'card';
+    const link = document.createElement('a');
+    link.href = 'javascript:void(0)';
+    link.addEventListener('click', () => openModal(article));
+    // Build card inner HTML
+    link.innerHTML = `
+      <img src="${article.img}" alt="${htmlEscape(article.title)}" />
+      <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${htmlEscape(article.title)}</div>
+    `;
+    listItem.appendChild(link);
+    grid.appendChild(listItem);
+  });
+  articleList.appendChild(grid);
+}
+
+// Toggle the visibility of story markers vs resident markers
+function togglePeopleMarkers(button) {
+  const visible =
+    state.peopleMarkers.length > 0 && state.map.hasLayer(state.peopleMarkers[0]);
+  const mapEl = document.getElementById('map');
+  // toggle sepia filter
+  mapEl.classList.toggle('sepia');
+  if (visible) {
+    // hide residents, show articles
+    state.peopleMarkers.forEach((m) => state.map.removeLayer(m));
+    if (state.articleMarkers) state.map.addLayer(state.articleMarkers);
+    ResidentMoveEgg.hideLayer(state.map);
+    button.innerHTML = 'Switch to 1929';
+  } else {
+    // hide articles, show residents
+    if (state.articleMarkers) state.map.removeLayer(state.articleMarkers);
+    state.peopleMarkers.forEach((m) => m.addTo(state.map));
+    ResidentMoveEgg.showLayer(state.map);
+    ResidentMoveEgg.clear(state.map);
+    button.innerHTML = 'Switch to Stories';
+  }
+}
+
+// Create and display a modal for a given article
+function openModal(article) {
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  // Create modal content wrapper
+  const content = document.createElement('div');
+  content.className = 'modal-content';
+  // Header section with title and short description
+  const header = document.createElement('header');
+  const title = document.createElement('h2');
+  title.textContent = article.title || '';
+  const shortDesc = document.createElement('h3');
+  shortDesc.textContent = article.short_desc || '';
+  header.appendChild(title);
+  header.appendChild(shortDesc);
+  // Image wrapper
+  const imgWrapper = document.createElement('div');
+  imgWrapper.className = 'imgWrapper';
+  const image = document.createElement('img');
+  image.src = article.img || '';
+  image.alt = article.title || '';
+  imgWrapper.appendChild(image);
+  // Description container with progress bar
+  const descriptionWrapper = document.createElement('div');
+  descriptionWrapper.className = 'descriptionWrapper';
+  // Progress bar (sticky)
+  const progressBar = document.createElement('div');
+  progressBar.className = 'progress-bar';
+  descriptionWrapper.appendChild(progressBar);
+  // Description content
+  const description = document.createElement('div');
+  description.innerHTML = (article.description || '').replace(/\n/g, '<br>');
+  descriptionWrapper.appendChild(description);
+  // Footer with contributor
+  const footer = document.createElement('footer');
+  footer.textContent = `Shared by: ${article.contributor || ''}`;
+  // Assemble modal
+  content.appendChild(header);
+  content.appendChild(imgWrapper);
+  content.appendChild(descriptionWrapper);
+  content.appendChild(footer);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+  // Animate show after small delay
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 100);
+  // Clicking outside content closes modal
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal);
+    }
+  });
+  // Update progress bar on scroll
+  descriptionWrapper.addEventListener('scroll', () => {
+    const scrollTop = descriptionWrapper.scrollTop;
+    const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
+    const percent = (scrollTop / scrollHeight) * 100;
+    progressBar.style.width = `${percent}%`;
+  });
+  // Swap image on scroll markers
+  descriptionWrapper.addEventListener('scroll', () => {
+    const markers = descriptionWrapper.querySelectorAll('.image-change');
+    let lastPassed = null;
+    markers.forEach((marker) => {
+      const rect = marker.getBoundingClientRect();
+      const wrapperRect = descriptionWrapper.getBoundingClientRect();
+      if (rect.top - wrapperRect.top <= 50) {
+        lastPassed = marker;
+      }
+    });
+    if (lastPassed) {
+      const newImg = lastPassed.getAttribute('data-img');
+      if (newImg && image.src !== newImg) {
+        // Fade out image
+        image.classList.add('fade-out');
+        setTimeout(() => {
+          image.src = newImg;
+          setTimeout(() => {
+            image.classList.remove('fade-out');
+            image.classList.add('fade-in');
+          }, 50);
+        }, 300);
+        setTimeout(() => {
+          image.classList.remove('fade-in');
+        }, 700);
+      }
+    }
+  });
+}
+
+// Render the story submission form and replace the map when the user
+// clicks the "Get involved" button.  This function also wires up
+// submission handling and the back button.
+function showStoryFormPage() {
+  // Scroll to top of page
+  window.scrollTo(0, 0);
+
+  // Replace map with a static image for the form
+  const mapDiv = document.getElementById('map');
+  mapDiv.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = 'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/lillian-37walshroad-1937_orig.jpg';
+  img.style.width = '100%';
+  img.style.height = '100%';
+  img.style.objectFit = 'cover';
+  img.classList.add('fade-in');
+  mapDiv.appendChild(img);
+
+  // Build the form inside content
+  const container = document.getElementById('content');
+  container.innerHTML = `
+    <header id="head_logo" class="draggable-content">
+      <a href="https://drumcondratriangle.com/dtra100" class="icon" title="Return to the home page">
+        <img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost ‒ link to homepage" width="150" height="150" />
+      </a>
+      <h1>Triangle&nbsp;100</h1>
+    </header>
+    <!-- Drag handle replicating the desktop/mobile handle for the form view -->
+    <div id="content-handle" class="content-handle"></div>
+
+    <!-- STORY-SHARE dynamic section -->
+    <section id="story-share">
+      <div id="story-share-content" style="min-height: 1rem;"></div>
+    </section>
+
+    <div id="submission-form" style="max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;">
+      <form id="story-form">
+        <label for="title" style="display:block;margin-top:1em;">Story Title:</label>
+        <input name="title" placeholder="e.g. Life on O'Daly Road" required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
+        <label for="contributor" style="display:block;margin-top:1em;">Your Email Address:</label>
+        <input name="contributor" placeholder="e.g. harry@brainesgarages.com" style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
+        <label for="description" style="display:block;margin-top:1em;">Your Story:</label>
+        <textarea name="description" placeholder="Your memories of people, places, traditions and memorable events." required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;"></textarea>
+        <button type="submit" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Submit</button>
+        <button id="back-button" type="button" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Back</button>
+      </form>
+    </div>
+  `;
+
+  container.style.opacity = 0;
+  container.classList.add('fade-in');
+
+  // --- Inject STORY-SHARE content now that #story-share exists ---
+  (async () => {
+    try {
+      // Optional: temporary loading text
+      const placeholder = document.getElementById('story-share-content');
+      if (placeholder) placeholder.textContent = 'Loading…';
+
+      const shareHtml = await fetchContentByType('STORY-SHARE');
+      const target = document.getElementById('story-share-content') || document.getElementById('story-share');
+      if (target) {
+        target.innerHTML = shareHtml || '';
+        // Safety: ensure any share button has a label
+        const btn = target.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]');
+        if (btn && !btn.textContent.trim()) {
+          btn.textContent = 'Share your story';
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load STORY-SHARE content:', e);
+    }
+  })();
+
+  // Attach event listeners after injecting the form
+  const form = document.getElementById('story-form');
+  const backButton = document.getElementById('back-button');
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      document.body.classList.add('fade-out');
+      setTimeout(() => {
+        window.location.replace(window.location.pathname);
+      }, 500);
+    });
+  }
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = form.title.value.trim();
+    const description = form.description.value.trim();
+    const contributor = form.contributor.value.trim();
+    const { error } = await supabaseClient.from('articles').insert([
+      {
+        title,
+        description,
+        short_desc: description.slice(0, 100) + '...',
+        contributor,
+        active: false
+      }
+    ]);
+    if (error) {
+      alert('Error submitting your story. Please try again.');
+    } else {
+      document.body.classList.add('fade-out');
+      setTimeout(() => {
+        alert('Thank you for your story! It will be reviewed and added soon.');
+        location.href = location.href;
+        window.scrollTo(0, 0);
+      }, 500);
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Event listeners and init
+// -----------------------------------------------------------------------------
+
+// Set up drag-to-move behaviour on mobile for the content section
+// This replicates the original drag functionality using touch events.
+/*
+ * Enable drag-to-move on mobile screens.  The content panel is
+ * absolutely positioned with a CSS top and bottom; dragging adjusts
+ * the top value in pixels.  Both the logo header and the dedicated
+ * drag handle (#content-handle) act as handles.  The panel cannot
+ * move above the top of the viewport (top=0) or below a maximum
+ * threshold to prevent it disappearing off screen.  This behaviour
+ * replicates the original design where dragging down reveals more of
+ * the map and dragging up allows the content to cover the map.
+ */
+(function setupDrag() {
+  const content = document.getElementById('content');
+  // Potential drag handles: the logo/header and the explicit handle element.
+  const handles = [];
+  const logo = document.getElementById('head_logo');
+  if (logo) handles.push(logo);
+  const handleEl = document.getElementById('content-handle');
+  if (handleEl) handles.push(handleEl);
+  if (handles.length === 0) return;
+  let isDragging = false;
+  let startY = 0;
+  let startTop = 0;
+  const dragSensitivity = 1.2;
+  handles.forEach((h) => {
+    h.addEventListener('touchstart', (e) => {
+      // Only engage dragging on mobile sizes
+      if (window.innerWidth > 500) return;
+      isDragging = true;
+      // Starting finger position
+      startY = e.touches[0].clientY;
+      // Starting top position of the content panel (in pixels)
+      startTop = content.getBoundingClientRect().top;
+      // Remove any transform so we can control top directly
+      content.style.transform = '';
+      // Temporarily disable internal scrolling during drag
+      content.style.overflowY = 'hidden';
+      // Prevent default to avoid selecting text
+      e.preventDefault();
+    });
+  });
+  window.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const deltaY = (e.touches[0].clientY - startY) * dragSensitivity;
+    // Compute new top value in px
+    let newTop = startTop + deltaY;
+    // Clamp between 0 (cover map) and a maximum to prevent overscroll
+    const maxTop = window.innerHeight - 100; // leave at least 100px visible
+    if (newTop < 0) newTop = 0;
+    if (newTop > maxTop) newTop = maxTop;
+    content.style.top = `${newTop}px`;
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', () => {
+    isDragging = false;
+    // Restore scrollability once the drag ends
+    content.style.overflowY = 'auto';
+  });
+})();
+
+// Attach click handler for the share story button
+document.getElementById('share-story-btn').addEventListener('click', (e) => {
+  e.preventDefault();
+  const pageContent = document.getElementById('content');
+  pageContent.classList.add('fade-out');
+  setTimeout(() => {
+    showStoryFormPage();
+  }, 600);
+});
+
+// Kick off loading the site
+loadArticles();
