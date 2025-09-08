@@ -1,4 +1,4 @@
-/*! Resident Moves helper (embedded) */
+/*! Resident Moves helper (embedded, curved + randomized) */
 (function (global) {
   async function addResidentMovesOverlay(map, supabaseClient, opts) {
     opts = opts || {};
@@ -25,6 +25,7 @@
       const from = [r.formerAddr_lat, r.formerAddr_lon];
       const to   = [r.lat, r.lon];
 
+      // Skip degenerate or micro distances
       try {
         const d = map.distance(from, to);
         if (!isFinite(d) || d < minDistanceMeters) return;
@@ -40,7 +41,27 @@
         </div>
       `;
 
-      const line = L.polyline([from, to], {
+      // Deterministic "random" based on resident id + coords (stable across reloads)
+      const key = String(r.id ?? '') + '|' + String(r.formerAddr_lat) + ',' + String(r.formerAddr_lon) + '->' + String(r.lat) + ',' + String(r.lon);
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+
+      const useRandom = !!(opts && opts.randomizeDirection);
+      const sign = useRandom ? ((hash & 1) ? -1 : 1) : 1;
+
+      const baseCurv = (opts && typeof opts.curvature === 'number') ? opts.curvature : 0.25;
+      const jitterAmt = (opts && typeof opts.jitter === 'number') ? Math.max(0, opts.jitter) : 0;
+      const jitterUnit = ((Math.abs(hash) % 1000) / 1000) * 2 - 1; // [-1, 1]
+      const curvatureSigned = (baseCurv * (1 + jitterAmt * jitterUnit)) * sign;
+
+      // --- Use curved Bézier points instead of a straight line ---
+      const curvePoints = bezierCurvePoints(
+        from, to,
+        curvatureSigned,
+        (opts && opts.segments) || 48
+      );
+
+      const line = L.polyline(curvePoints, {
         color: '#2b6cb0',
         weight: 2.5,
         opacity: 0.85,
@@ -79,9 +100,45 @@
     }
   }
 
+  // --- Quadratic Bézier helper for curved lines (signed curvature) ---
+  function bezierCurvePoints(from, to, curvature = 0.25, segments = 48) {
+    // curvature can be negative to flip arc direction; segments controls smoothness.
+    const lat1 = from[0], lon1 = from[1];
+    const lat2 = to[0],   lon2 = to[1];
+    const mx = (lat1 + lat2) / 2;
+    const my = (lon1 + lon2) / 2;
+
+    const vx = lat2 - lat1;
+    const vy = lon2 - lon1;
+    const len = Math.sqrt(vx*vx + vy*vy) || 1e-9;
+
+    // Unit perpendicular to the segment
+    const px = -vy / len;
+    const py =  vx / len;
+
+    const sign = curvature >= 0 ? 1 : -1;
+    const offset = len * Math.abs(curvature);
+
+    const cx = mx + px * offset * sign;
+    const cy = my + py * offset * sign;
+
+    const pts = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const a = (1 - t) * (1 - t);
+      const b = 2 * (1 - t) * t;
+      const c = t * t;
+      const lat = a * lat1 + b * cx + c * lat2;
+      const lon = a * lon1 + b * cy + c * lon2;
+      pts.push([lat, lon]);
+    }
+    return pts;
+  }
+
   global.addResidentMovesOverlay = addResidentMovesOverlay;
 })(window);
 // --- end Resident Moves helper ---
+
 
 // Main application logic for Triangle100
 // The code here initializes the map, loads data from Supabase,
@@ -329,10 +386,9 @@ async function initMapAndPage() {
   // are available before the user toggles between stories and residents.
   await loadResidents();
 
-  // Add overlay showing connections from former → current addresses
+  // Add curved Resident Moves overlay (randomized bend)
   try {
-    const result = await addResidentMovesOverlay(state.map, supabaseClient);
-    console.log('Resident Moves overlay:', result);
+    await addResidentMovesOverlay(state.map, supabaseClient, { curvature: 0.3, segments: 64, randomizeDirection: true, jitter: 0.2 });
   } catch (e) {
     console.error('Failed to add Resident Moves overlay:', e);
   }
