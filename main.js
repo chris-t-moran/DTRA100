@@ -19,6 +19,62 @@ const supabaseKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxa29hcGdpb3poeXRvcXNjeHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NjEzMjIsImV4cCI6MjA2MTIzNzMyMn0.z4h2_uY-VlprsvaRZElh3ZOiGHG-fpGHO5rd7Y2nssY';
 const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
+/* === BEGIN: site_content dynamic injection (append after supabaseClient is created) === */
+
+async function fetchContentByType(contentType) {
+  const { data, error } = await supabaseClient
+    .from('site_content')
+    .select('str_content')
+    .eq('str_contentType', contentType)
+    .eq('active', true)                        // boolean
+    .order('created_at', { ascending: false }) // latest active first
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`Supabase (${contentType}) error:`, error);
+    return null;
+  }
+  return data?.str_content ?? null;
+}
+
+async function injectDynamicContent() {
+  try {
+    // INTRO -> <intro id="intro">...</intro>
+    const introHtml = await fetchContentByType('INTRO');
+    const introEl = document.getElementById('intro');
+    if (introEl && introHtml) introEl.innerHTML = introHtml;
+
+    // TITLE -> document.title (strip tags to keep tab title tidy)
+    const titleHtml = await fetchContentByType('TITLE');
+    if (titleHtml) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = titleHtml;
+      document.title = (tmp.textContent || '').trim() || document.title;
+    }
+
+    // STORY-SHARE -> <story-share id="story-share">...</story-share>
+    const shareHtml = await fetchContentByType('STORY-SHARE');
+    const shareEl = document.getElementById('story-share');
+    if (shareEl && shareHtml) shareEl.innerHTML = shareHtml;
+
+  } catch (e) {
+    console.error('Injection error:', e);
+  }
+}
+
+// Run when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', injectDynamicContent);
+} else {
+  injectDynamicContent();
+}
+
+/* === END: site_content dynamic injection === */
+
+
+
+
 // Global application state
 const state = {
   articles: [],
