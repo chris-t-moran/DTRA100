@@ -306,7 +306,7 @@ async function loadResidents() {
     }
 
     if (hasFormer) {
-      marker.bindTooltip('Where did I come from?', {direction: 'top', offset: [0, -8]});
+      marker.bindTooltip('See where I came from', {direction: 'top', offset: [0, -8]});
     }
     // Attach resident data and click handler for the easter egg
     marker._resident = resident;
