@@ -145,7 +145,7 @@ function residentPopupHTML(r) {
   const addr = `${r.housenumber ?? ''} ${r.road ?? ''}`.trim();
   const former = r.formeraddress ? `
     <div class="rp-row">
-      <span class="rp-label">Former:</span>
+      <span class="rp-label">Former Address:</span>
       <span class="rp-value">${esc(r.formeraddress)}</span>
     </div>` : '';
 
@@ -160,10 +160,9 @@ function residentPopupHTML(r) {
   return `
     <div class="resident-popup">
       <header class="rp-header">
-        <div class="rp-avatar" aria-hidden="true">🏠</div>
         <div class="rp-headings">
-          <h2 class="rp-title">${esc(addr) || 'Address unknown'}</h2>
-          <div class="rp-subtitle">${name}</div>
+          <h2 class="rp-title">${name}</h2>
+          <div class="rp-subtitle">${esc(addr) || 'Address unknown'}</div>
         </div>
       </header>
 
@@ -173,7 +172,7 @@ function residentPopupHTML(r) {
       </div>
 
       <footer class="rp-footer">
-        <button type="button" class="rp-cta" data-action="show-move">Show move</button>
+        
       </footer>
     </div>
   `;
