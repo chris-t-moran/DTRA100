@@ -333,6 +333,8 @@ const state = {
   activeTheme: null
 };
 
+try { window.state = state; } catch {}
+
 // HTML helpers
 function htmlEscape(str) {
   // Coerce non‑string values to strings.  If str is null or undefined, return
@@ -427,6 +429,8 @@ function highlightSelectedArticleMarker(marker, opts = {}) {
 }
 // --- end Lucky Dip → Map highlight integration ---
 
+
+try { window.getArticleMarker = getArticleMarker; window.highlightSelectedArticleMarker = highlightSelectedArticleMarker; } catch {}
 // -----------------------------------------------------------------------------
 // Data loading
 // -----------------------------------------------------------------------------
