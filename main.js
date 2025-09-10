@@ -198,34 +198,7 @@ function showStoryFormPage() {
 
   // Build the form inside content
   const container = document.getElementById('content');
-  container.innerHTML = `
-    <header id="head_logo" class="draggable-content">
-      <a href="https://drumcondratriangle.com/dtra100" class="icon" title="Return to the home page">
-        <img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost ‒ link to homepage" width="150" height="150" />
-      </a>
-      <h1>Triangle&nbsp;100</h1>
-    </header>
-    <!-- Drag handle replicating the desktop/mobile handle for the form view -->
-    <div id="content-handle" class="content-handle"></div>
-
-    <!-- STORY-SHARE dynamic section -->
-    <section id="story-share">
-      <div id="story-share-content" style="min-height: 1rem;"></div>
-    </section>
-
-    <div id="submission-form" style="max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;">
-      <form id="story-form">
-        <label for="title" style="display:block;margin-top:1em;">Story Title:</label>
-        <input name="title" placeholder="e.g. Life on O'Daly Road" required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
-        <label for="contributor" style="display:block;margin-top:1em;">Your Email Address:</label>
-        <input name="contributor" placeholder="e.g. harry@brainesgarages.com" style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
-        <label for="description" style="display:block;margin-top:1em;">Your Story:</label>
-        <textarea name="description" placeholder="Your memories of people, places, traditions and memorable events." required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;"></textarea>
-        <button type="submit" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Submit</button>
-        <button id="back-button" type="button" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Back</button>
-      </form>
-    </div>
-  `;
+  container.innerHTML = "\n    <header id=\"head_logo\" class=\"draggable-content\">\n      <a href=\"https://drumcondratriangle.com/dtra100\" class=\"icon\" title=\"Return to the home page\">\n        <img src=\"https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png\" alt=\"Hardiman Road Lamppost ‒ link to homepage\" width=\"150\" height=\"150\" />\n      </a>\n      <h1>Triangle&nbsp;100</h1>\n    </header>\n    <!-- Drag handle replicating the desktop/mobile handle for the form view -->\n    <div id=\"content-handle\" class=\"content-handle\"></div>\n\n    <!-- STORY-SHARE dynamic section -->\n    <section id=\"story-share\">\n      <div id=\"story-share-content\" style=\"min-height: 1rem;\"></div>\n    </section>\n\n    <div id=\"submission-form\" style=\"max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;\">\n      <form id=\"story-form\">\n        <label for=\"title\" style=\"display:block;margin-top:1em;\">Story Title:</label>\n        <input name=\"title\" placeholder=\"e.g. Life on O'Daly Road\" required style=\"width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;\" />\n        <label for=\"contributor\" style=\"display:block;margin-top:1em;\">Your Email Address:</label>\n        <input name=\"contributor\" placeholder=\"e.g. harry@brainesgarages.com\" style=\"width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;\" />\n        <label for=\"description\" style=\"display:block;margin-top:1em;\">Your Story:</label>\n        <textarea name=\"description\" placeholder=\"Your memories of people, places, traditions and memorable events.\" required style=\"width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;\"></textarea>\n        <button type=\"submit\" style=\"margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;\">Submit</button>\n        <button id=\"back-button\" type=\"button\" style=\"margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;\">Back</button>\n      </form>\n    </div>\n  ";
 
   container.style.opacity = 0;
   container.classList.add('fade-in');
