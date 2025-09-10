@@ -174,6 +174,14 @@ function revealArticleMarker(article, opts = {}) {
   } else {
     afterVisible();
   }
+
+  if (typeof selectArticleMarker === 'function') selectArticleMarker(mk);
+  // Nudge on mobile so the marker sits above a bottom panel or below a top panel
+  setTimeout(function () {
+    panMarkerIntoViewWithContentOffset(mk, { margin: 20, animate: true });
+  }, 0);
+
+  
 }
 
 
@@ -885,6 +893,55 @@ function openModal(article) {
     }
   });
 }
+
+
+// Keep a marker visible when part of the map is covered by #content.
+// Works for mobile where the panel is BELOW (dragged up) or ABOVE (dragged down).
+function panMarkerIntoViewWithContentOffset(marker, opts) {
+  var map = state && state.map;
+  if (!map || !marker || !marker.getLatLng) return;
+
+  // Mobile only (avoid nudging desktop)
+  if (window.innerWidth > 500) return;
+
+  var margin = (opts && opts.margin) != null ? opts.margin : 16; // px
+  var animate = (opts && 'animate' in opts) ? !!opts.animate : true;
+
+  var mapEl = map.getContainer();
+  var content = document.getElementById('content');
+  if (!mapEl || !content) return;
+
+  var m = mapEl.getBoundingClientRect();
+  var c = content.getBoundingClientRect();
+  var mapH = m.height;
+
+  // Overlap measured INSIDE the map viewport
+  var overlapTop    = Math.max(0, Math.min(c.bottom, m.bottom) - Math.max(c.top, m.top) );
+  var overlapBottom = Math.max(0, Math.min(m.bottom, c.bottom) - Math.max(m.top, c.top) );
+
+  // If the panel is below the map, overlapTop will be ~0 and overlapBottom > 0.
+  // If above, overlapTop > 0 and overlapBottom ~0. If overlaying, both may be > 0.
+
+  // Compute the allowed vertical band for the marker inside the map:
+  var minY = overlapTop + margin;
+  var maxY = mapH - overlapBottom - margin;
+
+  // Marker’s current position in map container pixels
+  var pt = map.latLngToContainerPoint(marker.getLatLng());
+
+  // If already within the visible band, nothing to do
+  if (pt.y >= minY && pt.y <= maxY) return;
+
+  // Pan so the marker’s screen Y moves to the nearest edge of the band
+  var targetY = (pt.y < minY) ? minY : maxY;
+  var d = targetY - pt.y;      // positive if we want the marker to move DOWN on screen
+  // panBy moves the MAP; the marker moves opposite: use -d
+  map.panBy([0, -d], { animate: animate });
+}
+
+
+
+
 
 
 // Render the story submission form and replace the map when the user
