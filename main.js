@@ -768,27 +768,7 @@ const ResidentsSearchControl = L.Control.extend({
     input.style.padding = '6px 8px';
     input.style.outline = 'none';
 
-    const row = L.DomUtil.create('div', '', c);
-    row.style.display = 'flex';
-    row.style.gap = '6px';
-    row.style.marginTop = '6px';
-
-    const goBtn = L.DomUtil.create('button', '', row);
-    goBtn.textContent = 'Find';
-    goBtn.style.padding = '4px 10px';
-    goBtn.style.border = '1px solid #999';
-    goBtn.style.borderRadius = '6px';
-    goBtn.style.background = '#f8f8f8';
-    goBtn.style.cursor = 'pointer';
-
-    const clearBtn = L.DomUtil.create('button', '', row);
-    clearBtn.textContent = 'Show all';
-    clearBtn.style.padding = '4px 10px';
-    clearBtn.style.border = '1px solid #999';
-    clearBtn.style.borderRadius = '6px';
-    clearBtn.style.background = '#fff';
-    clearBtn.style.cursor = 'pointer';
-
+    
     L.DomEvent.disableClickPropagation(c);
     L.DomEvent.disableScrollPropagation(c);
 
