@@ -328,8 +328,6 @@ const state = {
   articles: [],
   peopleMarkers: [],
   articleMarkers: null,
-  articleMarkerIndex: new Map(),
-  lastSelectedArticleMarker: null,
   map: null,
   activeTheme: null
 };
@@ -350,58 +348,29 @@ function htmlEscape(str) {
 }
 
 
-// --- Article selection highlight (color only) ---
-function _articleKey(a) {
-  if (a && a.id != null) return `id:${a.id}`;
-  return `at:${a.lat},${a.lon}|${a.title ?? ''}`;
-}
-function getArticleMarker(article) {
-  const k = _articleKey(article);
-  if (state.articleMarkerIndex?.has(k)) return state.articleMarkerIndex.get(k);
-  try {
-    const layers = state.articleMarkers?.getLayers?.() || [];
-    for (const lyr of layers) {
-      if (lyr && lyr._article) {
-        if ((article.id != null && lyr._article.id === article.id) ||
-            (lyr._article.lat === article.lat && lyr._article.lon === article.lon && lyr._article.title === article.title)) {
-          return lyr;
-        }
-      }
+// --- Reveal article marker even if clustered, then select (desktop-only pan inside select) ---
+function revealArticleMarker(article, opts = {}) {
+  const mk = (typeof getArticleMarker === 'function') ? getArticleMarker(article) : null;
+  if (!mk) { console.warn('revealArticleMarker: marker not found', article); return; }
+
+  const afterVisible = () => {
+    try {
+      const parent = mk.__parent;
+      if (parent && typeof parent.spiderfy === 'function') parent.spiderfy();
+    } catch {}
+    if (typeof selectArticleMarker === 'function') {
+      selectArticleMarker(mk);
     }
-  } catch {}
-  return null;
-}
-function _styleOf(marker) {
-  const o = marker && marker.options || {};
-  return {
-    radius: o.radius, color: o.color, weight: o.weight,
-    fillColor: o.fillColor, fillOpacity: o.fillOpacity, opacity: o.opacity
+    try { mk.bringToFront?.(); } catch {}
   };
-}
-function selectArticleMarker(marker, opts = {}) {
-  if (!marker) return;
-  const highlight = Object.assign({
-    color: '#f97316',
-    fillColor: '#ffedd5',
-    weight: 3,
-    radius: Math.max( (marker.options && marker.options.radius) || 7, 9 )
-  }, opts.highlight || {});
 
-  if (state.lastSelectedArticleMarker && state.lastSelectedArticleMarker !== marker) {
-    const prev = state.lastSelectedArticleMarker;
-    if (prev._baseStyle) prev.setStyle(prev._baseStyle);
+  if (state.articleMarkers && typeof state.articleMarkers.zoomToShowLayer === 'function') {
+    state.articleMarkers.zoomToShowLayer(mk, afterVisible);
+  } else {
+    afterVisible();
   }
-
-  marker.setStyle(highlight);
-  // Desktop-only pan to keep marker visible under content panel
-  try {
-    if (window.innerWidth > 500 && state?.map && marker?.getLatLng) {
-      state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.6 });
-    }
-  } catch {}
-  state.lastSelectedArticleMarker = marker;
 }
-// --- end Article selection highlight ---
+// --- end revealArticleMarker ---
 
 // -----------------------------------------------------------------------------
 // Data loading
@@ -557,10 +526,7 @@ async function initMapAndPage() {
       fillOpacity: 0.8,
       weight: 1
     });
-    marker._article = article;
-    marker._baseStyle = _styleOf(marker);
-    try { state.articleMarkerIndex.set(_articleKey(article), marker); } catch {}
-    marker.on('click', () => { selectArticleMarker(marker); openModal(article); });
+    marker.on('click', () => openModal(article));
     state.articleMarkers.addLayer(marker);
   });
   state.map.addLayer(state.articleMarkers);
@@ -698,21 +664,13 @@ function togglePeopleMarkers(button) {
 
 // Create and display a modal for a given article
 function openModal(article) {
-  // Helpers we rely on (from earlier builds)
-  const getMk = (a) =>
-    (typeof getArticleMarker === 'function' ? getArticleMarker(a) : null);
-  const selectMk = (mk) =>
-    (typeof selectArticleMarker === 'function' ? selectArticleMarker(mk) : null);
-
-  // --- create overlay
+  // Create modal overlay
   const modal = document.createElement('div');
   modal.className = 'modal';
-
-  // content wrapper
+  // Create modal content wrapper
   const content = document.createElement('div');
   content.className = 'modal-content';
-
-  // header
+  // Header section with title and short description
   const header = document.createElement('header');
   const title = document.createElement('h2');
   title.textContent = article.title || '';
@@ -720,121 +678,66 @@ function openModal(article) {
   shortDesc.textContent = article.short_desc || '';
   header.appendChild(title);
   header.appendChild(shortDesc);
-
-  // image
+  // Image wrapper
   const imgWrapper = document.createElement('div');
   imgWrapper.className = 'imgWrapper';
   const image = document.createElement('img');
   image.src = article.img || '';
   image.alt = article.title || '';
   imgWrapper.appendChild(image);
-
-  // description + progress bar
+  // Description container with progress bar
   const descriptionWrapper = document.createElement('div');
   descriptionWrapper.className = 'descriptionWrapper';
-
+  // Progress bar (sticky)
   const progressBar = document.createElement('div');
   progressBar.className = 'progress-bar';
   descriptionWrapper.appendChild(progressBar);
-
+  // Description content
   const description = document.createElement('div');
   description.innerHTML = (article.description || '').replace(/\n/g, '<br>');
   descriptionWrapper.appendChild(description);
-
-  // footer with contributor + actions
+  // Footer with contributor
   const footer = document.createElement('footer');
-  footer.className = 'modal-footer';
-
-  const contributor = document.createElement('span');
-  contributor.className = 'modal-contrib';
-  contributor.textContent = `Shared by: ${article.contributor || ''}`;
-
-  const spacer = document.createElement('span');
-  spacer.style.flex = '1 1 auto';
-
-  const viewBtn = document.createElement('button');
-  viewBtn.type = 'button';
-  viewBtn.className = 'modal-view-btn';
-  viewBtn.textContent = 'View on Map';
-
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.className = 'modal-close-btn';
-  closeBtn.textContent = 'Close';
-
-  footer.appendChild(contributor);
-  footer.appendChild(spacer);
-  footer.appendChild(viewBtn);
-  footer.appendChild(closeBtn);
-
-  // assemble
+  footer.textContent = `Shared by: ${article.contributor || ''}`;
+  // Assemble modal
   content.appendChild(header);
   content.appendChild(imgWrapper);
   content.appendChild(descriptionWrapper);
   content.appendChild(footer);
   modal.appendChild(content);
   document.body.appendChild(modal);
-
-  // small enter animation
-  requestAnimationFrame(() => modal.classList.add('show'));
-
-  // --- close + reveal on map (used by all close paths)
-  const closeAndReveal = () => {
-    try { modal.classList.remove('show'); } catch {}
-    // allow exit transition if you have one
-    setTimeout(() => {
-      try { document.body.removeChild(modal); } catch {}
-    }, 150);
-
-    // highlight + desktop-only pan
-    try {
-      const mk = getMk(article);
-      if (mk) selectMk(mk);
-    } catch (e) {
-      console.warn('Reveal on map failed:', e);
-    }
-
-    // cleanup listeners
-    window.removeEventListener('keydown', onEsc, true);
-  };
-
-  // robust backdrop tap: “outside the content” check
+  // Animate show after small delay
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 100);
+  // Clicking outside content closes modal
   modal.addEventListener('click', (e) => {
-    const clickedOutside = !content.contains(e.target);
-    if (clickedOutside) closeAndReveal();
+    if (e.target === modal) {
+      document.body.removeChild(modal);
+    }
   });
-
-  // prevent inside clicks from bubbling to modal
-  content.addEventListener('click', (e) => e.stopPropagation());
-
-  // Escape to close + reveal
-  const onEsc = (ev) => { if (ev.key === 'Escape') closeAndReveal(); };
-  window.addEventListener('keydown', onEsc, true);
-
-  // buttons
-  viewBtn.addEventListener('click', closeAndReveal);
-  closeBtn.addEventListener('click', closeAndReveal);
-
-  // progress bar on scroll
+  // Update progress bar on scroll
   descriptionWrapper.addEventListener('scroll', () => {
     const scrollTop = descriptionWrapper.scrollTop;
     const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
-    const percent = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    const percent = (scrollTop / scrollHeight) * 100;
     progressBar.style.width = `${percent}%`;
   });
-
-  // image swap markers
+  // Swap image on scroll markers
   descriptionWrapper.addEventListener('scroll', () => {
     const markers = descriptionWrapper.querySelectorAll('.image-change');
     let lastPassed = null;
     markers.forEach((marker) => {
       const rect = marker.getBoundingClientRect();
       const wrapperRect = descriptionWrapper.getBoundingClientRect();
-      if (rect.top - wrapperRect.top <= 50) lastPassed = marker;
+      if (rect.top - wrapperRect.top <= 50) {
+        lastPassed = marker;
+      }
     });
     if (lastPassed) {
       const newImg = lastPassed.getAttribute('data-img');
       if (newImg && image.src !== newImg) {
+        // Fade out image
         image.classList.add('fade-out');
         setTimeout(() => {
           image.src = newImg;
@@ -843,12 +746,13 @@ function openModal(article) {
             image.classList.add('fade-in');
           }, 50);
         }, 300);
-        setTimeout(() => image.classList.remove('fade-in'), 700);
+        setTimeout(() => {
+          image.classList.remove('fade-in');
+        }, 700);
       }
     }
   });
 }
-
 
 // Render the story submission form and replace the map when the user
 // clicks the "Get involved" button.  This function also wires up
@@ -1039,16 +943,3 @@ document.getElementById('share-story-btn').addEventListener('click', (e) => {
 
 // Kick off loading the site
 loadArticles();
-
-// Inject minimal CSS for the modal 'View on Map' button
-(function ensureModalViewBtnCSS(){
-  if (document.getElementById('modal-view-btn-css')) return;
-  const css = `.modal .modal-footer { display:flex; gap:8px; align-items:center; padding:10px 14px; border-top:1px solid #e5e7eb; background:#fff; }
-  .modal .modal-view-btn { appearance:none; border:1px solid #2563eb; background:#fff; color:#1e3a8a; font-weight:600; font-size:13px; padding:6px 10px; border-radius:8px; cursor:pointer; }
-  .modal .modal-view-btn:hover { background:#eff6ff; }`;
-  const style = document.createElement('style');
-  style.id = 'modal-view-btn-css';
-  style.type = 'text/css';
-  style.appendChild(document.createTextNode(css));
-  document.head.appendChild(style);
-})();
