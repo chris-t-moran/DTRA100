@@ -139,7 +139,7 @@
 })();
 
 
-
+// Reveal an article's marker even if it's inside a cluster, then highlight it.
 // Reveal an article's marker even if it's inside a cluster, then highlight it.
 // Uses getVisibleParent() so we only spiderfy when the marker is still clustered.
 function revealArticleMarker(article, opts = {}) {
@@ -490,8 +490,6 @@ async function loadArticles() {
   
 }
 
-
-
 // Fetch all active residents and prepare their markers (but do not
 // automatically add to the map).  People markers are stored in
 // state.peopleMarkers and toggled via the residents toggle button.
@@ -564,6 +562,10 @@ async function loadResidents() {
 // Map initialization & UI setup
 // -----------------------------------------------------------------------------
 
+
+
+
+
 async function initMapAndPage() {
   // Determine map centre/zoom for mobile vs desktop
   const isMobile = window.innerWidth <= 500;
@@ -580,75 +582,6 @@ async function initMapAndPage() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(state.map);
-
-
-// A tiny debounce helper
-function debounce(fn, ms) {
-  let t;
-  return function(...args) {
-    clearTimeout(t);
-    t = setTimeout(() => fn.apply(this, args), ms);
-  };
-}
-
-// Residents address search control
-const ResidentsSearchControl = L.Control.extend({
-  options: { position: 'topright' }, // under your existing button
-  onAdd: function () {
-    const c = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-    c.style.padding = '6px';
-    c.style.background = '#fff';
-    c.style.boxShadow = '0 1px 4px rgba(0,0,0,.2)';
-
-    const input = L.DomUtil.create('input', '', c);
-    input.type = 'search';
-    input.placeholder = 'Search address…';
-    input.autocomplete = 'off';
-    input.spellcheck = false;
-    input.style.width = '180px';
-    input.style.border = '1px solid #ccc';
-    input.style.padding = '6px 8px';
-    input.style.outline = 'none';
-
-    const row = L.DomUtil.create('div', '', c);
-    row.style.display = 'flex';
-    row.style.gap = '6px';
-    row.style.marginTop = '6px';
-
-    const goBtn = L.DomUtil.create('button', '', row);
-    goBtn.textContent = 'Find';
-    goBtn.style.padding = '4px 10px';
-    goBtn.style.border = '1px solid #999';
-    goBtn.style.borderRadius = '6px';
-    goBtn.style.background = '#f8f8f8';
-    goBtn.style.cursor = 'pointer';
-
-    const clearBtn = L.DomUtil.create('button', '', row);
-    clearBtn.textContent = 'Show all';
-    clearBtn.style.padding = '4px 10px';
-    clearBtn.style.border = '1px solid #999';
-    clearBtn.style.borderRadius = '6px';
-    clearBtn.style.background = '#fff';
-    clearBtn.style.cursor = 'pointer';
-
-    // Prevent map drag/zoom while interacting with the control
-    L.DomEvent.disableClickPropagation(c);
-    L.DomEvent.disableScrollPropagation(c);
-
-
-
-    input.addEventListener('input', run);
-    goBtn.addEventListener('click', run);
-    clearBtn.addEventListener('click', () => {
-      input.value = '';
-      clearResidentsFilter();
-    });
-
-    return c;
-  }
-});
-
-  
 
   // Residents toggle control
   const ResidentsToggleControl = L.Control.extend({
@@ -669,7 +602,6 @@ const ResidentsSearchControl = L.Control.extend({
     }
   });
   state.map.addControl(new ResidentsToggleControl());
-  state.map.addControl(new ResidentsSearchControl());
 
   // Prepare article marker cluster group
   state.articleMarkers = L.markerClusterGroup({
@@ -715,7 +647,6 @@ const ResidentsSearchControl = L.Control.extend({
   // Load resident markers (not yet added to map).  Await to ensure markers
   // are available before the user toggles between stories and residents.
   await loadResidents();
-
 }
 
 // Create category buttons, including a "Lucky Dip" option
@@ -832,8 +763,6 @@ function togglePeopleMarkers(button) {
     button.innerHTML = 'Switch to Stories';
   }
 }
-
-
 
 // Create and display a modal for a given article
 function openModal(article) {
@@ -979,33 +908,6 @@ function openModal(article) {
   });
 }
 
-// --- Residents address filter helpers ---
-(function() {
-  const isStr = (v) => typeof v === "string" && v.length > 0;
-
-  function norm(s) {
-    return String(s || "")
-      .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents
-      .replace(/[^a-z0-9\s]/g, " ")                    // remove punctuation
-      .replace(/\s+/g, " ")                            // collapse spaces
-      .trim();
-  }
-
-  function addrString(res) {
-    // Adjust to your schema if needed
-    const parts = [
-      res.housenumber,
-      res.road     
-    ].filter(isStr);
-    return parts.join(" ");
-  }
-
-  // Make these available
-  window.__residentsFilter = {
-    norm, addrString
-  };
-})();
 
 // Keep a marker visible when part of the map is covered by #content.
 // Works for mobile where the panel is BELOW (dragged up) or ABOVE (dragged down).
@@ -1258,6 +1160,3 @@ loadArticles();
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
 })();
-
-
-
