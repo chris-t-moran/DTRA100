@@ -139,7 +139,7 @@
 })();
 
 
-// Reveal an article's marker even if it's inside a cluster, then highlight it.
+
 // Reveal an article's marker even if it's inside a cluster, then highlight it.
 // Uses getVisibleParent() so we only spiderfy when the marker is still clustered.
 function revealArticleMarker(article, opts = {}) {
@@ -490,6 +490,8 @@ async function loadArticles() {
   
 }
 
+
+
 // Fetch all active residents and prepare their markers (but do not
 // automatically add to the map).  People markers are stored in
 // state.peopleMarkers and toggled via the residents toggle button.
@@ -557,6 +559,84 @@ async function loadResidents() {
   state.peopleMarkers.push(marker);
   });
 }
+
+// A tiny debounce helper
+function debounce(fn, ms) {
+  let t;
+  return function(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+// Residents address search control
+const ResidentsSearchControl = L.Control.extend({
+  options: { position: 'topright' }, // under your existing button
+  onAdd: function () {
+    const c = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    c.style.padding = '6px';
+    c.style.background = '#fff';
+    c.style.boxShadow = '0 1px 4px rgba(0,0,0,.2)';
+
+    const input = L.DomUtil.create('input', '', c);
+    input.type = 'search';
+    input.placeholder = 'Search address…';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.style.width = '180px';
+    input.style.border = '1px solid #ccc';
+    input.style.padding = '6px 8px';
+    input.style.outline = 'none';
+
+    const row = L.DomUtil.create('div', '', c);
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    row.style.marginTop = '6px';
+
+    const goBtn = L.DomUtil.create('button', '', row);
+    goBtn.textContent = 'Find';
+    goBtn.style.padding = '4px 10px';
+    goBtn.style.border = '1px solid #999';
+    goBtn.style.borderRadius = '6px';
+    goBtn.style.background = '#f8f8f8';
+    goBtn.style.cursor = 'pointer';
+
+    const clearBtn = L.DomUtil.create('button', '', row);
+    clearBtn.textContent = 'Show all';
+    clearBtn.style.padding = '4px 10px';
+    clearBtn.style.border = '1px solid #999';
+    clearBtn.style.borderRadius = '6px';
+    clearBtn.style.background = '#fff';
+    clearBtn.style.cursor = 'pointer';
+
+    // Prevent map drag/zoom while interacting with the control
+    L.DomEvent.disableClickPropagation(c);
+    L.DomEvent.disableScrollPropagation(c);
+
+    const run = debounce(async () => {
+      const q = input.value.trim();
+      if (!q) { clearResidentsFilter(); return; }
+      const mk = await filterResidentsByAddress(q);
+      // Optional: wiggle/flash the match for visibility
+      if (mk) {
+        try { mk.bringToFront?.(); } catch {}
+      }
+    }, 200);
+
+    input.addEventListener('input', run);
+    goBtn.addEventListener('click', run);
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      clearResidentsFilter();
+    });
+
+    return c;
+  }
+});
+
+// Add the control to the map (after state.map exists)
+state.map.addControl(new ResidentsSearchControl());
+
 
 // -----------------------------------------------------------------------------
 // Map initialization & UI setup
@@ -907,6 +987,116 @@ function openModal(article) {
     }
   });
 }
+
+// --- Residents address filter helpers ---
+(function() {
+  const isStr = (v) => typeof v === "string" && v.length > 0;
+
+  function norm(s) {
+    return String(s || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents
+      .replace(/[^a-z0-9\s]/g, " ")                    // remove punctuation
+      .replace(/\s+/g, " ")                            // collapse spaces
+      .trim();
+  }
+
+  function addrString(res) {
+    // Adjust to your schema if needed
+    const parts = [
+      res.housenumber,
+      res.road,
+      res.suburb,
+      res.postcode
+    ].filter(isStr);
+    return parts.join(" ");
+  }
+
+  // Make these available
+  window.__residentsFilter = {
+    norm, addrString
+  };
+})();
+
+// Show only the resident whose address matches query. Returns the matched marker or null.
+async function filterResidentsByAddress(query) {
+  if (!state?.peopleMarkers || state.peopleMarkers.length === 0) return null;
+
+  const { norm, addrString } = window.__residentsFilter;
+  const q = norm(query);
+  if (!q) { clearResidentsFilter(); return null; }
+
+  // Score candidates: exact startsWith > includes
+  let best = null, bestScore = -Infinity;
+
+  for (const mk of state.peopleMarkers) {
+    const r = mk._resident || {};
+    const s = norm(addrString(r));
+    if (!s) continue;
+
+    let score = -1;
+    if (s === q) score = 3;
+    else if (s.startsWith(q)) score = 2;
+    else if (s.includes(q)) score = 1;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = mk;
+    }
+  }
+
+  if (!best) {
+    // No match: clear & exit
+    clearResidentsFilter();
+    return null;
+  }
+
+  // Hide everyone else; keep only BEST visible
+  for (const mk of state.peopleMarkers) {
+    if (mk === best) continue;
+    try { mk.setStyle({ opacity: 0, fillOpacity: 0 }); } catch {}
+    const el = mk.getElement?.();
+    if (el) el.style.pointerEvents = "none";
+    mk._hiddenByResidentFilter = true;
+  }
+
+  // Restore + emphasize the match
+  try { best.setStyle({ opacity: 1, fillOpacity: 1 }); } catch {}
+  const elBest = best.getElement?.();
+  if (elBest) elBest.style.pointerEvents = "";
+
+  // Optional highlight if you have one (re-uses your existing resident highlight if any)
+  try { best.bringToFront?.(); } catch {}
+
+  // Move map to it (use your desktop/mobile rules)
+  const ll = best.getLatLng();
+  if (window.innerWidth > 500) {
+    state.map.flyTo(ll, Math.max(17, state.map.getZoom()), { duration: 0.6 });
+  } else {
+    // gentle pan on mobile (avoid hiding under the content panel)
+    state.map.panTo(ll, { animate: true });
+  }
+
+  state._residentsFilterActive = true;
+  state._residentsFilterMatch = best;
+  return best;
+}
+
+function clearResidentsFilter() {
+  if (!state?.peopleMarkers) return;
+  for (const mk of state.peopleMarkers) {
+    if (!mk?._hiddenByResidentFilter) continue;
+    // Restore default style; tweak if you have custom styles
+    try { mk.setStyle({ opacity: 1, fillOpacity: 0.7 }); } catch {}
+    const el = mk.getElement?.();
+    if (el) el.style.pointerEvents = "";
+    mk._hiddenByResidentFilter = false;
+  }
+  state._residentsFilterActive = false;
+  state._residentsFilterMatch = null;
+}
+
+
 
 
 // Keep a marker visible when part of the map is covered by #content.
