@@ -184,6 +184,23 @@ function revealArticleMarker(article, opts = {}) {
   
 }
 
+// Slide the #content panel down to the lower third on mobile (no-op on desktop)
+function settleContentPanelToLowerThird(opts) {
+  if (window.innerWidth > 500) return; // mobile only
+  const content = document.getElementById('content');
+  if (!content) return;
+
+  const marginVisible = 100; // keep at least 100px visible (matches your drag clamp)
+  const vh = window.innerHeight;
+  const desiredTop = Math.min(Math.max(0, Math.round(vh * (2/3))), vh - marginVisible);
+
+  const prev = content.style.transition;
+  content.style.transition = 'top 300ms ease';
+  content.style.top = desiredTop + 'px';
+
+  // Clean up transition after the animation so dragging feels snappy
+  setTimeout(() => { content.style.transition = prev || ''; }, 400);
+}
 
 
 
@@ -825,26 +842,23 @@ function openModal(article) {
   requestAnimationFrame(() => modal.classList.add('show'));
 
   // --- close + reveal on map (used by all close paths)
-  const closeAndReveal = () => {
-    try { modal.classList.remove('show'); } catch {}
-    // allow exit transition if you have one
-    try { revealArticleMarker(article); } catch (e) { console.warn(e); }
-    
+  function closeAndReveal() {
+  try { modal.classList.remove('show'); } catch (e) {}
+  setTimeout(() => { try { document.body.removeChild(modal); } catch (e) {} }, 120);
+
+  if (window.innerWidth <= 500) {
+    // Slide panel to lower third first, then reveal marker so the offset math is correct
+    settleContentPanelToLowerThird();
     setTimeout(() => {
-      try { document.body.removeChild(modal); } catch {}
-    }, 150);
+      try { if (typeof revealArticleMarker === 'function') revealArticleMarker(article); } catch (e) { console.warn('Reveal failed', e); }
+    }, 350); // wait for panel animation
+  } else {
+    try { if (typeof revealArticleMarker === 'function') revealArticleMarker(article); } catch (e) { console.warn('Reveal failed', e); }
+  }
 
-    // highlight + desktop-only pan
-    try {
-      const mk = getMk(article);
-      if (mk) selectMk(mk);
-    } catch (e) {
-      console.warn('Reveal on map failed:', e);
-    }
+  window.removeEventListener('keydown', onEsc, true);
+}
 
-    // cleanup listeners
-    window.removeEventListener('keydown', onEsc, true);
-  };
 
   // robust backdrop tap: “outside the content” check
   modal.addEventListener('click', (e) => {
