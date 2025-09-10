@@ -1138,7 +1138,7 @@ function showStoryFormPage() {
 // Attach click handler for the share story button
 document.getElementById('share-story-btn').addEventListener('click', (e) => {
   e.preventDefault();
-  const pageContent = document.getElementById('content');
+  const pageContent = document.getElementById('content'); 
   pageContent.classList.add('fade-out');
   setTimeout(() => {
     showStoryFormPage();
