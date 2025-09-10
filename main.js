@@ -140,33 +140,42 @@
 
 
 // Reveal an article's marker even if it's inside a cluster, then highlight it.
+// Reveal an article's marker even if it's inside a cluster, then highlight it.
+// Uses getVisibleParent() so we only spiderfy when the marker is still clustered.
 function revealArticleMarker(article, opts = {}) {
+  const group = state?.articleMarkers;
   const mk = (typeof getArticleMarker === 'function') ? getArticleMarker(article) : null;
-  if (!mk) { console.warn('revealArticleMarker: marker not found', article); return; }
+  if (!group || !mk) { console.warn('revealArticleMarker: missing group or marker'); return; }
 
-  const doAfterVisible = () => {
-    // If multiple markers are at the same lat/lng, spiderfy the cluster parent
+  const afterVisible = () => {
+    // If the marker is still represented by a visible cluster, spiderfy that cluster
     try {
-      const parent = mk.__parent;
-      if (parent && typeof parent.spiderfy === 'function') parent.spiderfy();
-    } catch {}
+      if (typeof group.getVisibleParent === 'function') {
+        const vp = group.getVisibleParent(mk);
+        if (vp && vp !== mk && typeof vp.spiderfy === 'function') {
+          // Defer a tick so the zoom/pan finishes before spiderfying
+          setTimeout(() => vp.spiderfy(), 0);
+        }
+      }
+    } catch (e) {
+      console.warn('spiderfy check failed', e);
+    }
 
-    // Now apply your “selected” styling (+ desktop-only pan lives inside this)
-    if (typeof selectArticleMarker === 'function') selectArticleMarker(mk);
+    // Now apply your highlight (and desktop-only pan inside this)
+    if (typeof selectArticleMarker === 'function') {
+      selectArticleMarker(mk);
+    }
 
-    // Optional: bring to front or open a popup if you add one later
     try { mk.bringToFront?.(); } catch {}
-    // mk.openPopup?.();
   };
 
-  // If using MarkerCluster, this will zoom in until the marker is actually on the map
-  if (state.articleMarkers && typeof state.articleMarkers.zoomToShowLayer === 'function') {
-    state.articleMarkers.zoomToShowLayer(mk, doAfterVisible);
+  if (typeof group.zoomToShowLayer === 'function') {
+    group.zoomToShowLayer(mk, afterVisible);
   } else {
-    // No clustering? Just run the highlight.
-    doAfterVisible();
+    afterVisible();
   }
 }
+
 
 
 
