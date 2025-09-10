@@ -260,6 +260,32 @@ body {
   font-size: 1rem;
 }
 
+/* Modal footer layout + buttons */
+.modal .modal-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-top: 1px solid #e5e7eb; background: #fff;
+}
+.modal .modal-view-btn, .modal .modal-close-btn {
+  appearance: none; border-radius: 8px; cursor: pointer;
+  font: 600 13px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  padding: 6px 10px;
+}
+.modal .modal-view-btn {
+  border: 1px solid #2563eb; background: #fff; color: #1e3a8a;
+}
+.modal .modal-view-btn:hover { background: #eff6ff; }
+.modal .modal-close-btn {
+  border: 1px solid #d1d5db; background: #fff; color: #374151;
+}
+.modal .modal-close-btn:hover { background: #f3f4f6; }
+
+/* Optional enter/exit */
+.modal { opacity: 0; transition: opacity .15s ease; }
+.modal.show { opacity: 1; }
+
+
+
+
 .imgWrapper {
   width: 100%;
   height: 300px;
