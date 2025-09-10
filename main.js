@@ -139,45 +139,47 @@
 })();
 
 
-// --- Resident popup template & styles ---
+// --- Resident popup template (no backticks, no ${}) ---
 function residentPopupHTML(r) {
-  const esc = (v) => (typeof htmlEscape === 'function' ? htmlEscape(String(v ?? '')) : String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])));
-  const addr = `" + (r.housenumber ?? '') + " " + (r.road ?? '') + "`.trim();
-  const former = r.formeraddress ? `
-    <div class="rp-row">
-      <span class="rp-label">Former Address:</span>
-      <span class="rp-value">" + (esc(r.formeraddress)) + "</span>
-    </div>` : '';
+  const esc = (v) => {
+    const s = v == null ? "" : String(v);
+    return (typeof htmlEscape === "function")
+      ? htmlEscape(s)
+      : s.replace(/[&<>"']/g, (ch) => (
+          { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[ch]
+        ));
+  };
 
-  const occ = r.occupation ? `
-    <div class="rp-row">
-      <span class="rp-label">Occupation (1929):</span>
-      <span class="rp-value">" + (esc(r.occupation)) + "</span>
-    </div>` : '';
+  const addr = ((r.housenumber || "") + " " + (r.road || "")).trim();
 
-  const name = r.lessee ? esc(r.lessee) : 'First Resident';
+  const former = r.formeraddress
+    ? '<div class="rp-row">'
+        + '<span class="rp-label">Former Address:</span>'
+        + '<span class="rp-value">' + esc(r.formeraddress) + "</span>"
+      + "</div>"
+    : "";
 
-  return `
-      <div class="resident-popup">
-      <header class="rp-header">
-        <div class="rp-avatar" aria-hidden="true"></div>
-        <div class="rp-headings">
-          <h2 class="rp-title">" + (name) + "</h2>
-          <div class="rp-subtitle">" + (esc(addr) || 'Address unknown') + "</div>
-        </div>
-      </header>
+  const occ = r.occupation
+    ? '<div class="rp-row">'
+        + '<span class="rp-label">Occupation (1929):</span>'
+        + '<span class="rp-value">' + esc(r.occupation) + "</span>"
+      + "</div>"
+    : "";
 
+  const name = r.lessee ? esc(r.lessee) : "First Resident";
 
-      <div class="rp-body">
-        " + (former) + "
-        " + (occ) + "
-      </div>
-
-      <footer class="rp-footer">
-        
-      </footer>
-    </div>
-
+  return ''
+    + '<div class="resident-popup">'
+      + '<header class="rp-header">'
+        + '<div class="rp-avatar" aria-hidden="true">🏠</div>'
+        + '<div class="rp-headings">'
+          + '<h2 class="rp-title">' + name + "</h2>"
+          + '<div class="rp-subtitle">' + (esc(addr) || "Address unknown") + "</div>"
+        + "</div>"
+      + "</header>"
+      + '<div class="rp-body">' + former + occ + "</div>"
+      + '<footer class="rp-footer"></footer>'
+    + "</div>";
 }
 
 // Inject popup CSS once
