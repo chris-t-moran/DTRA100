@@ -762,16 +762,11 @@ function openModal(article) {
   closeBtn.className = 'modal-close-btn';
   closeBtn.textContent = 'Close';
 
-  footer.appendChild(contributor);
-  footer.appendChild(spacer);
-  footer.appendChild(viewBtn);
-  footer.appendChild(closeBtn);
 
   // assemble
   content.appendChild(header);
   content.appendChild(imgWrapper);
   content.appendChild(descriptionWrapper);
-  content.appendChild(footer);
   modal.appendChild(content);
   document.body.appendChild(modal);
 
@@ -811,9 +806,6 @@ function openModal(article) {
   const onEsc = (ev) => { if (ev.key === 'Escape') closeAndReveal(); };
   window.addEventListener('keydown', onEsc, true);
 
-  // buttons
-  viewBtn.addEventListener('click', closeAndReveal);
-  closeBtn.addEventListener('click', closeAndReveal);
 
   // progress bar on scroll
   descriptionWrapper.addEventListener('scroll', () => {
