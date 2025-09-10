@@ -690,15 +690,15 @@ function togglePeopleMarkers(button) {
 }
 
 // Create and display a modal for a given article
-
-// Create and display a modal for a given article
 function openModal(article) {
   // Create modal overlay
   const modal = document.createElement('div');
   modal.className = 'modal';
+
   // Create modal content wrapper
   const content = document.createElement('div');
   content.className = 'modal-content';
+
   // Header section with title and short description
   const header = document.createElement('header');
   const title = document.createElement('h2');
@@ -707,6 +707,7 @@ function openModal(article) {
   shortDesc.textContent = article.short_desc || '';
   header.appendChild(title);
   header.appendChild(shortDesc);
+
   // Image wrapper
   const imgWrapper = document.createElement('div');
   imgWrapper.className = 'imgWrapper';
@@ -714,17 +715,18 @@ function openModal(article) {
   image.src = article.img || '';
   image.alt = article.title || '';
   imgWrapper.appendChild(image);
+
   // Description container with progress bar
   const descriptionWrapper = document.createElement('div');
   descriptionWrapper.className = 'descriptionWrapper';
-  // Progress bar (sticky)
+
   const progressBar = document.createElement('div');
   progressBar.className = 'progress-bar';
   descriptionWrapper.appendChild(progressBar);
-  // Description content
+
   const description = document.createElement('div');
-  description.innerHTML = (article.description || '').replace(/
-/g, '<br>');
+  // ✅ FIX: regex must be on one line
+  description.innerHTML = (article.description || '').replace(/\n/g, '<br>');
   descriptionWrapper.appendChild(description);
 
   // Assemble modal
@@ -734,121 +736,63 @@ function openModal(article) {
   modal.appendChild(content);
   document.body.appendChild(modal);
 
-  // Animate show after small delay
-  setTimeout(() => {
-    modal.classList.add('show');
-  }, 0);
+  // Small enter animation
+  setTimeout(function () { modal.classList.add('show'); }, 0);
 
-  const closeAndReveal = () => {
-    try { modal.classList.remove('show'); } catch {}
-    setTimeout(() => { try { document.body.removeChild(modal); } catch {} }, 120);
-    try { revealArticleMarker(article); } catch (e) { console.warn('Reveal failed', e); }
+  // Close + reveal on map (breaks clusters, highlights marker)
+  function closeAndReveal() {
+    try { modal.classList.remove('show'); } catch (e) {}
+    setTimeout(function () { try { document.body.removeChild(modal); } catch (e) {} }, 120);
+    try { if (typeof revealArticleMarker === 'function') revealArticleMarker(article); } catch (e) { console.warn('Reveal failed', e); }
     window.removeEventListener('keydown', onEsc, true);
-  };
+  }
 
-  // Clicking outside content closes modal (robust)
-  modal.addEventListener('click', (e) => {
-    const clickedOutside = !content.contains(e.target);
-    if (clickedOutside) closeAndReveal();
+  // Backdrop click = outside content
+  modal.addEventListener('click', function (e) {
+    if (!content.contains(e.target)) closeAndReveal();
   });
-  // Prevent inside clicks from closing
-  content.addEventListener('click', (e) => e.stopPropagation());
+  // Prevent inside clicks from bubbling to overlay
+  content.addEventListener('click', function (e) { e.stopPropagation(); });
 
   // Escape key closes + reveal
-  const onEsc = (ev) => { if (ev.key === 'Escape') closeAndReveal(); };
+  function onEsc(ev) { if (ev.key === 'Escape') closeAndReveal(); }
   window.addEventListener('keydown', onEsc, true);
 
-  // Update progress bar on scroll
-  descriptionWrapper.addEventListener('scroll', () => {
-    const scrollTop = descriptionWrapper.scrollTop;
-    const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
-    const percent = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
-    progressBar.style.width = `" + (percent) + "%`;
+  // Progress bar on scroll
+  descriptionWrapper.addEventListener('scroll', function () {
+    var scrollTop = descriptionWrapper.scrollTop;
+    var scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
+    var percent = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    // ✅ FIX: no broken template
+    progressBar.style.width = String(percent) + '%';
   });
 
   // Swap image on scroll markers
-  descriptionWrapper.addEventListener('scroll', () => {
-    const markers = descriptionWrapper.querySelectorAll('.image-change');
-    let lastPassed = null;
-    markers.forEach((marker) => {
-      const rect = marker.getBoundingClientRect();
-      const wrapperRect = descriptionWrapper.getBoundingClientRect();
-      if (rect.top - wrapperRect.top <= 50) {
-        lastPassed = marker;
-      }
+  descriptionWrapper.addEventListener('scroll', function () {
+    var markers = descriptionWrapper.querySelectorAll('.image-change');
+    var lastPassed = null;
+    markers.forEach(function (marker) {
+      var rect = marker.getBoundingClientRect();
+      var wrapperRect = descriptionWrapper.getBoundingClientRect();
+      if (rect.top - wrapperRect.top <= 50) lastPassed = marker;
     });
     if (lastPassed) {
-      const newImg = lastPassed.getAttribute('data-img');
+      var newImg = lastPassed.getAttribute('data-img');
       if (newImg && image.src !== newImg) {
         image.classList.add('fade-out');
-        setTimeout(() => {
+        setTimeout(function () {
           image.src = newImg;
-          setTimeout(() => {
+          setTimeout(function () {
             image.classList.remove('fade-out');
             image.classList.add('fade-in');
           }, 50);
         }, 300);
-        setTimeout(() => {
-          image.classList.remove('fade-in');
-        }, 700);
+        setTimeout(function () { image.classList.remove('fade-in'); }, 700);
       }
     }
   });
 }
 
-  // Assemble modal
-  content.appendChild(header);
-  content.appendChild(imgWrapper);
-  content.appendChild(descriptionWrapper);
-modal.appendChild(content);
-  document.body.appendChild(modal);
-  // Animate show after small delay
-  setTimeout(() => {
-    modal.classList.add('show');
-  }, 100);
-  // Clicking outside content closes modal
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      document.body.removeChild(modal);
-    }
-  });
-  // Update progress bar on scroll
-  descriptionWrapper.addEventListener('scroll', () => {
-    const scrollTop = descriptionWrapper.scrollTop;
-    const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
-    const percent = (scrollTop / scrollHeight) * 100;
-    progressBar.style.width = `" + (percent) + "%`;
-  });
-  // Swap image on scroll markers
-  descriptionWrapper.addEventListener('scroll', () => {
-    const markers = descriptionWrapper.querySelectorAll('.image-change');
-    let lastPassed = null;
-    markers.forEach((marker) => {
-      const rect = marker.getBoundingClientRect();
-      const wrapperRect = descriptionWrapper.getBoundingClientRect();
-      if (rect.top - wrapperRect.top <= 50) {
-        lastPassed = marker;
-      }
-    });
-    if (lastPassed) {
-      const newImg = lastPassed.getAttribute('data-img');
-      if (newImg && image.src !== newImg) {
-        // Fade out image
-        image.classList.add('fade-out');
-        setTimeout(() => {
-          image.src = newImg;
-          setTimeout(() => {
-            image.classList.remove('fade-out');
-            image.classList.add('fade-in');
-          }, 50);
-        }, 300);
-        setTimeout(() => {
-          image.classList.remove('fade-in');
-        }, 700);
-      }
-    }
-  });
-}
 
 // Render the story submission form and replace the map when the user
 // clicks the "Get involved" button.  This function also wires up
