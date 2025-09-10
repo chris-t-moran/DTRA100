@@ -1392,57 +1392,5 @@ loadArticles();
   document.head.appendChild(style);
 })();
 
-// --- Address normalization & parsing (number + street) ---
-(function () {
-  function deburr(s) {
-    return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  }
-  function normSpaces(s) { return s.replace(/\s+/g, " ").trim(); }
-  function stripPunct(s) { return s.replace(/[^a-z0-9\s]/g, " "); }
-
-  // Canonicalize common abbreviations both ways (we normalize ALL to full words)
-  var STREET_MAP = {
-    rd: "road", road: "road",
-    st: "street", street: "street",
-    ave: "avenue", av: "avenue", avenue: "avenue",
-    dr: "drive", drive: "drive",
-    ct: "court", court: "court",
-    pl: "place", place: "place",
-    sq: "square", square: "square",
-    pk: "park", park: "park",
-    gdns: "gardens", gardens: "gardens",
-    grn: "green", green: "green",
-    rdw: "roadway", roadway: "roadway",
-    tce: "terrace", terrace: "terrace",
-  };
-
-  function canonStreet(raw) {
-    if (!raw) return "";
-    var s = deburr(String(raw).toLowerCase());
-    s = stripPunct(s);
-    s = normSpaces(s);
-
-    // Split into tokens, map tokens via STREET_MAP where applicable
-    var parts = s.split(" ").filter(Boolean).map(function (w) {
-      return STREET_MAP[w] || w;
-    });
-    return parts.join(" ");
-  }
-
-  function parseAddressQuery(q) {
-    if (!q) return { num: null, street: "" };
-    var s = deburr(String(q).toLowerCase());
-    s = stripPunct(s);
-    s = normSpaces(s);
-    var m = s.match(/^(\d+)\s+(.+)$/); // number then street
-    if (m) {
-      return { num: parseInt(m[1], 10), street: canonStreet(m[2]) };
-    }
-    // No number provided; treat whole as street
-    return { num: null, street: canonStreet(s) };
-  }
-
-  window.__addr = { canonStreet: canonStreet, parseAddressQuery: parseAddressQuery };
-})();
 
 
