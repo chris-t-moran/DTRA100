@@ -820,7 +820,7 @@ function openModal(article) {
     const scrollTop = descriptionWrapper.scrollTop;
     const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
     const percent = (scrollTop / scrollHeight) * 100;
-    progressBar.style.width = '${percent}%';
+    progressBar.style.width = `${percent}%`;
   });
   // Swap image on scroll markers
   descriptionWrapper.addEventListener('scroll', () => {
