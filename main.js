@@ -698,13 +698,21 @@ function togglePeopleMarkers(button) {
 
 // Create and display a modal for a given article
 function openModal(article) {
-  // Create modal overlay
+  // Helpers we rely on (from earlier builds)
+  const getMk = (a) =>
+    (typeof getArticleMarker === 'function' ? getArticleMarker(a) : null);
+  const selectMk = (mk) =>
+    (typeof selectArticleMarker === 'function' ? selectArticleMarker(mk) : null);
+
+  // --- create overlay
   const modal = document.createElement('div');
   modal.className = 'modal';
-  // Create modal content wrapper
+
+  // content wrapper
   const content = document.createElement('div');
   content.className = 'modal-content';
-  // Header section with title and short description
+
+  // header
   const header = document.createElement('header');
   const title = document.createElement('h2');
   title.textContent = article.title || '';
@@ -712,67 +720,121 @@ function openModal(article) {
   shortDesc.textContent = article.short_desc || '';
   header.appendChild(title);
   header.appendChild(shortDesc);
-  // Image wrapper
+
+  // image
   const imgWrapper = document.createElement('div');
   imgWrapper.className = 'imgWrapper';
   const image = document.createElement('img');
   image.src = article.img || '';
   image.alt = article.title || '';
   imgWrapper.appendChild(image);
-  // Description container with progress bar
+
+  // description + progress bar
   const descriptionWrapper = document.createElement('div');
   descriptionWrapper.className = 'descriptionWrapper';
-  // Progress bar (sticky)
+
   const progressBar = document.createElement('div');
   progressBar.className = 'progress-bar';
   descriptionWrapper.appendChild(progressBar);
-  // Description content
+
   const description = document.createElement('div');
   description.innerHTML = (article.description || '').replace(/\n/g, '<br>');
   descriptionWrapper.appendChild(description);
-  // Footer with contributor
+
+  // footer with contributor + actions
   const footer = document.createElement('footer');
   footer.className = 'modal-footer';
-  footer.textContent = `Shared by: ${article.contributor || ''}`;
-  // Assemble modal
+
+  const contributor = document.createElement('span');
+  contributor.className = 'modal-contrib';
+  contributor.textContent = `Shared by: ${article.contributor || ''}`;
+
+  const spacer = document.createElement('span');
+  spacer.style.flex = '1 1 auto';
+
+  const viewBtn = document.createElement('button');
+  viewBtn.type = 'button';
+  viewBtn.className = 'modal-view-btn';
+  viewBtn.textContent = 'View on Map';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'modal-close-btn';
+  closeBtn.textContent = 'Close';
+
+  footer.appendChild(contributor);
+  footer.appendChild(spacer);
+  footer.appendChild(viewBtn);
+  footer.appendChild(closeBtn);
+
+  // assemble
   content.appendChild(header);
   content.appendChild(imgWrapper);
   content.appendChild(descriptionWrapper);
   content.appendChild(footer);
   modal.appendChild(content);
   document.body.appendChild(modal);
-  // Animate show after small delay
-  setTimeout(() => {
-    modal.classList.add('show');
-  }, 100);
-  // Clicking outside content closes modal
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      document.body.removeChild(modal);
+
+  // small enter animation
+  requestAnimationFrame(() => modal.classList.add('show'));
+
+  // --- close + reveal on map (used by all close paths)
+  const closeAndReveal = () => {
+    try { modal.classList.remove('show'); } catch {}
+    // allow exit transition if you have one
+    setTimeout(() => {
+      try { document.body.removeChild(modal); } catch {}
+    }, 150);
+
+    // highlight + desktop-only pan
+    try {
+      const mk = getMk(article);
+      if (mk) selectMk(mk);
+    } catch (e) {
+      console.warn('Reveal on map failed:', e);
     }
+
+    // cleanup listeners
+    window.removeEventListener('keydown', onEsc, true);
+  };
+
+  // robust backdrop tap: “outside the content” check
+  modal.addEventListener('click', (e) => {
+    const clickedOutside = !content.contains(e.target);
+    if (clickedOutside) closeAndReveal();
   });
-  // Update progress bar on scroll
+
+  // prevent inside clicks from bubbling to modal
+  content.addEventListener('click', (e) => e.stopPropagation());
+
+  // Escape to close + reveal
+  const onEsc = (ev) => { if (ev.key === 'Escape') closeAndReveal(); };
+  window.addEventListener('keydown', onEsc, true);
+
+  // buttons
+  viewBtn.addEventListener('click', closeAndReveal);
+  closeBtn.addEventListener('click', closeAndReveal);
+
+  // progress bar on scroll
   descriptionWrapper.addEventListener('scroll', () => {
     const scrollTop = descriptionWrapper.scrollTop;
     const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
-    const percent = (scrollTop / scrollHeight) * 100;
+    const percent = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
     progressBar.style.width = `${percent}%`;
   });
-  // Swap image on scroll markers
+
+  // image swap markers
   descriptionWrapper.addEventListener('scroll', () => {
     const markers = descriptionWrapper.querySelectorAll('.image-change');
     let lastPassed = null;
     markers.forEach((marker) => {
       const rect = marker.getBoundingClientRect();
       const wrapperRect = descriptionWrapper.getBoundingClientRect();
-      if (rect.top - wrapperRect.top <= 50) {
-        lastPassed = marker;
-      }
+      if (rect.top - wrapperRect.top <= 50) lastPassed = marker;
     });
     if (lastPassed) {
       const newImg = lastPassed.getAttribute('data-img');
       if (newImg && image.src !== newImg) {
-        // Fade out image
         image.classList.add('fade-out');
         setTimeout(() => {
           image.src = newImg;
@@ -781,13 +843,12 @@ function openModal(article) {
             image.classList.add('fade-in');
           }, 50);
         }, 300);
-        setTimeout(() => {
-          image.classList.remove('fade-in');
-        }, 700);
+        setTimeout(() => image.classList.remove('fade-in'), 700);
       }
     }
   });
 }
+
 
 // Render the story submission form and replace the map when the user
 // clicks the "Get involved" button.  This function also wires up
