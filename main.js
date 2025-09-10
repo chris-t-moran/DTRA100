@@ -588,6 +588,87 @@ async function initMapAndPage() {
     attribution: '© OpenStreetMap contributors'
   }).addTo(state.map);
 
+
+// A tiny debounce helper
+function debounce(fn, ms) {
+  let t;
+  return function(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+// Residents address search control
+const ResidentsSearchControl = L.Control.extend({
+  options: { position: 'topright' }, // under your existing button
+  onAdd: function () {
+    const c = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    c.style.padding = '6px';
+    c.style.background = '#fff';
+    c.style.boxShadow = '0 1px 4px rgba(0,0,0,.2)';
+
+    const input = L.DomUtil.create('input', '', c);
+    input.type = 'search';
+    input.placeholder = 'Search address…';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.style.width = '180px';
+    input.style.border = '1px solid #ccc';
+    input.style.padding = '6px 8px';
+    input.style.outline = 'none';
+
+    const row = L.DomUtil.create('div', '', c);
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    row.style.marginTop = '6px';
+
+    const goBtn = L.DomUtil.create('button', '', row);
+    goBtn.textContent = 'Find';
+    goBtn.style.padding = '4px 10px';
+    goBtn.style.border = '1px solid #999';
+    goBtn.style.borderRadius = '6px';
+    goBtn.style.background = '#f8f8f8';
+    goBtn.style.cursor = 'pointer';
+
+    const clearBtn = L.DomUtil.create('button', '', row);
+    clearBtn.textContent = 'Show all';
+    clearBtn.style.padding = '4px 10px';
+    clearBtn.style.border = '1px solid #999';
+    clearBtn.style.borderRadius = '6px';
+    clearBtn.style.background = '#fff';
+    clearBtn.style.cursor = 'pointer';
+
+    // Prevent map drag/zoom while interacting with the control
+    L.DomEvent.disableClickPropagation(c);
+    L.DomEvent.disableScrollPropagation(c);
+
+    const run = debounce(async () => {
+      const q = input.value.trim();
+      if (!q) { clearResidentsFilter(); return; }
+      const mk = await filterResidentsByAddress(q);
+      // Optional: wiggle/flash the match for visibility
+      if (mk) {
+        try { mk.bringToFront?.(); } catch {}
+      }
+    }, 200);
+
+    input.addEventListener('input', run);
+    goBtn.addEventListener('click', run);
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      clearResidentsFilter();
+    });
+
+    return c;
+  }
+});
+
+// Add the control to the map (after state.map exists)
+state.map.addControl(new ResidentsSearchControl());
+
+
+  
+
   // Residents toggle control
   const ResidentsToggleControl = L.Control.extend({
     options: { position: 'topright' },
@@ -607,6 +688,7 @@ async function initMapAndPage() {
     }
   });
   state.map.addControl(new ResidentsToggleControl());
+  state.map.addControl(new ResidentsSearchControl());
 
   // Prepare article marker cluster group
   state.articleMarkers = L.markerClusterGroup({
@@ -768,85 +850,6 @@ function togglePeopleMarkers(button) {
     button.innerHTML = 'Switch to Stories';
   }
 }
-
-
-// A tiny debounce helper
-function debounce(fn, ms) {
-  let t;
-  return function(...args) {
-    clearTimeout(t);
-    t = setTimeout(() => fn.apply(this, args), ms);
-  };
-}
-
-// Residents address search control
-const ResidentsSearchControl = L.Control.extend({
-  options: { position: 'topright' }, // under your existing button
-  onAdd: function () {
-    const c = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-    c.style.padding = '6px';
-    c.style.background = '#fff';
-    c.style.boxShadow = '0 1px 4px rgba(0,0,0,.2)';
-
-    const input = L.DomUtil.create('input', '', c);
-    input.type = 'search';
-    input.placeholder = 'Search address…';
-    input.autocomplete = 'off';
-    input.spellcheck = false;
-    input.style.width = '180px';
-    input.style.border = '1px solid #ccc';
-    input.style.padding = '6px 8px';
-    input.style.outline = 'none';
-
-    const row = L.DomUtil.create('div', '', c);
-    row.style.display = 'flex';
-    row.style.gap = '6px';
-    row.style.marginTop = '6px';
-
-    const goBtn = L.DomUtil.create('button', '', row);
-    goBtn.textContent = 'Find';
-    goBtn.style.padding = '4px 10px';
-    goBtn.style.border = '1px solid #999';
-    goBtn.style.borderRadius = '6px';
-    goBtn.style.background = '#f8f8f8';
-    goBtn.style.cursor = 'pointer';
-
-    const clearBtn = L.DomUtil.create('button', '', row);
-    clearBtn.textContent = 'Show all';
-    clearBtn.style.padding = '4px 10px';
-    clearBtn.style.border = '1px solid #999';
-    clearBtn.style.borderRadius = '6px';
-    clearBtn.style.background = '#fff';
-    clearBtn.style.cursor = 'pointer';
-
-    // Prevent map drag/zoom while interacting with the control
-    L.DomEvent.disableClickPropagation(c);
-    L.DomEvent.disableScrollPropagation(c);
-
-    const run = debounce(async () => {
-      const q = input.value.trim();
-      if (!q) { clearResidentsFilter(); return; }
-      const mk = await filterResidentsByAddress(q);
-      // Optional: wiggle/flash the match for visibility
-      if (mk) {
-        try { mk.bringToFront?.(); } catch {}
-      }
-    }, 200);
-
-    input.addEventListener('input', run);
-    goBtn.addEventListener('click', run);
-    clearBtn.addEventListener('click', () => {
-      input.value = '';
-      clearResidentsFilter();
-    });
-
-    return c;
-  }
-});
-
-// Add the control to the map (after state.map exists)
-state.map.addControl(new ResidentsSearchControl());
-
 
 
 
