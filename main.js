@@ -663,10 +663,6 @@ const ResidentsSearchControl = L.Control.extend({
   }
 });
 
-// Add the control to the map (after state.map exists)
-state.map.addControl(new ResidentsSearchControl());
-
-
   
 
   // Residents toggle control
@@ -1014,9 +1010,7 @@ function openModal(article) {
     // Adjust to your schema if needed
     const parts = [
       res.housenumber,
-      res.road,
-      res.suburb,
-      res.postcode
+      res.road     
     ].filter(isStr);
     return parts.join(" ");
   }
