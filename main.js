@@ -560,25 +560,6 @@ async function loadResidents() {
   });
 }
 
-function buildResidentAddressIndex() {
-  var idx = [];
-  if (!state || !state.peopleMarkers) return;
-  var canon = window.__addr.canonStreet;
-
-  state.peopleMarkers.forEach(function (mk) {
-    var r = mk && mk._resident ? mk._resident : {};
-    // housenumber in DB is int8; read as number then stringify
-    var num = (r.housenumber != null && r.housenumber !== "") ? Number(r.housenumber) : null;
-    var street = canon(r.road || "");
-    idx.push({ marker: mk, num: num, street: street });
-  });
-
-  state._residentAddrIndex = idx;
-}
-
-
-
-
 // -----------------------------------------------------------------------------
 // Map initialization & UI setup
 // -----------------------------------------------------------------------------
@@ -654,12 +635,6 @@ const ResidentsSearchControl = L.Control.extend({
     L.DomEvent.disableClickPropagation(c);
     L.DomEvent.disableScrollPropagation(c);
 
-   const run = debounce(function () {
-  var q = input.value.trim();
-  if (!q) { clearResidentsFilter(); return; }
-  var matches = filterResidentsByAddressStrict(q);
-  // optional: you can indicate “no match” with a subtle style on the input
-}, 200);
 
 
     input.addEventListener('input', run);
@@ -740,7 +715,7 @@ const ResidentsSearchControl = L.Control.extend({
   // Load resident markers (not yet added to map).  Await to ensure markers
   // are available before the user toggles between stories and residents.
   await loadResidents();
-  buildResidentAddressIndex();
+
 }
 
 // Create category buttons, including a "Lucky Dip" option
@@ -1031,114 +1006,6 @@ function openModal(article) {
     norm, addrString
   };
 })();
-
-// Hide non-matches; show only exact match(es). Returns array of matched markers.
-function filterResidentsByAddressStrict(query) {
-  if (!state || !state._residentAddrIndex) return [];
-
-  var parsed = window.__addr.parseAddressQuery(query);
-  var qNum = parsed.num;
-  var qStreet = parsed.street;
-
-  var exact = [], streetOnly = [];
-
-  state._residentAddrIndex.forEach(function (row) {
-    var mk = row.marker, num = row.num, street = row.street;
-
-    // Must have street to match
-    if (!street) return;
-
-    // 1) Exact: number matches exactly (if provided) AND street equals canonical
-    if (qNum != null) {
-      if (num === qNum) {
-        if (street === qStreet) exact.push(mk);
-        else if (street.indexOf(qStreet) === 0) exact.push(mk);  // startsWith fallback
-        else if (street.indexOf(qStreet) >= 0) exact.push(mk);   // includes fallback
-      }
-    } else {
-      // 2) Only street provided
-      if (street === qStreet || street.indexOf(qStreet) === 0 || street.indexOf(qStreet) >= 0) {
-        streetOnly.push(mk);
-      }
-    }
-  });
-
-  var matches = (exact.length > 0) ? exact : streetOnly;
-
-  // Apply visibility: show only matches; hide others
-  var matchedSet = new Set(matches);
-  state.peopleMarkers.forEach(function (mk) {
-    var isMatch = matchedSet.has(mk);
-
-    // If using circleMarkers
-    if (mk.setStyle) {
-      try { mk.setStyle({ opacity: isMatch ? 1 : 0, fillOpacity: isMatch ? 0.7 : 0 }); } catch (e) {}
-    } else {
-      // If plain L.marker icons, fallback to add/remove
-      if (!isMatch) { try { state.map.removeLayer(mk); } catch (e) {} }
-      else { try { mk.addTo(state.map); } catch (e) {} }
-    }
-    var el = mk.getElement && mk.getElement();
-    if (el) el.style.pointerEvents = isMatch ? "" : "none";
-
-    mk._hiddenByResidentFilter = !isMatch;
-  });
-
-  // Focus on results
-  if (matches.length === 1) {
-    var mk = matches[0];
-    try { mk.bringToFront && mk.bringToFront(); } catch (e) {}
-    var ll = mk.getLatLng();
-    if (window.innerWidth > 500) state.map.flyTo(ll, Math.max(17, state.map.getZoom()), { duration: 0.6 });
-    else state.map.panTo(ll, { animate: true });
-  } else if (matches.length > 1) {
-    // Fit bounds around all results
-    try {
-      var group = L.featureGroup(matches);
-      state.map.fitBounds(group.getBounds().pad(0.2));
-    } catch (e) {}
-  }
-
-  state._residentsFilterActive = matches.length > 0;
-  state._residentsFilterMatches = matches;
-  return matches;
-}
-
-function clearResidentsFilter() {
-  if (!state || !state.peopleMarkers) return;
-
-  state.peopleMarkers.forEach(function (mk) {
-    if (mk.setStyle) {
-      try { mk.setStyle({ opacity: 1, fillOpacity: 0.7 }); } catch (e) {}
-    } else {
-      try { mk.addTo(state.map); } catch (e) {}
-    }
-    var el = mk.getElement && mk.getElement();
-    if (el) el.style.pointerEvents = "";
-    mk._hiddenByResidentFilter = false;
-  });
-
-  state._residentsFilterActive = false;
-  state._residentsFilterMatches = null;
-}
-
-
-function clearResidentsFilter() {
-  if (!state?.peopleMarkers) return;
-  for (const mk of state.peopleMarkers) {
-    if (!mk?._hiddenByResidentFilter) continue;
-    // Restore default style; tweak if you have custom styles
-    try { mk.setStyle({ opacity: 1, fillOpacity: 0.7 }); } catch {}
-    const el = mk.getElement?.();
-    if (el) el.style.pointerEvents = "";
-    mk._hiddenByResidentFilter = false;
-  }
-  state._residentsFilterActive = false;
-  state._residentsFilterMatch = null;
-}
-
-
-
 
 // Keep a marker visible when part of the map is covered by #content.
 // Works for mobile where the panel is BELOW (dragged up) or ABOVE (dragged down).
