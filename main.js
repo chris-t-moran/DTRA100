@@ -490,6 +490,67 @@ async function loadArticles() {
   
 }
 
+// --- Address normalization & parsing (number + street) ---
+(function () {
+  function deburr(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+  function normSpaces(s) { return s.replace(/\s+/g, " ").trim(); }
+  function stripPunct(s) { return s.replace(/[^a-z0-9\s]/g, " "); }
+
+  // Normalize abbreviations to canonical forms
+  var STREET_MAP = {
+    rd: "road", road: "road",
+    st: "street", street: "street",
+    ave: "avenue", av: "avenue", avenue: "avenue",
+    dr: "drive", drive: "drive",
+    ct: "court", court: "court",
+    pl: "place", place: "place",
+    sq: "square", square: "square",
+    pk: "park", park: "park",
+    gdns: "gardens", gardens: "gardens",
+    grn: "green", green: "green",
+    tce: "terrace", terrace: "terrace"
+  };
+
+  function canonStreet(raw) {
+    if (!raw) return "";
+    var s = deburr(String(raw).toLowerCase());
+    s = stripPunct(s);
+    s = normSpaces(s);
+    return s.split(" ").filter(Boolean).map(function (w) {
+      return STREET_MAP[w] || w;
+    }).join(" ");
+  }
+
+  function parseAddressQuery(q) {
+    if (!q) return { num: null, street: "" };
+    var s = deburr(String(q).toLowerCase());
+    s = stripPunct(s);
+    s = normSpaces(s);
+    var m = s.match(/^(\d+)\s+(.+)$/); // number then street
+    if (m) return { num: parseInt(m[1], 10), street: canonStreet(m[2]) };
+    return { num: null, street: canonStreet(s) }; // street only
+  }
+
+  window.__addr = { canonStreet: canonStreet, parseAddressQuery: parseAddressQuery };
+})();
+
+function buildResidentAddressIndex() {
+  var idx = [];
+  if (!state || !state.peopleMarkers) return;
+  var canon = window.__addr.canonStreet;
+
+  state.peopleMarkers.forEach(function (mk) {
+    var r = (mk && mk._resident) ? mk._resident : {};
+    var num = (r.housenumber != null && r.housenumber !== "") ? Number(r.housenumber) : null;
+    var street = canon(r.road || "");
+    idx.push({ marker: mk, num: num, street: street });
+  });
+
+  state._residentAddrIndex = idx;
+}
+
+
+
 // Fetch all active residents and prepare their markers (but do not
 // automatically add to the map).  People markers are stored in
 // state.peopleMarkers and toggled via the residents toggle button.
@@ -556,7 +617,89 @@ async function loadResidents() {
 
   state.peopleMarkers.push(marker);
   });
+  buildResidentAddressIndex();
+
 }
+
+// Hide non-matches; show only exact match(es). Returns array of matched markers.
+function filterResidentsByAddressStrict(query) {
+  if (!state || !state._residentAddrIndex) return [];
+
+  var parsed = window.__addr.parseAddressQuery(query);
+  var qNum = parsed.num;
+  var qStreet = parsed.street;
+
+  var exact = [], streetOnly = [];
+
+  state._residentAddrIndex.forEach(function (row) {
+    var mk = row.marker, num = row.num, street = row.street;
+    if (!street) return;
+
+    if (qNum != null) {
+      if (num === qNum) {
+        if (street === qStreet) exact.push(mk);
+        else if (street.indexOf(qStreet) === 0) exact.push(mk);
+        else if (street.indexOf(qStreet) >= 0) exact.push(mk);
+      }
+    } else {
+      if (street === qStreet || street.indexOf(qStreet) === 0 || street.indexOf(qStreet) >= 0) {
+        streetOnly.push(mk);
+      }
+    }
+  });
+
+  var matches = (exact.length > 0) ? exact : streetOnly;
+
+  var matchedSet = new Set(matches);
+  state.peopleMarkers.forEach(function (mk) {
+    var isMatch = matchedSet.has(mk);
+    if (mk.setStyle) {
+      try { mk.setStyle({ opacity: isMatch ? 1 : 0, fillOpacity: isMatch ? 0.7 : 0 }); } catch (e) {}
+    } else {
+      if (!isMatch) { try { state.map.removeLayer(mk); } catch (e) {} }
+      else { try { mk.addTo(state.map); } catch (e) {} }
+    }
+    var el = mk.getElement && mk.getElement();
+    if (el) el.style.pointerEvents = isMatch ? "" : "none";
+    mk._hiddenByResidentFilter = !isMatch;
+  });
+
+  if (matches.length === 1) {
+    var mk = matches[0];
+    try { mk.bringToFront && mk.bringToFront(); } catch (e) {}
+    var ll = mk.getLatLng();
+    if (window.innerWidth > 500) state.map.flyTo(ll, Math.max(17, state.map.getZoom()), { duration: 0.6 });
+    else state.map.panTo(ll, { animate: true });
+  } else if (matches.length > 1) {
+    try {
+      var group = L.featureGroup(matches);
+      state.map.fitBounds(group.getBounds().pad(0.2));
+    } catch (e) {}
+  }
+
+  state._residentsFilterActive = matches.length > 0;
+  state._residentsFilterMatches = matches;
+  return matches;
+}
+
+function clearResidentsFilter() {
+  if (!state || !state.peopleMarkers) return;
+
+  state.peopleMarkers.forEach(function (mk) {
+    if (mk.setStyle) {
+      try { mk.setStyle({ opacity: 1, fillOpacity: 0.7 }); } catch (e) {}
+    } else {
+      try { mk.addTo(state.map); } catch (e) {}
+    }
+    var el = mk.getElement && mk.getElement();
+    if (el) el.style.pointerEvents = "";
+    mk._hiddenByResidentFilter = false;
+  });
+
+  state._residentsFilterActive = false;
+  state._residentsFilterMatches = null;
+}
+
 
 // -----------------------------------------------------------------------------
 // Map initialization & UI setup
@@ -601,7 +744,74 @@ async function initMapAndPage() {
       return container;
     }
   });
+// debounce helper
+function debounce(fn, ms) {
+  var t; return function(){ clearTimeout(t); var a=arguments; t=setTimeout(()=>fn.apply(this,a), ms); };
+}
+
+// Residents address search control
+const ResidentsSearchControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: function () {
+    const c = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    c.style.padding = '6px';
+    c.style.background = '#fff';
+    c.style.boxShadow = '0 1px 4px rgba(0,0,0,.2)';
+
+    const input = L.DomUtil.create('input', '', c);
+    input.type = 'search';
+    input.placeholder = 'Search address…';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.style.width = '180px';
+    input.style.border = '1px solid #ccc';
+    input.style.padding = '6px 8px';
+    input.style.outline = 'none';
+
+    const row = L.DomUtil.create('div', '', c);
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    row.style.marginTop = '6px';
+
+    const goBtn = L.DomUtil.create('button', '', row);
+    goBtn.textContent = 'Find';
+    goBtn.style.padding = '4px 10px';
+    goBtn.style.border = '1px solid #999';
+    goBtn.style.borderRadius = '6px';
+    goBtn.style.background = '#f8f8f8';
+    goBtn.style.cursor = 'pointer';
+
+    const clearBtn = L.DomUtil.create('button', '', row);
+    clearBtn.textContent = 'Show all';
+    clearBtn.style.padding = '4px 10px';
+    clearBtn.style.border = '1px solid #999';
+    clearBtn.style.borderRadius = '6px';
+    clearBtn.style.background = '#fff';
+    clearBtn.style.cursor = 'pointer';
+
+    L.DomEvent.disableClickPropagation(c);
+    L.DomEvent.disableScrollPropagation(c);
+
+    const run = debounce(function () {
+      const q = input.value.trim();
+      if (!q) { clearResidentsFilter(); return; }
+      filterResidentsByAddressStrict(q);
+    }, 200);
+
+    input.addEventListener('input', run);
+    goBtn.addEventListener('click', run);
+    clearBtn.addEventListener('click', function () {
+      input.value = '';
+      clearResidentsFilter();
+    });
+
+    return c;
+  }
+});
+
+  
   state.map.addControl(new ResidentsToggleControl());
+  state.residentsSearchControl = new ResidentsSearchControl();
 
   // Prepare article marker cluster group
   state.articleMarkers = L.markerClusterGroup({
@@ -746,23 +956,36 @@ function togglePeopleMarkers(button) {
   const visible =
     state.peopleMarkers.length > 0 && state.map.hasLayer(state.peopleMarkers[0]);
   const mapEl = document.getElementById('map');
-  // toggle sepia filter
   mapEl.classList.toggle('sepia');
+
   if (visible) {
     // hide residents, show articles
     state.peopleMarkers.forEach((m) => state.map.removeLayer(m));
     if (state.articleMarkers) state.map.addLayer(state.articleMarkers);
     ResidentMoveEgg.hideLayer(state.map);
-    button.innerHTML = 'Switch to 1929';
+    button.innerHTML = 'Switch to 1929';
+
+    // remove search control + clear any filter
+    if (state.residentsSearchControl) {
+      try { state.map.removeControl(state.residentsSearchControl); } catch(e){}
+    }
+    clearResidentsFilter();
+
   } else {
     // hide articles, show residents
     if (state.articleMarkers) state.map.removeLayer(state.articleMarkers);
     state.peopleMarkers.forEach((m) => m.addTo(state.map));
     ResidentMoveEgg.showLayer(state.map);
     ResidentMoveEgg.clear(state.map);
-    button.innerHTML = 'Switch to Stories';
+    button.innerHTML = 'Switch to Stories';
+
+    // show the search control
+    if (state.residentsSearchControl) {
+      try { state.map.addControl(state.residentsSearchControl); } catch(e){}
+    }
   }
 }
+
 
 // Create and display a modal for a given article
 function openModal(article) {
