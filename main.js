@@ -329,6 +329,7 @@ const state = {
   peopleMarkers: [],
   articleMarkers: null,
   articleMarkerIndex: new Map(),
+  lastSelectedArticleMarker: null,
   map: null,
   activeTheme: null
 };
@@ -349,7 +350,7 @@ function htmlEscape(str) {
 }
 
 
-// --- Lucky Dip → Map highlight (v3) ---
+// --- Article selection highlight (color only) ---
 function _articleKey(a) {
   if (a && a.id != null) return `id:${a.id}`;
   return `at:${a.lat},${a.lon}|${a.title ?? ''}`;
@@ -370,41 +371,37 @@ function getArticleMarker(article) {
   } catch {}
   return null;
 }
-function highlightSelectedArticleMarker(marker, opts = {}) {
-  const {
-    zoomTo = true, targetZoom = 17, haloColor = '#2563eb',
-    haloDurationMs = 3200, dimOthers = true,
-  } = opts;
-  if (!marker || !state?.map) return;
-
-  const doHighlight = () => {
-    const latlng = marker.getLatLng();
-    if (zoomTo) {
-      if (state.map.getZoom() < targetZoom) state.map.flyTo(latlng, targetZoom, { duration: 0.6, easeLinearity: 0.25 });
-      else state.map.panTo(latlng, { animate: true, duration: 0.6 });
-    }
-    const ring = L.circleMarker(latlng, { radius: 11, color: haloColor, weight: 3, fill: false, opacity: 0.95 }).addTo(state.map);
-    try { marker.bringToFront?.(); } catch {}
-    const el = marker.getElement?.(); const prev = el ? el.style.filter : '';
-    if (el) el.style.filter = 'brightness(1.25) drop-shadow(0 0 6px rgba(37,99,235,.6))';
-    let restore = [];
-    if (dimOthers && state.articleMarkers?.getLayers) {
-      const layers = state.articleMarkers.getLayers();
-      restore = layers.filter(m => m !== marker).map(m => {
-        const e = m.getElement?.(); if (!e) return null;
-        const p = e.style.opacity; e.style.opacity = '0.45'; return () => { e.style.opacity = p; };
-      }).filter(Boolean);
-    }
-    setTimeout(() => {
-      try { state.map.removeLayer(ring); } catch {}
-      if (el) el.style.filter = prev;
-      restore.forEach(fn => fn && fn());
-    }, haloDurationMs);
+function _styleOf(marker) {
+  const o = marker && marker.options || {};
+  return {
+    radius: o.radius, color: o.color, weight: o.weight,
+    fillColor: o.fillColor, fillOpacity: o.fillOpacity, opacity: o.opacity
   };
-  if (state.articleMarkers?.zoomToShowLayer) state.articleMarkers.zoomToShowLayer(marker, doHighlight);
-  else doHighlight();
 }
-// --- end Lucky Dip → Map highlight (v3) ---
+function selectArticleMarker(marker, opts = {}) {
+  if (!marker) return;
+  const highlight = Object.assign({
+    color: '#f97316',
+    fillColor: '#ffedd5',
+    weight: 3,
+    radius: Math.max( (marker.options && marker.options.radius) || 7, 9 )
+  }, opts.highlight || {});
+
+  if (state.lastSelectedArticleMarker && state.lastSelectedArticleMarker !== marker) {
+    const prev = state.lastSelectedArticleMarker;
+    if (prev._baseStyle) prev.setStyle(prev._baseStyle);
+  }
+
+  marker.setStyle(highlight);
+  // Desktop-only pan to keep marker visible under content panel
+  try {
+    if (window.innerWidth > 500 && state?.map && marker?.getLatLng) {
+      state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.6 });
+    }
+  } catch {}
+  state.lastSelectedArticleMarker = marker;
+}
+// --- end Article selection highlight ---
 
 // -----------------------------------------------------------------------------
 // Data loading
@@ -560,11 +557,11 @@ async function initMapAndPage() {
       fillOpacity: 0.8,
       weight: 1
     });
-    marker.on('click', () => openModal(article));
-    state.articleMarkers.addLayer(marker);
     marker._article = article;
+    marker._baseStyle = _styleOf(marker);
     try { state.articleMarkerIndex.set(_articleKey(article), marker); } catch {}
-
+    marker.on('click', () => { selectArticleMarker(marker); openModal(article); });
+    state.articleMarkers.addLayer(marker);
   });
   state.map.addLayer(state.articleMarkers);
 
