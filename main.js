@@ -348,28 +348,55 @@ function htmlEscape(str) {
 }
 
 
-// --- Reveal article marker even if clustered, then select (desktop-only pan inside select) ---
+// --- Reveal article marker even if clustered (recovery build) ---
 function revealArticleMarker(article, opts = {}) {
-  const mk = (typeof getArticleMarker === 'function') ? getArticleMarker(article) : null;
-  if (!mk) { console.warn('revealArticleMarker: marker not found', article); return; }
+  if (!article) { console.warn('revealArticleMarker: no article'); return; }
+  const map = (window.state && state.map) ? state.map : null;
+  const cluster = (window.state && state.articleMarkers) ? state.articleMarkers : null;
+
+  // Find a marker corresponding to the article
+  let mk = null;
+  try {
+    const layers = cluster && cluster.getLayers ? cluster.getLayers() : [];
+    for (const lyr of layers) {
+      if (lyr && lyr._article) {
+        const a = lyr._article;
+        const sameId   = (article.id != null && a.id === article.id);
+        const sameLLT  = (a.lat === article.lat && a.lon === article.lon && a.title === article.title);
+        if (sameId || sameLLT) { mk = lyr; break; }
+      }
+    }
+  } catch (e) {}
+
+  if (!mk) { console.warn('revealArticleMarker: marker not found for', article); return; }
 
   const afterVisible = () => {
     try {
       const parent = mk.__parent;
       if (parent && typeof parent.spiderfy === 'function') parent.spiderfy();
     } catch {}
+
+    // Prefer your color-highlight function if present
     if (typeof selectArticleMarker === 'function') {
-      selectArticleMarker(mk);
+      try { selectArticleMarker(mk); } catch {}
+    } else if (map) {
+      // Fallback: temporary orange halo ring
+      try {
+        const ll = mk.getLatLng();
+        const ring = L.circleMarker(ll, { radius: 12, color: '#f97316', weight: 3, fill: false, opacity: 0.95 }).addTo(map);
+        setTimeout(() => { try { map.removeLayer(ring); } catch {} }, 3200);
+      } catch {}
     }
     try { mk.bringToFront?.(); } catch {}
   };
 
-  if (state.articleMarkers && typeof state.articleMarkers.zoomToShowLayer === 'function') {
-    state.articleMarkers.zoomToShowLayer(mk, afterVisible);
+  if (cluster && typeof cluster.zoomToShowLayer === 'function') {
+    cluster.zoomToShowLayer(mk, afterVisible);
   } else {
     afterVisible();
   }
 }
+try { window.revealArticleMarker = revealArticleMarker; } catch {}
 // --- end revealArticleMarker ---
 
 // -----------------------------------------------------------------------------
@@ -527,6 +554,7 @@ async function initMapAndPage() {
       weight: 1
     });
     marker.on('click', () => openModal(article));
+    marker._article = article;
     state.articleMarkers.addLayer(marker);
   });
   state.map.addLayer(state.articleMarkers);
@@ -663,6 +691,8 @@ function togglePeopleMarkers(button) {
 }
 
 // Create and display a modal for a given article
+
+// Create and display a modal for a given article (recovery build)
 function openModal(article) {
   // Create modal overlay
   const modal = document.createElement('div');
@@ -698,7 +728,76 @@ function openModal(article) {
   descriptionWrapper.appendChild(description);
   // Footer with contributor
   const footer = document.createElement('footer');
+  footer.className = 'modal-footer';
   footer.textContent = `Shared by: ${article.contributor || ''}`;
+  // Assemble modal
+  content.appendChild(header);
+  content.appendChild(imgWrapper);
+  content.appendChild(descriptionWrapper);
+  content.appendChild(footer);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+  // Animate show after small delay
+  setTimeout(() => { modal.classList.add('show'); }, 0);
+
+  // --- close + reveal behavior on backdrop and ESC
+  const closeAndReveal = () => {
+    try { modal.classList.remove('show'); } catch {}
+    setTimeout(() => { try { document.body.removeChild(modal); } catch {} }, 120);
+    try { revealArticleMarker(article); } catch (e) { console.warn('Reveal on map failed:', e); }
+    window.removeEventListener('keydown', onEsc, true);
+  };
+
+  // Clicking outside content closes modal (robust outside check)
+  modal.addEventListener('click', (e) => {
+    const clickedOutside = !content.contains(e.target);
+    if (clickedOutside) closeAndReveal();
+  });
+  // Prevent clicks inside content from bubbling to overlay
+  content.addEventListener('click', (e) => e.stopPropagation());
+
+  // Escape key closes + reveals
+  const onEsc = (ev) => { if (ev.key === 'Escape') closeAndReveal(); };
+  window.addEventListener('keydown', onEsc, true);
+
+  // Update progress bar on scroll
+  descriptionWrapper.addEventListener('scroll', () => {
+    const scrollTop = descriptionWrapper.scrollTop;
+    const scrollHeight = descriptionWrapper.scrollHeight - descriptionWrapper.clientHeight;
+    const percent = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    progressBar.style.width = `${percent}%`;
+  });
+
+  // Swap image on scroll markers
+  descriptionWrapper.addEventListener('scroll', () => {
+    const markers = descriptionWrapper.querySelectorAll('.image-change');
+    let lastPassed = null;
+    markers.forEach((marker) => {
+      const rect = marker.getBoundingClientRect();
+      const wrapperRect = descriptionWrapper.getBoundingClientRect();
+      if (rect.top - wrapperRect.top <= 50) {
+        lastPassed = marker;
+      }
+    });
+    if (lastPassed) {
+      const newImg = lastPassed.getAttribute('data-img');
+      if (newImg && image.src !== newImg) {
+        image.classList.add('fade-out');
+        setTimeout(() => {
+          image.src = newImg;
+          setTimeout(() => {
+            image.classList.remove('fade-out');
+            image.classList.add('fade-in');
+          }, 50);
+        }, 300);
+        setTimeout(() => {
+          image.classList.remove('fade-in');
+        }, 700);
+      }
+    }
+  });
+}
+`;
   // Assemble modal
   content.appendChild(header);
   content.appendChild(imgWrapper);
