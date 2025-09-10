@@ -732,6 +732,7 @@ function openModal(article) {
   descriptionWrapper.appendChild(description);
   // Footer with contributor
   const footer = document.createElement('footer');
+  footer.className = 'modal-footer';
   footer.textContent = `Shared by: ${article.contributor || ''}`;
   // Assemble modal
   content.appendChild(header);
@@ -977,3 +978,16 @@ document.getElementById('share-story-btn').addEventListener('click', (e) => {
 
 // Kick off loading the site
 loadArticles();
+
+// Inject minimal CSS for the modal 'View on Map' button
+(function ensureModalViewBtnCSS(){
+  if (document.getElementById('modal-view-btn-css')) return;
+  const css = `.modal .modal-footer { display:flex; gap:8px; align-items:center; padding:10px 14px; border-top:1px solid #e5e7eb; background:#fff; }
+  .modal .modal-view-btn { appearance:none; border:1px solid #2563eb; background:#fff; color:#1e3a8a; font-weight:600; font-size:13px; padding:6px 10px; border-radius:8px; cursor:pointer; }
+  .modal .modal-view-btn:hover { background:#eff6ff; }`;
+  const style = document.createElement('style');
+  style.id = 'modal-view-btn-css';
+  style.type = 'text/css';
+  style.appendChild(document.createTextNode(css));
+  document.head.appendChild(style);
+})();
