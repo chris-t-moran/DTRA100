@@ -139,6 +139,37 @@
 })();
 
 
+// Reveal an article's marker even if it's inside a cluster, then highlight it.
+function revealArticleMarker(article, opts = {}) {
+  const mk = (typeof getArticleMarker === 'function') ? getArticleMarker(article) : null;
+  if (!mk) { console.warn('revealArticleMarker: marker not found', article); return; }
+
+  const doAfterVisible = () => {
+    // If multiple markers are at the same lat/lng, spiderfy the cluster parent
+    try {
+      const parent = mk.__parent;
+      if (parent && typeof parent.spiderfy === 'function') parent.spiderfy();
+    } catch {}
+
+    // Now apply your “selected” styling (+ desktop-only pan lives inside this)
+    if (typeof selectArticleMarker === 'function') selectArticleMarker(mk);
+
+    // Optional: bring to front or open a popup if you add one later
+    try { mk.bringToFront?.(); } catch {}
+    // mk.openPopup?.();
+  };
+
+  // If using MarkerCluster, this will zoom in until the marker is actually on the map
+  if (state.articleMarkers && typeof state.articleMarkers.zoomToShowLayer === 'function') {
+    state.articleMarkers.zoomToShowLayer(mk, doAfterVisible);
+  } else {
+    // No clustering? Just run the highlight.
+    doAfterVisible();
+  }
+}
+
+
+
 // --- Resident popup template & styles ---
 function residentPopupHTML(r) {
   const esc = (v) => (typeof htmlEscape === 'function' ? htmlEscape(String(v ?? '')) : String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])));
@@ -620,6 +651,9 @@ function renderThemes(themes) {
     const randomArticle = state.articles[Math.floor(Math.random() * state.articles.length)];
     if (randomArticle) {
       openModal(randomArticle);
+      // prep so close action reveals the exact marker (works even if clustered)
+      revealArticleMarker(randomArticle, { prepareOnly: true }); // (prepareOnly not used above; optional)
+
     }
   });
   themesDiv.appendChild(lucky);
@@ -777,6 +811,8 @@ function openModal(article) {
   const closeAndReveal = () => {
     try { modal.classList.remove('show'); } catch {}
     // allow exit transition if you have one
+    try { revealArticleMarker(article); } catch (e) { console.warn(e); }
+    
     setTimeout(() => {
       try { document.body.removeChild(modal); } catch {}
     }, 150);
