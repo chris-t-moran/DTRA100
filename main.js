@@ -560,16 +560,28 @@ async function loadResidents() {
   });
 }
 
+function buildResidentAddressIndex() {
+  var idx = [];
+  if (!state || !state.peopleMarkers) return;
+  var canon = window.__addr.canonStreet;
+
+  state.peopleMarkers.forEach(function (mk) {
+    var r = mk && mk._resident ? mk._resident : {};
+    // housenumber in DB is int8; read as number then stringify
+    var num = (r.housenumber != null && r.housenumber !== "") ? Number(r.housenumber) : null;
+    var street = canon(r.road || "");
+    idx.push({ marker: mk, num: num, street: street });
+  });
+
+  state._residentAddrIndex = idx;
+}
+
 
 
 
 // -----------------------------------------------------------------------------
 // Map initialization & UI setup
 // -----------------------------------------------------------------------------
-
-
-
-
 
 async function initMapAndPage() {
   // Determine map centre/zoom for mobile vs desktop
@@ -642,15 +654,13 @@ const ResidentsSearchControl = L.Control.extend({
     L.DomEvent.disableClickPropagation(c);
     L.DomEvent.disableScrollPropagation(c);
 
-    const run = debounce(async () => {
-      const q = input.value.trim();
-      if (!q) { clearResidentsFilter(); return; }
-      const mk = await filterResidentsByAddress(q);
-      // Optional: wiggle/flash the match for visibility
-      if (mk) {
-        try { mk.bringToFront?.(); } catch {}
-      }
-    }, 200);
+   const run = debounce(function () {
+  var q = input.value.trim();
+  if (!q) { clearResidentsFilter(); return; }
+  var matches = filterResidentsByAddressStrict(q);
+  // optional: you can indicate “no match” with a subtle style on the input
+}, 200);
+
 
     input.addEventListener('input', run);
     goBtn.addEventListener('click', run);
@@ -730,6 +740,7 @@ const ResidentsSearchControl = L.Control.extend({
   // Load resident markers (not yet added to map).  Await to ensure markers
   // are available before the user toggles between stories and residents.
   await loadResidents();
+  buildResidentAddressIndex();
 }
 
 // Create category buttons, including a "Lucky Dip" option
@@ -1021,69 +1032,96 @@ function openModal(article) {
   };
 })();
 
-// Show only the resident whose address matches query. Returns the matched marker or null.
-async function filterResidentsByAddress(query) {
-  if (!state?.peopleMarkers || state.peopleMarkers.length === 0) return null;
+// Hide non-matches; show only exact match(es). Returns array of matched markers.
+function filterResidentsByAddressStrict(query) {
+  if (!state || !state._residentAddrIndex) return [];
 
-  const { norm, addrString } = window.__residentsFilter;
-  const q = norm(query);
-  if (!q) { clearResidentsFilter(); return null; }
+  var parsed = window.__addr.parseAddressQuery(query);
+  var qNum = parsed.num;
+  var qStreet = parsed.street;
 
-  // Score candidates: exact startsWith > includes
-  let best = null, bestScore = -Infinity;
+  var exact = [], streetOnly = [];
 
-  for (const mk of state.peopleMarkers) {
-    const r = mk._resident || {};
-    const s = norm(addrString(r));
-    if (!s) continue;
+  state._residentAddrIndex.forEach(function (row) {
+    var mk = row.marker, num = row.num, street = row.street;
 
-    let score = -1;
-    if (s === q) score = 3;
-    else if (s.startsWith(q)) score = 2;
-    else if (s.includes(q)) score = 1;
+    // Must have street to match
+    if (!street) return;
 
-    if (score > bestScore) {
-      bestScore = score;
-      best = mk;
+    // 1) Exact: number matches exactly (if provided) AND street equals canonical
+    if (qNum != null) {
+      if (num === qNum) {
+        if (street === qStreet) exact.push(mk);
+        else if (street.indexOf(qStreet) === 0) exact.push(mk);  // startsWith fallback
+        else if (street.indexOf(qStreet) >= 0) exact.push(mk);   // includes fallback
+      }
+    } else {
+      // 2) Only street provided
+      if (street === qStreet || street.indexOf(qStreet) === 0 || street.indexOf(qStreet) >= 0) {
+        streetOnly.push(mk);
+      }
     }
+  });
+
+  var matches = (exact.length > 0) ? exact : streetOnly;
+
+  // Apply visibility: show only matches; hide others
+  var matchedSet = new Set(matches);
+  state.peopleMarkers.forEach(function (mk) {
+    var isMatch = matchedSet.has(mk);
+
+    // If using circleMarkers
+    if (mk.setStyle) {
+      try { mk.setStyle({ opacity: isMatch ? 1 : 0, fillOpacity: isMatch ? 0.7 : 0 }); } catch (e) {}
+    } else {
+      // If plain L.marker icons, fallback to add/remove
+      if (!isMatch) { try { state.map.removeLayer(mk); } catch (e) {} }
+      else { try { mk.addTo(state.map); } catch (e) {} }
+    }
+    var el = mk.getElement && mk.getElement();
+    if (el) el.style.pointerEvents = isMatch ? "" : "none";
+
+    mk._hiddenByResidentFilter = !isMatch;
+  });
+
+  // Focus on results
+  if (matches.length === 1) {
+    var mk = matches[0];
+    try { mk.bringToFront && mk.bringToFront(); } catch (e) {}
+    var ll = mk.getLatLng();
+    if (window.innerWidth > 500) state.map.flyTo(ll, Math.max(17, state.map.getZoom()), { duration: 0.6 });
+    else state.map.panTo(ll, { animate: true });
+  } else if (matches.length > 1) {
+    // Fit bounds around all results
+    try {
+      var group = L.featureGroup(matches);
+      state.map.fitBounds(group.getBounds().pad(0.2));
+    } catch (e) {}
   }
 
-  if (!best) {
-    // No match: clear & exit
-    clearResidentsFilter();
-    return null;
-  }
-
-  // Hide everyone else; keep only BEST visible
-  for (const mk of state.peopleMarkers) {
-    if (mk === best) continue;
-    try { mk.setStyle({ opacity: 0, fillOpacity: 0 }); } catch {}
-    const el = mk.getElement?.();
-    if (el) el.style.pointerEvents = "none";
-    mk._hiddenByResidentFilter = true;
-  }
-
-  // Restore + emphasize the match
-  try { best.setStyle({ opacity: 1, fillOpacity: 1 }); } catch {}
-  const elBest = best.getElement?.();
-  if (elBest) elBest.style.pointerEvents = "";
-
-  // Optional highlight if you have one (re-uses your existing resident highlight if any)
-  try { best.bringToFront?.(); } catch {}
-
-  // Move map to it (use your desktop/mobile rules)
-  const ll = best.getLatLng();
-  if (window.innerWidth > 500) {
-    state.map.flyTo(ll, Math.max(17, state.map.getZoom()), { duration: 0.6 });
-  } else {
-    // gentle pan on mobile (avoid hiding under the content panel)
-    state.map.panTo(ll, { animate: true });
-  }
-
-  state._residentsFilterActive = true;
-  state._residentsFilterMatch = best;
-  return best;
+  state._residentsFilterActive = matches.length > 0;
+  state._residentsFilterMatches = matches;
+  return matches;
 }
+
+function clearResidentsFilter() {
+  if (!state || !state.peopleMarkers) return;
+
+  state.peopleMarkers.forEach(function (mk) {
+    if (mk.setStyle) {
+      try { mk.setStyle({ opacity: 1, fillOpacity: 0.7 }); } catch (e) {}
+    } else {
+      try { mk.addTo(state.map); } catch (e) {}
+    }
+    var el = mk.getElement && mk.getElement();
+    if (el) el.style.pointerEvents = "";
+    mk._hiddenByResidentFilter = false;
+  });
+
+  state._residentsFilterActive = false;
+  state._residentsFilterMatches = null;
+}
+
 
 function clearResidentsFilter() {
   if (!state?.peopleMarkers) return;
@@ -1353,3 +1391,58 @@ loadArticles();
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
 })();
+
+// --- Address normalization & parsing (number + street) ---
+(function () {
+  function deburr(s) {
+    return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+  function normSpaces(s) { return s.replace(/\s+/g, " ").trim(); }
+  function stripPunct(s) { return s.replace(/[^a-z0-9\s]/g, " "); }
+
+  // Canonicalize common abbreviations both ways (we normalize ALL to full words)
+  var STREET_MAP = {
+    rd: "road", road: "road",
+    st: "street", street: "street",
+    ave: "avenue", av: "avenue", avenue: "avenue",
+    dr: "drive", drive: "drive",
+    ct: "court", court: "court",
+    pl: "place", place: "place",
+    sq: "square", square: "square",
+    pk: "park", park: "park",
+    gdns: "gardens", gardens: "gardens",
+    grn: "green", green: "green",
+    rdw: "roadway", roadway: "roadway",
+    tce: "terrace", terrace: "terrace",
+  };
+
+  function canonStreet(raw) {
+    if (!raw) return "";
+    var s = deburr(String(raw).toLowerCase());
+    s = stripPunct(s);
+    s = normSpaces(s);
+
+    // Split into tokens, map tokens via STREET_MAP where applicable
+    var parts = s.split(" ").filter(Boolean).map(function (w) {
+      return STREET_MAP[w] || w;
+    });
+    return parts.join(" ");
+  }
+
+  function parseAddressQuery(q) {
+    if (!q) return { num: null, street: "" };
+    var s = deburr(String(q).toLowerCase());
+    s = stripPunct(s);
+    s = normSpaces(s);
+    var m = s.match(/^(\d+)\s+(.+)$/); // number then street
+    if (m) {
+      return { num: parseInt(m[1], 10), street: canonStreet(m[2]) };
+    }
+    // No number provided; treat whole as street
+    return { num: null, street: canonStreet(s) };
+  }
+
+  window.__addr = { canonStreet: canonStreet, parseAddressQuery: parseAddressQuery };
+})();
+
+
