@@ -851,18 +851,6 @@ function openModal(article) {
   });
 })();
 
-// Attach click handler for the share story button (guarded)
-const shareBtn = document.getElementById('share-story-btn');
-if (shareBtn) {
-  shareBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const pageContent = document.getElementById('content');
-    if (pageContent) pageContent.classList.add('fade-out');
-    setTimeout(() => {
-      showStoryFormPage();
-    }, 600);
-  });
-}
 
 
 // Kick off loading the site
