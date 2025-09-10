@@ -749,7 +749,8 @@ function debounce(fn, ms) {
   var t; return function(){ clearTimeout(t); var a=arguments; t=setTimeout(()=>fn.apply(this,a), ms); };
 }
 
-// Residents address search control
+
+// Residents address search control (input only)
 const ResidentsSearchControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function () {
@@ -768,22 +769,19 @@ const ResidentsSearchControl = L.Control.extend({
     input.style.padding = '6px 8px';
     input.style.outline = 'none';
 
-    
     L.DomEvent.disableClickPropagation(c);
     L.DomEvent.disableScrollPropagation(c);
 
     const run = debounce(function () {
       const q = input.value.trim();
-      if (!q) { clearResidentsFilter(); return; }
+      if (!q) {
+        clearResidentsFilter();
+        return;
+      }
       filterResidentsByAddressStrict(q);
     }, 200);
 
     input.addEventListener('input', run);
-    goBtn.addEventListener('click', run);
-    clearBtn.addEventListener('click', function () {
-      input.value = '';
-      clearResidentsFilter();
-    });
 
     return c;
   }
