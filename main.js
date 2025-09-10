@@ -841,6 +841,7 @@ function showStoryFormPage() {
         <button id="back-button" type="button" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Back</button>
       </form>
     </div>
+  `; // ←←← close the template string!
 
   container.style.opacity = 0;
   container.classList.add('fade-in');
@@ -848,7 +849,6 @@ function showStoryFormPage() {
   // --- Inject STORY-SHARE content now that #story-share exists ---
   (async () => {
     try {
-      // Optional: temporary loading text
       const placeholder = document.getElementById('story-share-content');
       if (placeholder) placeholder.textContent = 'Loading…';
 
@@ -856,11 +856,8 @@ function showStoryFormPage() {
       const target = document.getElementById('story-share-content') || document.getElementById('story-share');
       if (target) {
         target.innerHTML = shareHtml || '';
-        // Safety: ensure any share button has a label
         const btn = target.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]');
-        if (btn && !btn.textContent.trim()) {
-          btn.textContent = 'Share your story';
-        }
+        if (btn && !btn.textContent.trim()) btn.textContent = 'Share your story';
       }
     } catch (e) {
       console.error('Failed to load STORY-SHARE content:', e);
@@ -873,9 +870,7 @@ function showStoryFormPage() {
   if (backButton) {
     backButton.addEventListener('click', () => {
       document.body.classList.add('fade-out');
-      setTimeout(() => {
-        window.location.replace(window.location.pathname);
-      }, 500);
+      setTimeout(() => { window.location.replace(window.location.pathname); }, 500);
     });
   }
   form.addEventListener('submit', async (e) => {
@@ -883,15 +878,13 @@ function showStoryFormPage() {
     const title = form.title.value.trim();
     const description = form.description.value.trim();
     const contributor = form.contributor.value.trim();
-    const { error } = await supabaseClient.from('articles').insert([
-      {
-        title,
-        description,
-        short_desc: description.slice(0, 100) + '...',
-        contributor,
-        active: false
-      }
-    ]);
+    const { error } = await supabaseClient.from('articles').insert([{
+      title,
+      description,
+      short_desc: description.slice(0, 100) + '...',
+      contributor,
+      active: false
+    }]);
     if (error) {
       alert('Error submitting your story. Please try again.');
     } else {
