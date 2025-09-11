@@ -481,3 +481,83 @@ footer {
     font-weight: bold;
   }
 }
+
+#about-project {
+  max-width: 760px;
+  margin: 2.5rem auto 3rem;
+  padding: 1.25rem 1.25rem 1.5rem;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.06);
+}
+#about-project h2 {
+  font-size: clamp(1.05rem, 1.2vw + 0.9rem, 1.25rem);
+  margin: 0 0 .5rem;
+}
+#about-project p {
+  margin: .5rem 0 0;
+  line-height: 1.55;
+}
+#about-project .about-cta {
+  margin-top: .75rem;
+}
+#about-project .about-cta a {
+  color: #2563eb;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(37,99,235,.45);
+}
+#about-project .about-cta a:hover { border-bottom-style: solid; }
+#about-project .about-meta {
+  display: block;
+  margin-top: .75rem;
+  color: #6b7280; /* neutral-500 */
+}
+
+/* Base Leaflet control bar already exists; target your toggle specifically */
+.leaflet-bar .residents-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;              /* comfy width for “Switch to …” */
+  padding: 8px 12px;
+  font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  color: #fff;
+  background: linear-gradient(180deg, #4caf50, #3f9a45); /* your green */
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 10px;
+  text-decoration: none;
+  box-shadow: 0 3px 10px rgba(76, 175, 80, .28);
+  transition: transform .06s ease, box-shadow .12s ease, background .12s ease;
+}
+.leaflet-bar .residents-toggle-btn:hover {
+  background: linear-gradient(180deg, #55b757, #3f9a45);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, .32);
+}
+.leaflet-bar .residents-toggle-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 6px rgba(76, 175, 80, .25);
+}
+.leaflet-bar .residents-toggle-btn:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .5); /* blue focus ring */
+  outline-offset: 2px;
+}
+
+/* Make the Leaflet bar wrapper transparent so our button’s radius shows */
+.leaflet-bar.leaflet-control {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Mobile tap target */
+@media (max-width: 500px) {
+  .leaflet-bar .residents-toggle-btn {
+    min-width: 150px;
+    padding: 10px 14px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+}
+
+
