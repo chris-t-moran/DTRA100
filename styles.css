@@ -121,8 +121,8 @@ html, body {
   color: #6b7280; /* neutral-500 */
 }
 
-/* Justify About text */
-#about-project { text-align: justify; text-justify: inter-word; }
+/* Justify Text */
+#intro, #about-project { text-align: justify; text-justify: inter-word; }
 
 /* Theme/category buttons */
 #themes {
