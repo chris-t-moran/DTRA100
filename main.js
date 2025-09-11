@@ -353,7 +353,7 @@ async function fetchContentByType(contentType) {
 
 async function injectDynamicContent() {
   try {
-    // INTRO -> <intro id="intro">...</intro>
+    // INTRO -> <section id="intro">...</section>
     const introHtml = await fetchContentByType('INTRO');
     const introEl = document.getElementById('intro');
     if (introEl && introHtml) introEl.innerHTML = introHtml;
@@ -366,15 +366,36 @@ async function injectDynamicContent() {
       document.title = (tmp.textContent || '').trim() || document.title;
     }
 
-    // STORY-SHARE -> <story-share id="story-share">...</story-share>
+    // STORY-SHARE -> <section id="story-share">...</section>
     const shareHtml = await fetchContentByType('STORY-SHARE');
     const shareEl = document.getElementById('story-share');
     if (shareEl && shareHtml) shareEl.innerHTML = shareHtml;
+
+    // ABOUT -> <section id="about-project">...</section>
+    const aboutHtml = await fetchContentByType('ABOUT');
+    let aboutEl = document.getElementById('about-project');
+    if (aboutEl && aboutHtml) {
+      aboutEl.innerHTML = aboutHtml;
+
+      // Insert dynamic year if placeholder exists
+      const yearEl = aboutEl.querySelector('#about-year');
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+      // Wire up Share link if present
+      const shareLink = aboutEl.querySelector('#about-share-link');
+      if (shareLink && typeof showStoryFormPage === 'function') {
+        shareLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          showStoryFormPage();
+        });
+      }
+    }
 
   } catch (e) {
     console.error('Injection error:', e);
   }
 }
+
 
 // Run when DOM is ready
 if (document.readyState === 'loading') {
