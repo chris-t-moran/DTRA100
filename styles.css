@@ -1,10 +1,7 @@
 /* Base resets */
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html,
-body {
+html, body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -48,35 +45,41 @@ body {
   touch-action: none;
 }
 
-#head_logo h1 {
-  margin: 0;
-  font-size: 2rem;
+#head_logo h1 { margin: 0; font-size: 2rem; }
+
+/* --- Cards: Intro & About share the same container styling --- */
+#intro,
+#about-project {
+  max-width: 760px;
+  margin: 2.5rem auto 3rem;
+  padding: 1.25rem 1.25rem 1.5rem;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.06);
 }
 
-/* Introductory section */
-#intro {
-  margin-bottom: 1.5rem;
+/* Intro content */
+#intro h2 {
+  font-size: 1.5em;
+  margin: 1rem 0 0;
+  color: #4caf50;
 }
 
-/* Style the intro text to match the modal description.  We use a
-   neutral dark colour and regular font weight so that the text in
-   the introduction reads like the body text inside modals.  The h2
-   heading retains its distinctive colour defined separately. */
-/* Colour all intro text (including blockquotes and italics) with the
-   brand green and adjust weights.  Paragraphs use a slightly
-   heavier weight (500) per request.  Blockquotes and italic text
-   retain the normal weight (400). */
 #intro p {
   color: #4caf50;
-  font-weight: 500;
+  margin: 0.8rem 0;
+  line-height: 1.55;
+  /* desktop/base weight; mobile tweak below */
+  font-weight: 400;
 }
+
 #intro blockquote,
 #intro em {
   color: #4caf50;
   font-weight: 400;
 }
 
-/* Blockquote appearance */
 #intro blockquote {
   background: #f9f9f9;
   border-left: 2px solid #ccc;
@@ -85,7 +88,6 @@ body {
   font-style: normal;
   position: relative;
 }
-
 #intro blockquote::before {
   content: open-quote;
   color: #ccc;
@@ -97,17 +99,30 @@ body {
   top: -0.25em;
 }
 
-#intro p {
-  text-align: justify;
-  margin: 0.8rem 0;
-  font-weight: 200;
+/* About content */
+#about-project h2 {
+  font-size: clamp(1.05rem, 1.2vw + 0.9rem, 1.25rem);
+  margin: 0 0 .5rem;
+}
+#about-project p {
+  margin: .5rem 0 0;
+  line-height: 1.55;
+}
+#about-project .about-cta { margin-top: .75rem; }
+#about-project .about-cta a {
+  color: #2563eb;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(37,99,235,.45);
+}
+#about-project .about-cta a:hover { border-bottom-style: solid; }
+#about-project .about-meta {
+  display: block;
+  margin-top: .75rem;
+  color: #6b7280; /* neutral-500 */
 }
 
-#intro h2 {
-  font-size: 1.5em;
-  margin: 1rem 0 0;
-  color: #4caf50;
-}
+/* Justify About text */
+#about-project { text-align: justify; text-justify: inter-word; }
 
 /* Theme/category buttons */
 #themes {
@@ -118,7 +133,6 @@ body {
   flex-wrap: wrap;
   gap: 10px;
 }
-
 .theme {
   display: inline-block;
   margin-right: 0;
@@ -130,10 +144,7 @@ body {
   font-weight: bold;
   user-select: none;
 }
-
-.theme.active {
-  background-color: #1cfc66;
-}
+.theme.active { background-color: #1cfc66; }
 
 /* Share your story button */
 .btn-share {
@@ -148,382 +159,90 @@ body {
 }
 
 /* Article listing */
-#article-list {
-  width: 100%;
-  max-width: 570px;
-  padding-top: 10px;
-}
-
+#article-list { width: 100%; max-width: 570px; padding-top: 10px; }
 #article-list ul.grid {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  list-style: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
 }
-
 .card {
   position: relative;
   border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   transition: transform 0.2s;
   background: #fff;
 }
-
-.card:hover {
-  transform: scale(1.05);
-}
-
+.card:hover { transform: scale(1.05); }
 .card img {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-  display: block;
+  width: 100%; height: 150px; object-fit: cover; display: block;
 }
-
-.overlay,
-.inactiveoverlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  padding: 5px;
-  font-size: 0.8rem;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.overlay, .inactiveoverlay {
+  position: absolute; bottom: 0; left: 0; width: 100%; padding: 5px;
+  font-size: 0.8rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.overlay { background: #4caf50; color: #fff; }
+.inactiveoverlay { background: red; color: #fff; }
 
-.overlay {
-  background: #4caf50;
-  color: #fff;
-}
-
-.inactiveoverlay {
-  background: red;
-  color: #fff;
-}
-
-/* Modal styles */
+/* Modal */
 .modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex; justify-content: center; align-items: center;
   z-index: 1000;
 }
-
 .modal-content {
-  background-color: #ffffff;
-  width: 90%;
-  max-width: 500px;
-  overflow-y: auto;
-  border-radius: 10px;
-  position: relative;
-  text-align: center;
+  background-color: #ffffff; width: 90%; max-width: 500px; overflow-y: auto;
+  border-radius: 10px; position: relative; text-align: center;
   animation: modalFadeIn 0.4s ease forwards;
 }
+@keyframes modalFadeIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-content header { padding: 0.5rem; background: #4caf50; color: #ffffff; }
+.modal-content header h2 { margin: 0; font-size: 1.4rem; }
+.modal-content header h3 { margin: 0.3rem 0; font-size: 1rem; }
 
-@keyframes modalFadeIn {
-  from {
-    transform: translateY(-30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modal-content header {
-  padding: 0.5rem;
-  background: #4caf50;
-  color: #ffffff;
-}
-
-.modal-content header h2 {
-  margin: 0;
-  font-size: 1.4rem;
-}
-
-.modal-content header h3 {
-  margin: 0.3rem 0;
-  font-size: 1rem;
-}
-
-/* Modal footer layout + buttons */
+/* Modal footer (kept for future use; no buttons in current build) */
 .modal .modal-footer {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px; border-top: 1px solid #e5e7eb; background: #fff;
 }
-.modal .modal-view-btn, .modal .modal-close-btn {
-  appearance: none; border-radius: 8px; cursor: pointer;
-  font: 600 13px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  padding: 6px 10px;
-}
-.modal .modal-view-btn {
-  border: 1px solid #2563eb; background: #fff; color: #1e3a8a;
-}
-.modal .modal-view-btn:hover { background: #eff6ff; }
-.modal .modal-close-btn {
-  border: 1px solid #d1d5db; background: #fff; color: #374151;
-}
-.modal .modal-close-btn:hover { background: #f3f4f6; }
 
 /* Optional enter/exit */
 .modal { opacity: 0; transition: opacity .15s ease; }
 .modal.show { opacity: 1; }
 
-
-
-
+/* Image area + description area */
 .imgWrapper {
-  width: 100%;
-  height: 300px;
-  overflow: hidden;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #f9f9f9;
-  position: relative;
+  width: 100%; height: 300px; overflow: hidden; margin: 0;
+  display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; position: relative;
 }
-
-.imgWrapper img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transition: transform 0.5s ease;
-  border-radius: 8px;
-}
-
-.imgWrapper:hover img {
-  transform: scale(1.1);
-}
+.imgWrapper img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.5s ease; border-radius: 8px; }
+.imgWrapper:hover img { transform: scale(1.1); }
 
 .descriptionWrapper {
-  background-color: #ffffff;
-  max-height: 200px;
-  overflow-y: auto;
-  margin-top: 10px;
-  text-align: justify;
-  scrollbar-width: none;
-  padding: 25px;
+  background-color: #ffffff; max-height: 200px; overflow-y: auto; margin-top: 10px;
+  text-align: justify; scrollbar-width: none; padding: 25px;
 }
-
-.descriptionWrapper::-webkit-scrollbar {
-  display: none;
-}
-
+.descriptionWrapper::-webkit-scrollbar { display: none; }
 .progress-bar {
-  height: 4px;
-  width: 0%;
-  background-color: #4caf50;
-  position: sticky;
-  top: 0;
-  left: 0;
-  z-index: 1;
-  transition: width 0.25s ease;
+  height: 4px; width: 0%; background-color: #4caf50;
+  position: sticky; top: 0; left: 0; z-index: 1; transition: width 0.25s ease;
 }
 
+/* Page footer */
 footer {
-  background: #4caf50;
-  color: #ffffff;
-  font-size: 0.9rem;
-  height: 20px;
-  padding: 0.3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #4caf50; color: #ffffff; font-size: 0.9rem;
+  height: 20px; padding: 0.3rem; display: flex; align-items: center; justify-content: center;
 }
 
-/* Residents toggle button */
-.residents-toggle-btn {
-  /* Style the map toggle button to match the intro text.  Use the
-     brand green for the background with white lettering, and apply
-     the same font weight (500) as the intro paragraphs.  Remove the
-     fixed width so the button sizes to its text content.  Add some
-     padding for readability and drop the coloured border. */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #4caf50;
-  color: #ffffff;
-  font-weight: 500;
-  border: none;
-  border-radius: 4px;
-  padding: 0.3em 0.7em;
-  cursor: pointer;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-/*
- * Leaflet applies default dimensions and line-heights to control
- * anchors (e.g. width/height of 26px).  Override these for our
- * custom residents toggle button so it sizes itself to the text
- * content.  Use !important to ensure it takes precedence.
- */
+/* Leaflet toggle button — gradient style */
 .leaflet-bar .residents-toggle-btn {
-  width: auto !important;
-  height: auto !important;
-  line-height: normal !important;
-}
-
-/* Fade animations */
-.fade-out {
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.fade-in {
-  opacity: 0;
-  animation: fadeInAnim 0.6s ease forwards;
-}
-
-@keyframes fadeInAnim {
-  to {
-    opacity: 1;
-  }
-}
-
-/* Marker clusters custom colours */
-.marker-cluster-small div {
-  background-color: rgba(255, 165, 0, 0.6) !important;
-}
-
-.marker-cluster-small {
-  background-color: rgba(255, 165, 0, 0.2) !important;
-}
-
-/* Sepia filter when toggling people markers */
-#map.sepia {
-  filter: sepia(0.6);
-}
-
-/* Responsive adjustments */
-@media (max-width: 500px) {
-  #mainpage {
-    display: grid;
-  }
-  #content {
-    order: 1;
-    width: 100%;
-    padding: 20px;
-    background: white;
-    position: absolute;
-    top: 50%;
-    /* Extend the panel to the bottom of the viewport so overflow-y can take effect */
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
-    z-index: 2;
-    /* Smooth animation for sliding the panel */
-    transition: top 0.3s ease;
-    /* Allow the GPU to optimise transforms during dragging */
-    will-change: transform;
-    /* Enable smooth scrolling on iOS */
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    /* Enable scrolling within the panel on mobile */
-    overflow-y: auto;
-    /* Extra padding at the bottom to ensure the last row of articles
-       is fully visible when scrolled to the end.  Without this
-       padding, the panel may reveal the map underneath before the
-       content has scrolled completely. */
-    padding-bottom: 80px;
-  }
-  /* Hide the pseudo-element handle on small screens; a dedicated
-     element (#content-handle) is used instead so that touch events
-     can be bound to the handle. */
-  #content::before {
-    display: none;
-  }
-
-  /* Visible drag handle for the content panel on mobile.  This
-     replicates the appearance of the original pseudo-element but as
-     a real DOM node so it can receive touch events. */
-  #content-handle {
-    width: 40px;
-    height: 5px;
-    background: #ccc;
-    border-radius: 3px;
-    margin: 10px auto 5px auto;
-    cursor: grab;
-  }
-  #map {
-    /* Make the map fill the entire viewport underneath the content */
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 100%;
-    z-index: 1;
-  }
-  #themes .theme {
-    font-weight: bold;
-  }
-  .card .overlay {
-    font-weight: bold;
-  }
-  #article-list p {
-    font-weight: bold;
-  }
-}
-
-#about-project {
-  max-width: 760px;
-  margin: 2.5rem auto 3rem;
-  padding: 1.25rem 1.25rem 1.5rem;
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,.08);
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(0,0,0,.06);
-}
-#about-project h2 {
-  font-size: clamp(1.05rem, 1.2vw + 0.9rem, 1.25rem);
-  margin: 0 0 .5rem;
-}
-#about-project p {
-  margin: .5rem 0 0;
-  line-height: 1.55;
-}
-#about-project .about-cta {
-  margin-top: .75rem;
-}
-#about-project .about-cta a {
-  color: #2563eb;
-  text-decoration: none;
-  border-bottom: 1px dashed rgba(37,99,235,.45);
-}
-#about-project .about-cta a:hover { border-bottom-style: solid; }
-#about-project .about-meta {
-  display: block;
-  margin-top: .75rem;
-  color: #6b7280; /* neutral-500 */
-}
-
-/* Base Leaflet control bar already exists; target your toggle specifically */
-.leaflet-bar .residents-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 132px;              /* comfy width for “Switch to …” */
-  padding: 8px 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 132px; padding: 8px 12px;
   font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
   color: #fff;
-  background: linear-gradient(180deg, #4caf50, #3f9a45); /* your green */
+  background: linear-gradient(180deg, #4caf50, #3f9a45);
   border: 1px solid rgba(0,0,0,.12);
   border-radius: 10px;
   text-decoration: none;
@@ -539,25 +258,45 @@ footer {
   box-shadow: 0 2px 6px rgba(76, 175, 80, .25);
 }
 .leaflet-bar .residents-toggle-btn:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, .5); /* blue focus ring */
+  outline: 3px solid rgba(37, 99, 235, .5);
   outline-offset: 2px;
 }
 
 /* Make the Leaflet bar wrapper transparent so our button’s radius shows */
-.leaflet-bar.leaflet-control {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
+.leaflet-bar.leaflet-control { background: transparent; border: none; box-shadow: none; }
 
-/* Mobile tap target */
+/* Marker clusters custom colours */
+.marker-cluster-small div { background-color: rgba(255, 165, 0, 0.6) !important; }
+.marker-cluster-small { background-color: rgba(255, 165, 0, 0.2) !important; }
+
+/* Sepia filter when toggling people markers */
+#map.sepia { filter: sepia(0.6); }
+
+/* Responsive adjustments */
 @media (max-width: 500px) {
-  .leaflet-bar .residents-toggle-btn {
-    min-width: 150px;
-    padding: 10px 14px;
-    font-size: 15px;
-    border-radius: 12px;
+  #mainpage { display: grid; }
+
+  #content {
+    order: 1; width: 100%; padding: 20px; background: white;
+    position: absolute; top: 50%; bottom: 0; left: 0; right: 0;
+    border-top-left-radius: 12px; border-top-right-radius: 12px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2); z-index: 2;
+    transition: top 0.3s ease; will-change: transform;
+    -webkit-overflow-scrolling: touch; touch-action: pan-y;
+    overflow-y: auto; padding-bottom: 80px;
   }
+
+  #content::before { display: none; }
+
+  #content-handle {
+    width: 40px; height: 5px; background: #ccc; border-radius: 3px;
+    margin: 10px auto 5px auto; cursor: grab;
+  }
+
+  #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
+
+  #themes .theme, .card .overlay, #article-list p { font-weight: bold; }
+
+  /* Heavier mobile weight for Intro & About paragraphs */
+  #intro p, #about-project p { font-weight: 500; }
 }
-
-
