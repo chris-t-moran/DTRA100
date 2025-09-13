@@ -435,6 +435,32 @@ function htmlEscape(str) {
     .replace(/'/g, '&#039;');
 }
 
+// De-dupe views per article per day using localStorage
+function shouldCountView(articleId, ttlHours) {
+  try {
+    const key = 'viewed:' + articleId;
+    const ttl = (ttlHours || 24) * 60 * 60 * 1000;
+    const now = Date.now();
+    const raw = localStorage.getItem(key);
+    if (!raw) { localStorage.setItem(key, String(now)); return true; }
+    const then = Number(raw) || 0;
+    if (now - then >= ttl) { localStorage.setItem(key, String(now)); return true; }
+    return false;
+  } catch { return true; } // if storage is blocked, just count
+}
+
+async function incrementArticleView(articleId) {
+  if (!articleId) return;
+  try {
+    const { data, error } = await supabaseClient.rpc('increment_article_view', { aid: articleId });
+    if (error) console.warn('increment view error', error);
+    return data; // new view count
+  } catch (e) {
+    console.warn('increment view failed', e);
+  }
+}
+
+
 
 // --- Article selection highlight (color only) ---
 function _articleKey(a) {
@@ -1059,6 +1085,22 @@ function openModal(article) {
   content.appendChild(descriptionWrapper);
   modal.appendChild(content);
   document.body.appendChild(modal);
+
+  // Count a view once per article per ~24h on this device
+  if (shouldCountView(article.id, 24)) {
+  // ensure it's a number (bigint-compatible)
+  incrementArticleView(Number(article.id));
+  }
+
+  async function incrementArticleView(articleIdBigint) {
+  if (articleIdBigint == null) return;
+  const { data, error } = await supabaseClient
+    .rpc('increment_article_view', { aid: articleIdBigint });
+  if (error) console.warn('increment view error', error);
+  return data; // new views total
+}
+
+
 
   // small enter animation
   requestAnimationFrame(() => modal.classList.add('show'));
