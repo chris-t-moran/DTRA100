@@ -430,6 +430,62 @@ function getCurrentModalArticleId() {
   return id != null ? Number(id) : null;
 }
 
+// Global: swap article content inside the existing modal (no close/reopen)
+function loadArticleIntoModal(next) {
+  var modal = document.querySelector('.modal');
+  if (!modal) { console.warn('[loadArticleIntoModal] No modal in DOM'); return; }
+
+  var content = modal.querySelector('.modal-content');
+  var header  = content ? content.querySelector('header') : null;
+  var title   = header ? header.querySelector('h2') : null;
+  var shortDesc = header ? header.querySelector('h3') : null;
+  var img     = content ? content.querySelector('.imgWrapper img') : null;
+  var wrapper = content ? content.querySelector('.descriptionWrapper') : null;
+  var progressBar = content ? content.querySelector('.progress-bar') : null;
+  // Assumes your description is the first DIV inside .descriptionWrapper:
+  var description = wrapper ? wrapper.querySelector('div') : null;
+
+  if (!content || !title || !shortDesc || !img || !wrapper || !description) {
+    console.warn('[loadArticleIntoModal] Missing modal nodes; falling back to reopen');
+    try { document.body.removeChild(modal); } catch (e) {}
+    return openModal(next);
+  }
+
+  // Reset scroll/progress
+  if (progressBar) progressBar.style.width = '0%';
+  wrapper.scrollTop = 0;
+
+  // Snappy fade (ensure you have .modal-content.swap-fade in your CSS)
+  content.classList.add('swap-fade', 'fade-out');
+  if (img) img.classList.add('fade-out');
+
+  // Swap text
+  title.textContent = next.title || '';
+  shortDesc.textContent = next.short_desc || '';
+  description.innerHTML = (next.description || '').replace(/\n/g, '<br>');
+
+  // Swap image after a tick so transition kicks in
+  setTimeout(function () {
+    img.src = next.img || '';
+    img.alt = next.title || '';
+  }, 60);
+
+  // Update the modal’s current id so nav/share/close can read it
+  modal.dataset.articleId = Number(next.id) || '';
+
+  // Count a view for the new article (once/24h)
+  if (typeof shouldCountView === 'function' && shouldCountView(next.id, 24)) {
+    if (typeof incrementArticleView === 'function') incrementArticleView(Number(next.id));
+  }
+
+  // End fade
+  setTimeout(function () {
+    img.classList.remove('fade-out');
+    content.classList.remove('fade-out');
+  }, 180);
+}
+
+
 // Best-effort cache lookup for an article by id
 function getArticleFromCache(id) {
   if (!id || !window.state) return null;
@@ -1247,59 +1303,6 @@ function openModal(article) {
   closeBtn.className = 'modal-close-btn';
   closeBtn.textContent = 'Close';
 
-// Smoothly load a new article into the existing modal (no close/reopen)
-function loadArticleIntoModal(next) {
-  var modal = document.querySelector('.modal');
-  if (!modal) return;
-
-  // Elements created in openModal
-  var content = modal.querySelector('.modal-content');
-  var title = modal.querySelector('header > h2');
-  var shortDesc = modal.querySelector('header > h3');
-  var image = modal.querySelector('.imgWrapper img');
-  var descriptionWrapper = modal.querySelector('.descriptionWrapper');
-  var progressBar = modal.querySelector('.progress-bar');
-  var description = descriptionWrapper ? descriptionWrapper.querySelector('div') : null;
-
-  // Reset progress & scroll
-  if (progressBar) progressBar.style.width = '0%';
-  if (descriptionWrapper) descriptionWrapper.scrollTop = 0;
-
-  // Snappy fade
-  if (content) content.classList.add('swap-fade','fade-out');
-  if (image) image.classList.add('fade-out');
-
-  // Swap text
-  if (title) title.textContent = next.title || '';
-  if (shortDesc) shortDesc.textContent = next.short_desc || '';
-  if (description) description.innerHTML = (next.description || '').replace(/\n/g,'<br>');
-
-  // Swap image after a tick so CSS transition runs
-  setTimeout(function(){
-    if (image) {
-      image.src = next.img || '';
-      image.alt = next.title || '';
-    }
-  }, 60);
-
-  // Update modal’s current id
-  modal.dataset.articleId = Number(next.id) || '';
-
-  // View count (optional)
-  if (typeof shouldCountView === 'function' && shouldCountView(next.id, 24)) {
-    if (typeof incrementArticleView === 'function') incrementArticleView(Number(next.id));
-  }
-
-  // End fade
-  setTimeout(function(){
-    if (image) image.classList.remove('fade-out');
-    if (content) content.classList.remove('fade-out');
-  }, 180);
-}
-
-
-
-
   
   // assemble
   content.appendChild(header);
@@ -1449,6 +1452,8 @@ function closeAndReveal() {
       console.warn('Reveal failed', e);
     }
   }
+
+  
 
   if (window.innerWidth <= 500) {
     // Slide panel first so offset math is right, then reveal
