@@ -442,8 +442,17 @@ function loadArticleIntoModal(next) {
   var img     = content ? content.querySelector('.imgWrapper img') : null;
   var wrapper = content ? content.querySelector('.descriptionWrapper') : null;
   var progressBar = content ? content.querySelector('.progress-bar') : null;
-  // Assumes your description is the first DIV inside .descriptionWrapper:
-  var description = wrapper ? wrapper.querySelector('div') : null;
+
+ // Assumes your description is the content div inside .descriptionWrapper:
+  var description =
+  wrapper ? wrapper.querySelector('.modal-description') : null;
+
+ // Fallbacks if the class isn't present yet
+  if (!description && wrapper) {
+  // pick a non-progress-bar div
+  description = wrapper.querySelector('div:not(.progress-bar)') || wrapper.lastElementChild;
+  }
+
 
   if (!content || !title || !shortDesc || !img || !wrapper || !description) {
     console.warn('[loadArticleIntoModal] Missing modal nodes; falling back to reopen');
@@ -1279,6 +1288,7 @@ function openModal(article) {
   descriptionWrapper.appendChild(progressBar);
 
   const description = document.createElement('div');
+  description.className = 'modal-description';  
   description.innerHTML = (article.description || '').replace(/\n/g, '<br>');
   descriptionWrapper.appendChild(description);
 
