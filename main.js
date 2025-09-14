@@ -2,9 +2,6 @@
 (function (global) {
   const ORANGE = '#f97316';
   const ORANGE_FILL = '#fb923c';
-  // Track which article is open in a modal
-  let currentArticle = null;
-
 
   function ensureLayers(map) {
     if (!global.state) global.state = {};
@@ -424,6 +421,34 @@ const state = {
 };
 
 // --- Modal navigation & sharing helpers (hardened) ---
+
+// Get the active modal's article id
+function getCurrentModalArticleId() {
+  var m = document.querySelector('.modal');
+  if (!m) return null;
+  var id = m.dataset && m.dataset.articleId;
+  return id != null ? Number(id) : null;
+}
+
+// Best-effort cache lookup for an article by id
+function getArticleFromCache(id) {
+  if (!id || !window.state) return null;
+  if (state.articleById && state.articleById[id]) return state.articleById[id];
+  if (Array.isArray(state.articles)) {
+    for (var i=0;i<state.articles.length;i++) {
+      if (Number(state.articles[i].id) === Number(id)) return state.articles[i];
+    }
+  }
+  if (Array.isArray(state.articlesData)) {
+    for (var j=0;j<state.articlesData.length;j++) {
+      if (Number(state.articlesData[j].id) === Number(id)) return state.articlesData[j];
+    }
+  }
+  return null;
+}
+
+
+
 function ensureArticleLookupMap() {
   if (!window.state) window.state = {};
   if (!state.articleById) state.articleById = {};
@@ -527,9 +552,14 @@ function getArticleIndex(article) {
 }
 
 function getArticlePermalink(a) {
-  a = a || (typeof currentArticle !== 'undefined' ? currentArticle : null);
-  if (!a || a.id == null) return location.href;
-  const base = location.origin + location.pathname;
+  // prefer explicit article, else read from modal dataset
+  if (!a) {
+    var idFromModal = getCurrentModalArticleId();
+    if (!idFromModal) return location.href;
+    a = getArticleFromCache(idFromModal) || { id: idFromModal };
+  }
+  if (a.id == null) return location.href;
+  var base = location.origin + location.pathname;
   return base + '?article=' + encodeURIComponent(a.id);
 }
 
@@ -1151,7 +1181,7 @@ function togglePeopleMarkers(button) {
 
 // Create and display a modal for a given article
 function openModal(article) {
-  currentArticle = article;
+  let currentArticle = article;
   // Helpers we rely on (from earlier builds)
   const getMk = (a) =>
     (typeof getArticleMarker === 'function' ? getArticleMarker(a) : null);
@@ -1161,6 +1191,7 @@ function openModal(article) {
   // --- create overlay
   const modal = document.createElement('div');
   modal.className = 'modal';
+  modal.dataset.articleId = Number(article.id) || '';   
 
   // content wrapper
   const content = document.createElement('div');
@@ -1216,7 +1247,44 @@ function openModal(article) {
   closeBtn.className = 'modal-close-btn';
   closeBtn.textContent = 'Close';
 
+  async function loadArticleIntoModal(next) {
+  // 1) update state
+  currentArticle = next;
 
+  // 2) reset progress & scroll
+  progressBar.style.width = '0%';
+  descriptionWrapper.scrollTop = 0;
+
+  // 3) content fades (reduce jank)
+  content.classList.add('fade-out');           // reuse your existing .fade-out (opacity)
+  image.classList.add('fade-out');
+
+  // 4) swap text content
+  title.textContent = next.title || '';
+  shortDesc.textContent = next.short_desc || '';
+  description.innerHTML = (next.description || '').replace(/\n/g, '<br>');
+
+  // 5) swap image (wait a tick so CSS transition engages)
+  setTimeout(() => {
+    image.src = next.img || '';
+    image.alt = next.title || '';
+  }, 60);
+
+  // 6) count a view for the new article
+  if (shouldCountView(next.id, 24)) {
+    incrementArticleView(Number(next.id));
+  }
+
+  // 7) end fade
+  setTimeout(() => {
+    image.classList.remove('fade-out');
+    content.classList.remove('fade-out');
+  }, 180);
+}
+
+
+
+  
   // assemble
   content.appendChild(header);
   content.appendChild(imgWrapper);
@@ -1342,23 +1410,43 @@ if (navEl && !navEl._wired) {
   // small enter animation
   requestAnimationFrame(() => modal.classList.add('show'));
 
-  // --- close + reveal on map (used by all close paths)
-  function closeAndReveal() {
-  try { modal.classList.remove('show'); } catch (e) {}
-  setTimeout(() => { try { document.body.removeChild(modal); } catch (e) {} }, 120);
+// --- close + reveal on map (used by all close paths)
+function closeAndReveal() {
+  // Capture the current article id BEFORE we remove the modal
+  var revealId = getCurrentModalArticleId();
 
-  if (window.innerWidth <= 500) {
-    // Slide panel to lower third first, then reveal marker so the offset math is correct
-    settleContentPanelToLowerThird();
-    setTimeout(() => {
-      try { if (typeof revealArticleMarker === 'function') revealArticleMarker(currentArticle); } catch (e) { console.warn('Reveal failed', e); }
-    }, 350); // wait for panel animation
-  } else {
-    try { if (typeof revealArticleMarker === 'function') revealArticleMarker(currentArticle); } catch (e) { console.warn('Reveal failed', e); }
+  // Start closing animation / removal
+  try { modal.classList.remove('show'); } catch (e) {}
+  setTimeout(function () {
+    try { document.body.removeChild(modal); } catch (e) {}
+  }, 120);
+
+  // Helper to actually reveal on the map
+  function doReveal() {
+    try {
+      if (!revealId) return;
+      var a2 = getArticleFromCache(revealId);
+      if (a2 && typeof revealArticleMarker === 'function') {
+        revealArticleMarker(a2);
+      }
+    } catch (e) {
+      console.warn('Reveal failed', e);
+    }
   }
 
+  if (window.innerWidth <= 500) {
+    // Slide panel first so offset math is right, then reveal
+    settleContentPanelToLowerThird();
+    setTimeout(doReveal, 350);
+  } else {
+    doReveal();
+  }
+
+  // Clean up listeners
   window.removeEventListener('keydown', onEsc, true);
+  try { window.removeEventListener('keydown', onArrow, true); } catch (e) {}
 }
+
 
 
   // robust backdrop tap: “outside the content” check
@@ -1411,40 +1499,67 @@ if (navEl && !navEl._wired) {
 
 
 
-// Put openAdjacent directly after openModal
 async function openAdjacent(delta) {
-  try { ensureArticlesOrder?.(); } catch {}
-  // If still empty, rebuild from DOM as a last resort
+  try { if (typeof ensureArticlesOrder === 'function') ensureArticlesOrder(); } catch (e) {}
+
+  // Build order from DOM as a fallback
+  function buildArticlesOrderFromDOM() {
+    var arr = [];
+    var nodes = document.querySelectorAll('#article-list [data-article-id]');
+    nodes.forEach(function (el) {
+      var id = Number(el.getAttribute('data-article-id'));
+      if (!isNaN(id)) {
+        var a = (typeof getArticleById === 'function') ? getArticleById(id) : { id: id };
+        arr.push(a);
+      }
+    });
+    return arr;
+  }
+
+  if (!window.state) window.state = {};
   if (!Array.isArray(state.articlesOrdered) || !state.articlesOrdered.length) {
-    state.articlesOrdered = (typeof buildArticlesOrderFromDOM === 'function')
-      ? buildArticlesOrderFromDOM() : [];
+    if (Array.isArray(state.articles) && state.articles.length) {
+      state.articlesOrdered = state.articles.slice();
+    } else {
+      state.articlesOrdered = buildArticlesOrderFromDOM();
+    }
   }
   if (!state.articlesOrdered.length) return;
 
-  const curId = Number(currentArticle && currentArticle.id);
-  let idx = -1;
-  for (let i = 0; i < state.articlesOrdered.length; i++) {
-    if (Number(state.articlesOrdered[i]?.id) === curId) { idx = i; break; }
+  var curId = getCurrentModalArticleId();
+  var idx = -1;
+  for (var i = 0; i < state.articlesOrdered.length; i++) {
+    if (Number(state.articlesOrdered[i] && state.articlesOrdered[i].id) === Number(curId)) { idx = i; break; }
   }
   if (idx < 0) idx = 0;
 
-  const len = state.articlesOrdered.length;
-  const nextIdx = (idx + delta + len) % len;
-  let next = state.articlesOrdered[nextIdx];
+  var len = state.articlesOrdered.length;
+  var nextIdx = (idx + delta + len) % len;
+  var next = state.articlesOrdered[nextIdx];
 
-  // Hydrate if we only have a stub {id}
+  // Hydrate if needed
   if (next && (!next.title || !next.description)) {
     try {
       if (typeof fetchArticleById === 'function') {
-        const full = await fetchArticleById(Number(next.id));
+        var full = await fetchArticleById(Number(next.id));
         if (full) next = full;
       }
     } catch (e) { console.warn('fetchArticleById failed', e); }
   }
   if (!next) return;
 
-  // swap in place (no flash)
-  loadArticleIntoModal(next);
+  // Swap content in-place (your existing function)
+  if (typeof loadArticleIntoModal === 'function') {
+    loadArticleIntoModal(next);
+  } else {
+    // Fallback: close and reopen (not ideal, but safe)
+    try { document.body.removeChild(document.querySelector('.modal')); } catch (e) {}
+    openModal(next);
+  }
+
+  // Update the modal's current id
+  var mm = document.querySelector('.modal');
+  if (mm) mm.dataset.articleId = Number(next.id) || '';
 }
 
 
