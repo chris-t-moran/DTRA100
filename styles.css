@@ -202,6 +202,13 @@ html, body {
 .modal-content header h2 { margin: 0; font-size: 1.4rem; }
 .modal-content header h3 { margin: 0.3rem 0; font-size: 1rem; }
 
+
+.modal-content.swap-fade { transition: opacity .16s ease; }
+.modal-content.swap-fade.fade-out { opacity: 0; }
+
+
+
+
 /* Modal footer (kept for future use; no buttons in current build) */
 .modal .modal-footer {
   display: flex; align-items: center; gap: 8px;
