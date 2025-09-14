@@ -2,6 +2,9 @@
 (function (global) {
   const ORANGE = '#f97316';
   const ORANGE_FILL = '#fb923c';
+  // Track which article is open in a modal
+  let currentArticle = null;
+
 
   function ensureLayers(map) {
     if (!global.state) global.state = {};
@@ -1148,7 +1151,7 @@ function togglePeopleMarkers(button) {
 
 // Create and display a modal for a given article
 function openModal(article) {
-  let currentArticle = article;
+  currentArticle = article;
   // Helpers we rely on (from earlier builds)
   const getMk = (a) =>
     (typeof getArticleMarker === 'function' ? getArticleMarker(a) : null);
