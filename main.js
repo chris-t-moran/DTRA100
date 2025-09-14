@@ -419,24 +419,96 @@ const state = {
   map: null,
   activeTheme: null
 };
-// --- Modal navigation & sharing helpers ---
-function ensureArticlesOrder() {
-  if (!window.state) return;
-  if (Array.isArray(state.articlesOrdered) && state.articlesOrdered.length) return;
-  state.articlesOrdered = Array.isArray(state.articles) ? state.articles.slice() : [];
+
+// --- Modal navigation & sharing helpers (hardened) ---
+function ensureArticleLookupMap() {
+  if (!window.state) window.state = {};
+  if (!state.articleById) state.articleById = {};
+  function add(a) {
+    if (!a || a.id == null) return;
+    var id = Number(a.id);
+    if (!state.articleById[id]) state.articleById[id] = a;
+  }
+  if (Array.isArray(state.articles)) state.articles.forEach(add);
+  if (Array.isArray(state.articlesData)) state.articlesData.forEach(add);
+  try {
+    if (state.articleMarkers && typeof state.articleMarkers.getLayers === 'function') {
+      state.articleMarkers.getLayers().forEach(function(mk){
+        var a = mk && (mk._article || (mk.options && mk.options.article) || (mk.feature && mk.feature.properties && mk.feature.properties.article));
+        if (a) add(a);
+      });
+    }
+  } catch(e) {}
 }
+
+function ensureArticlesOrder() {
+  if (!window.state) window.state = {};
+  if (Array.isArray(state.articlesOrdered) && state.articlesOrdered.length) return;
+
+  ensureArticleLookupMap();
+
+  var arr = [];
+  if (Array.isArray(state.articles) && state.articles.length) {
+    arr = state.articles.slice();
+  } else if (Array.isArray(state.articlesData)) {
+    arr = state.articlesData.slice();
+  } else if (state.articleMarkers && typeof state.articleMarkers.getLayers === 'function') {
+    try {
+      arr = state.articleMarkers.getLayers()
+        .map(function(mk){ return mk && (mk._article || (mk.options && mk.options.article) || (mk.feature && mk.feature.properties && mk.feature.properties.article)); })
+        .filter(Boolean);
+    } catch(e) { arr = []; }
+  } else {
+    try {
+      var nodes = document.querySelectorAll('#article-list [data-article-id]');
+      nodes.forEach(function(el){
+        var id = Number(el.getAttribute('data-article-id'));
+        if (!isNaN(id)) arr.push({ id: id });
+      });
+    } catch(e) {}
+  }
+
+  state.articlesOrdered = arr || [];
+  (state.articlesOrdered).forEach(function(a){ if (a && a.id != null) state.articleById[Number(a.id)] = a; });
+}
+
 function getArticleIndex(article) {
-  ensureArticlesOrder();
+  try { ensureArticlesOrder(); } catch(e) {}
+  if (!state || !Array.isArray(state.articlesOrdered)) return -1;
   var id = Number(article && article.id);
   for (var i = 0; i < state.articlesOrdered.length; i++) {
-    if (Number(state.articlesOrdered[i].id) === id) return i;
+    var it = state.articlesOrdered[i];
+    if (it && Number(it.id) === id) return i;
   }
   return -1;
 }
+
 function getArticlePermalink(currentArticle) {
   var base = location.origin + location.pathname;
   return base + '?article=' + encodeURIComponent(article.id);
 }
+
+async function fetchArticleById(id) {
+  try {
+    if (typeof supabaseClient === 'undefined') return null;
+    const { data, error } = await supabaseClient
+      .from('articles')
+      .select('id,title,short_desc,description,img,contributor,active,lat,lon')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) { console.warn('fetchArticleById error:', error); return null; }
+    if (data) {
+      if (!window.state) window.state = {};
+      if (!state.articleById) state.articleById = {};
+      state.articleById[Number(data.id)] = data;
+    }
+    return data || null;
+  } catch (e) {
+    console.warn('fetchArticleById failed:', e);
+    return null;
+  }
+}
+
 
 
 // HTML helpers
@@ -1057,15 +1129,7 @@ function openModal(article) {
   header.appendChild(title);
   header.appendChild(shortDesc);
 
-  
-  // Share button (icon)
-  const shareBtn = document.createElement('button');
-  shareBtn.type = 'button';
-  shareBtn.className = 'modal-share-btn';
-  shareBtn.setAttribute('aria-label','Share this article');
-  shareBtn.innerHTML = '<span class="sr-only">Share</span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 3l4 4-1.41 1.41L13 7.83V14h-2V7.83L9.41 8.41 8 7l4-4zM5 10h2v8h10v-8h2v10H5V10z" fill="currentColor"/></svg>';
-  header.appendChild(shareBtn);
-// image
+  // image
   const imgWrapper = document.createElement('div');
   imgWrapper.className = 'imgWrapper';
   const image = document.createElement('img');
@@ -1073,25 +1137,7 @@ function openModal(article) {
   image.alt = article.title || '';
   imgWrapper.appendChild(image);
 
-  
-  // Nav arrows over image
-  const nav = document.createElement('div');
-  nav.className = 'modal-nav';
-  const prevBtn = document.createElement('button');
-  prevBtn.className = 'nav-btn nav-prev';
-  prevBtn.setAttribute('aria-label', 'Previous');
-  prevBtn.textContent = '‹';
-  const nextBtn = document.createElement('button');
-  nextBtn.className = 'nav-btn nav-next';
-  nextBtn.setAttribute('aria-label', 'Next');
-  nextBtn.textContent = '›';
-  nav.appendChild(prevBtn);
-  nav.appendChild(nextBtn);
-  imgWrapper.appendChild(nav);
-
-  prevBtn.addEventListener('click', () => openAdjacent(-1));
-  nextBtn.addEventListener('click', () => openAdjacent(1));
-// description + progress bar
+  // description + progress bar
   const descriptionWrapper = document.createElement('div');
   descriptionWrapper.className = 'descriptionWrapper';
 
@@ -1153,8 +1199,7 @@ function openModal(article) {
 
   // --- close + reveal on map (used by all close paths)
   function closeAndReveal() {
-  try { window.removeEventListener('keydown', onArrow, true); } catch(e) {}
-try { modal.classList.remove('show'); } catch (e) {}
+  try { modal.classList.remove('show'); } catch (e) {}
   setTimeout(() => { try { document.body.removeChild(modal); } catch (e) {} }, 120);
 
   if (window.innerWidth <= 500) {
@@ -1183,58 +1228,6 @@ try { modal.classList.remove('show'); } catch (e) {}
   // Escape to close + reveal
   const onEsc = (ev) => { if (ev.key === 'Escape') closeAndReveal(); };
   window.addEventListener('keydown', onEsc, true);
-  
-  function onArrow(ev) {
-    if (ev.key === 'ArrowLeft') { ev.preventDefault(); openAdjacent(-1); }
-    else if (ev.key === 'ArrowRight') { ev.preventDefault(); openAdjacent(1); }
-  }
-  window.addEventListener('keydown', onArrow, true);
-// Smoothly load a new article into the existing modal (no close/reopen)
-  async function loadArticleIntoModal(next) {
-    currentArticle = next;
-    // reset progress & scroll
-    try { progressBar.style.width = '0%'; } catch {}
-    try { descriptionWrapper.scrollTop = 0; } catch {}
-
-    // snappy fade for swap
-    content.classList.add('swap-fade'); content.classList.add('fade-out');
-    image.classList.add('fade-out');
-
-    // swap text
-    title.textContent = next.title || '';
-    shortDesc.textContent = next.short_desc || '';
-    description.innerHTML = (next.description || '').replace(/\n/g, '<br>');
-
-    // swap image after a tick so CSS transition runs
-    setTimeout(() => {
-      image.src = next.img || '';
-      image.alt = next.title || '';
-    }, 60);
-
-    // increment views for the new article
-    if (typeof shouldCountView === 'function' && shouldCountView(next.id, 24)) {
-      if (typeof incrementArticleView === 'function') incrementArticleView(Number(next.id));
-    }
-
-    // end fade a moment later
-    setTimeout(() => {
-      image.classList.remove('fade-out');
-      content.classList.remove('fade-out');
-    }, 180);
-  }
-
-  // Modal navigation helpers
-  function openAdjacent(delta) {
-    try { ensureArticlesOrder(); } catch {}
-    const idx = getArticleIndex(currentArticle);
-    if (idx < 0 || !state.articlesOrdered || !state.articlesOrdered.length) return;
-    const len = state.articlesOrdered.length;
-    const nextIdx = (idx + delta + len) % len;
-    const nextArticle = state.articlesOrdered[nextIdx];
-    loadArticleIntoModal(nextArticle);
-  }
-
-
 
 
   // progress bar on scroll
@@ -1523,32 +1516,3 @@ loadArticles();
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
 })();
-
-
-// Inject CSS for modal nav + share icon + snappy swap fade
-(function ensureModalUXCSS(){
-  if (document.getElementById('modal-ux-css')) return;
-  const css = `
-  .modal-nav{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;pointer-events:none;}
-  .modal-nav .nav-btn{pointer-events:auto;appearance:none;border:none;background:rgba(0,0,0,0.45);color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;font-weight:700;line-height:36px;text-align:center;margin:0 8px;cursor:pointer;transition:background .15s ease,transform .05s ease;}
-  .modal-nav .nav-btn:hover{background:rgba(0,0,0,0.6);} .modal-nav .nav-btn:active{transform:translateY(1px);}
-
-  .modal-share-btn{position:absolute;right:8px;top:8px;appearance:none;border:1px solid rgba(0,0,0,.12);background:#fff;color:#374151;border-radius:8px;padding:6px 10px;font:600 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);display:inline-flex;align-items:center;gap:6px;}
-  .modal-share-btn:hover{background:#f9fafb;}
-  .modal-share-btn .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
-  .modal-share-btn svg{display:block;}
-
-  /* snappy fade for in-place article swap */
-  .modal-content.swap-fade{ transition: opacity .16s ease; }
-  .modal-content.swap-fade.fade-out{ opacity: 0; }
-
-  .share-popup{position:fixed;left:50%;top:10%;transform:translateX(-50%);background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;box-shadow:0 10px 26px rgba(0,0,0,.12);z-index:2000;font:500 13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
-  .share-popup a{color:#2563eb;text-decoration:none;} .share-popup a:hover{text-decoration:underline;}
-  `;
-  const style = document.createElement('style');
-  style.id = 'modal-ux-css';
-  style.type = 'text/css';
-  style.appendChild(document.createTextNode(css));
-  document.head.appendChild(style);
-})();
-
