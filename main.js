@@ -1221,6 +1221,44 @@ function openModal(article) {
   modal.appendChild(content);
   document.body.appendChild(modal);
 
+  // --- Ensure we have an order to navigate ---
+function buildArticlesOrderFromDOM() {
+  const arr = [];
+  document.querySelectorAll('#article-list [data-article-id]').forEach(el => {
+    const id = Number(el.getAttribute('data-article-id'));
+    if (!Number.isNaN(id)) {
+      // If you have a getter, prefer it; else just store a stub id (we’ll hydrate if needed)
+      const a = (typeof getArticleById === 'function') ? getArticleById(id) : { id };
+      arr.push(a);
+    }
+  });
+  return arr;
+}
+
+if (!window.state) window.state = {};
+if (!Array.isArray(state.articlesOrdered) || !state.articlesOrdered.length) {
+  if (Array.isArray(state.articles) && state.articles.length) {
+    state.articlesOrdered = state.articles.slice();
+  } else {
+    state.articlesOrdered = buildArticlesOrderFromDOM();
+  }
+}
+
+  
+
+// --- Wire nav by delegation (robust) ---
+const navEl = content.querySelector('.modal-nav');
+if (navEl && !navEl._wired) {
+  navEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.nav-btn');
+    if (!btn) return;
+    e.preventDefault();
+    openAdjacent(btn.classList.contains('nav-prev') ? -1 : 1);
+  });
+  navEl._wired = true;
+}
+
+
   
   // Self-healing: ensure nav arrows + share icon exist and are clickable
   (function ensureModalControls(){
@@ -1367,6 +1405,45 @@ function openModal(article) {
     }
   });
 }
+
+
+
+// Put openAdjacent directly after openModal
+async function openAdjacent(delta) {
+  try { ensureArticlesOrder?.(); } catch {}
+  // If still empty, rebuild from DOM as a last resort
+  if (!Array.isArray(state.articlesOrdered) || !state.articlesOrdered.length) {
+    state.articlesOrdered = (typeof buildArticlesOrderFromDOM === 'function')
+      ? buildArticlesOrderFromDOM() : [];
+  }
+  if (!state.articlesOrdered.length) return;
+
+  const curId = Number(currentArticle && currentArticle.id);
+  let idx = -1;
+  for (let i = 0; i < state.articlesOrdered.length; i++) {
+    if (Number(state.articlesOrdered[i]?.id) === curId) { idx = i; break; }
+  }
+  if (idx < 0) idx = 0;
+
+  const len = state.articlesOrdered.length;
+  const nextIdx = (idx + delta + len) % len;
+  let next = state.articlesOrdered[nextIdx];
+
+  // Hydrate if we only have a stub {id}
+  if (next && (!next.title || !next.description)) {
+    try {
+      if (typeof fetchArticleById === 'function') {
+        const full = await fetchArticleById(Number(next.id));
+        if (full) next = full;
+      }
+    } catch (e) { console.warn('fetchArticleById failed', e); }
+  }
+  if (!next) return;
+
+  // swap in place (no flash)
+  loadArticleIntoModal(next);
+}
+
 
 
 // Keep a marker visible when part of the map is covered by #content.
