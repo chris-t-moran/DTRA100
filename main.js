@@ -421,7 +421,7 @@ const state = {
 };
 // --- Modal navigation & sharing helpers ---
 function ensureArticlesOrder() {
-  if (!state) return;
+  if (!window.state) return;
   if (Array.isArray(state.articlesOrdered) && state.articlesOrdered.length) return;
   state.articlesOrdered = Array.isArray(state.articles) ? state.articles.slice() : [];
 }
@@ -433,7 +433,7 @@ function getArticleIndex(article) {
   }
   return -1;
 }
-function getArticlePermalink(article) {
+function getArticlePermalink(currentArticle) {
   var base = location.origin + location.pathname;
   return base + '?article=' + encodeURIComponent(article.id);
 }
@@ -1033,6 +1033,7 @@ function togglePeopleMarkers(button) {
 
 // Create and display a modal for a given article
 function openModal(article) {
+  let currentArticle = article;
   // Helpers we rely on (from earlier builds)
   const getMk = (a) =>
     (typeof getArticleMarker === 'function' ? getArticleMarker(a) : null);
@@ -1056,14 +1057,15 @@ function openModal(article) {
   header.appendChild(title);
   header.appendChild(shortDesc);
 
-  // Share button
+  
+  // Share button (icon)
   const shareBtn = document.createElement('button');
   shareBtn.type = 'button';
   shareBtn.className = 'modal-share-btn';
-  shareBtn.textContent = 'Share';
+  shareBtn.setAttribute('aria-label','Share this article');
+  shareBtn.innerHTML = '<span class="sr-only">Share</span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 3l4 4-1.41 1.41L13 7.83V14h-2V7.83L9.41 8.41 8 7l4-4zM5 10h2v8h10v-8h2v10H5V10z" fill="currentColor"/></svg>';
   header.appendChild(shareBtn);
-
-  // image
+// image
   const imgWrapper = document.createElement('div');
   imgWrapper.className = 'imgWrapper';
   const image = document.createElement('img');
@@ -1071,6 +1073,7 @@ function openModal(article) {
   image.alt = article.title || '';
   imgWrapper.appendChild(image);
 
+  
   // Nav arrows over image
   const nav = document.createElement('div');
   nav.className = 'modal-nav';
@@ -1086,7 +1089,9 @@ function openModal(article) {
   nav.appendChild(nextBtn);
   imgWrapper.appendChild(nav);
 
-  // description + progress bar
+  prevBtn.addEventListener('click', () => openAdjacent(-1));
+  nextBtn.addEventListener('click', () => openAdjacent(1));
+// description + progress bar
   const descriptionWrapper = document.createElement('div');
   descriptionWrapper.className = 'descriptionWrapper';
 
@@ -1128,9 +1133,9 @@ function openModal(article) {
   document.body.appendChild(modal);
 
   // Count a view once per article per ~24h on this device
-  if (shouldCountView(article.id, 24)) {
+  if (shouldCountView(currentArticle.id, 24)) {
   // ensure it's a number (bigint-compatible)
-  incrementArticleView(Number(article.id));
+  incrementArticleView(Number(currentArticle.id));
   }
 
   async function incrementArticleView(articleIdBigint) {
@@ -1144,50 +1149,22 @@ function openModal(article) {
 
 
   // small enter animation
-  
-  // --- Share handler ---
-  shareBtn.addEventListener('click', async () => {
-    const url = getArticlePermalink(article);
-    const title = article.title || 'Triangle 100';
-    const text = (article.short_desc || '').slice(0, 160);
-    if (navigator.share) {
-      try { await navigator.share({ title, text, url }); return; } catch (e) {}
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      shareBtn.textContent = 'Link copied!';
-      setTimeout(() => (shareBtn.textContent = 'Share'), 1200);
-    } catch (e) {
-      const popup = document.createElement('div');
-      popup.className = 'share-popup';
-      popup.innerHTML = '<a target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text='
-        + encodeURIComponent(title + ' — ' + url) + '">X/Twitter</a>'
-        + ' · <a target="_blank" rel="noopener" href="https://www.facebook.com/sharer/sharer.php?u='
-        + encodeURIComponent(url) + '">Facebook</a>'
-        + ' · <a target="_blank" rel="noopener" href="https://wa.me/?text='
-        + encodeURIComponent(title + ' ' + url) + '">WhatsApp</a>';
-      document.body.appendChild(popup);
-      setTimeout(() => { try { document.body.removeChild(popup); } catch {} }, 3000);
-    }
-  });
-
   requestAnimationFrame(() => modal.classList.add('show'));
 
   // --- close + reveal on map (used by all close paths)
   function closeAndReveal() {
-  try { window.removeEventListener('keydown', onArrow, true); } catch (e) {}
-
-  try { modal.classList.remove('show'); } catch (e) {}
+  try { window.removeEventListener('keydown', onArrow, true); } catch(e) {}
+try { modal.classList.remove('show'); } catch (e) {}
   setTimeout(() => { try { document.body.removeChild(modal); } catch (e) {} }, 120);
 
   if (window.innerWidth <= 500) {
     // Slide panel to lower third first, then reveal marker so the offset math is correct
     settleContentPanelToLowerThird();
     setTimeout(() => {
-      try { if (typeof revealArticleMarker === 'function') revealArticleMarker(article); } catch (e) { console.warn('Reveal failed', e); }
+      try { if (typeof revealArticleMarker === 'function') revealArticleMarker(currentArticle); } catch (e) { console.warn('Reveal failed', e); }
     }, 350); // wait for panel animation
   } else {
-    try { if (typeof revealArticleMarker === 'function') revealArticleMarker(article); } catch (e) { console.warn('Reveal failed', e); }
+    try { if (typeof revealArticleMarker === 'function') revealArticleMarker(currentArticle); } catch (e) { console.warn('Reveal failed', e); }
   }
 
   window.removeEventListener('keydown', onEsc, true);
@@ -1206,29 +1183,59 @@ function openModal(article) {
   // Escape to close + reveal
   const onEsc = (ev) => { if (ev.key === 'Escape') closeAndReveal(); };
   window.addEventListener('keydown', onEsc, true);
-
-  // Keyboard left/right to navigate
+  
   function onArrow(ev) {
     if (ev.key === 'ArrowLeft') { ev.preventDefault(); openAdjacent(-1); }
     else if (ev.key === 'ArrowRight') { ev.preventDefault(); openAdjacent(1); }
   }
   window.addEventListener('keydown', onArrow, true);
+// Smoothly load a new article into the existing modal (no close/reopen)
+  async function loadArticleIntoModal(next) {
+    currentArticle = next;
+    // reset progress & scroll
+    try { progressBar.style.width = '0%'; } catch {}
+    try { descriptionWrapper.scrollTop = 0; } catch {}
 
+    // snappy fade for swap
+    content.classList.add('swap-fade'); content.classList.add('fade-out');
+    image.classList.add('fade-out');
 
+    // swap text
+    title.textContent = next.title || '';
+    shortDesc.textContent = next.short_desc || '';
+    description.innerHTML = (next.description || '').replace(/\n/g, '<br>');
 
-    // Modal navigation helpers
+    // swap image after a tick so CSS transition runs
+    setTimeout(() => {
+      image.src = next.img || '';
+      image.alt = next.title || '';
+    }, 60);
+
+    // increment views for the new article
+    if (typeof shouldCountView === 'function' && shouldCountView(next.id, 24)) {
+      if (typeof incrementArticleView === 'function') incrementArticleView(Number(next.id));
+    }
+
+    // end fade a moment later
+    setTimeout(() => {
+      image.classList.remove('fade-out');
+      content.classList.remove('fade-out');
+    }, 180);
+  }
+
+  // Modal navigation helpers
   function openAdjacent(delta) {
     try { ensureArticlesOrder(); } catch {}
-    const idx = getArticleIndex(article);
+    const idx = getArticleIndex(currentArticle);
     if (idx < 0 || !state.articlesOrdered || !state.articlesOrdered.length) return;
     const len = state.articlesOrdered.length;
     const nextIdx = (idx + delta + len) % len;
     const nextArticle = state.articlesOrdered[nextIdx];
-    try { document.body.removeChild(modal); } catch {}
-    openModal(nextArticle);
+    loadArticleIntoModal(nextArticle);
   }
-  prevBtn.addEventListener('click', () => openAdjacent(-1));
-  nextBtn.addEventListener('click', () => openAdjacent(1));
+
+
+
 
   // progress bar on scroll
   descriptionWrapper.addEventListener('scroll', () => {
@@ -1518,20 +1525,28 @@ loadArticles();
 })();
 
 
-// Inject CSS for modal navigation arrows and Share button
-(function ensureModalNavShareCSS(){
-  if (document.getElementById('modal-nav-share-css')) return;
+// Inject CSS for modal nav + share icon + snappy swap fade
+(function ensureModalUXCSS(){
+  if (document.getElementById('modal-ux-css')) return;
   const css = `
   .modal-nav{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;pointer-events:none;}
   .modal-nav .nav-btn{pointer-events:auto;appearance:none;border:none;background:rgba(0,0,0,0.45);color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;font-weight:700;line-height:36px;text-align:center;margin:0 8px;cursor:pointer;transition:background .15s ease,transform .05s ease;}
   .modal-nav .nav-btn:hover{background:rgba(0,0,0,0.6);} .modal-nav .nav-btn:active{transform:translateY(1px);}
-  .modal-share-btn{position:absolute;right:8px;top:8px;appearance:none;border:1px solid rgba(0,0,0,.12);background:#fff;color:#374151;border-radius:8px;padding:6px 10px;font:600 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+
+  .modal-share-btn{position:absolute;right:8px;top:8px;appearance:none;border:1px solid rgba(0,0,0,.12);background:#fff;color:#374151;border-radius:8px;padding:6px 10px;font:600 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);display:inline-flex;align-items:center;gap:6px;}
   .modal-share-btn:hover{background:#f9fafb;}
+  .modal-share-btn .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+  .modal-share-btn svg{display:block;}
+
+  /* snappy fade for in-place article swap */
+  .modal-content.swap-fade{ transition: opacity .16s ease; }
+  .modal-content.swap-fade.fade-out{ opacity: 0; }
+
   .share-popup{position:fixed;left:50%;top:10%;transform:translateX(-50%);background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;box-shadow:0 10px 26px rgba(0,0,0,.12);z-index:2000;font:500 13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
   .share-popup a{color:#2563eb;text-decoration:none;} .share-popup a:hover{text-decoration:underline;}
   `;
   const style = document.createElement('style');
-  style.id = 'modal-nav-share-css';
+  style.id = 'modal-ux-css';
   style.type = 'text/css';
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
