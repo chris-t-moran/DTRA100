@@ -472,6 +472,46 @@ function ensureArticlesOrder() {
   (state.articlesOrdered).forEach(function(a){ if (a && a.id != null) state.articleById[Number(a.id)] = a; });
 }
 
+
+// --- FIX: harden permalink helper & share handler usage ---
+(function hardenModalHelpers(){
+  // Replace/define a robust permalink helper
+  window.getArticlePermalink = function(articleLike){
+    // prefer the explicit param; fall back to currentArticle if available
+    const a = articleLike || (typeof currentArticle !== 'undefined' ? currentArticle : null);
+    if (!a || a.id == null) return location.href;
+    const base = location.origin + location.pathname;
+    return base + '?article=' + encodeURIComponent(a.id);
+  };
+
+  // If a share button exists already, rewire it safely to use currentArticle
+  const btns = document.querySelectorAll('.modal-share-btn');
+  btns.forEach((shareBtn) => {
+    if (shareBtn._rewired) return;
+    shareBtn.addEventListener('click', async () => {
+      const a = (typeof currentArticle !== 'undefined') ? currentArticle : null;
+      const url = getArticlePermalink(a);
+      const title = (a && a.title) || 'Triangle 100';
+      const text = a && a.short_desc ? String(a.short_desc).slice(0,160) : '';
+      if (navigator.share) {
+        try { await navigator.share({ title, text, url }); return; } catch(e) {}
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        // tiny visual confirmation
+        const old = shareBtn.innerHTML;
+        shareBtn.innerHTML = 'Copied!';
+        setTimeout(() => { shareBtn.innerHTML = old; }, 900);
+      } catch(e) {
+        // silent fallback; optional: show a small popup
+        console.warn('Share fallback failed', e);
+      }
+    });
+    shareBtn._rewired = true;
+  });
+})();
+
+
 function getArticleIndex(article) {
   try { ensureArticlesOrder(); } catch(e) {}
   if (!state || !Array.isArray(state.articlesOrdered)) return -1;
@@ -483,10 +523,13 @@ function getArticleIndex(article) {
   return -1;
 }
 
-function getArticlePermalink(currentArticle) {
-  var base = location.origin + location.pathname;
-  return base + '?article=' + encodeURIComponent(article.id);
+function getArticlePermalink(a) {
+  a = a || (typeof currentArticle !== 'undefined' ? currentArticle : null);
+  if (!a || a.id == null) return location.href;
+  const base = location.origin + location.pathname;
+  return base + '?article=' + encodeURIComponent(a.id);
 }
+
 
 async function fetchArticleById(id) {
   try {
