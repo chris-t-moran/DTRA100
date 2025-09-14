@@ -1285,7 +1285,7 @@ function openModal(article) {
 
   const progressBar = document.createElement('div');
   progressBar.className = 'progress-bar';
-  descriptionWrapper.appendChild(progressBar);
+  //descriptionWrapper.appendChild(progressBar);
 
   const description = document.createElement('div');
   description.className = 'modal-description';  
@@ -1317,6 +1317,7 @@ function openModal(article) {
   // assemble
   content.appendChild(header);
   content.appendChild(imgWrapper);
+  content.appendChild(progressBar);
   content.appendChild(descriptionWrapper);
   modal.appendChild(content);
   document.body.appendChild(modal);
