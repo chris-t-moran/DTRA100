@@ -1564,14 +1564,20 @@ async function openAdjacent(delta) {
   }
   if (!next) return;
 
-  // Swap content in-place (your existing function)
-  if (typeof loadArticleIntoModal === 'function') {
-    loadArticleIntoModal(next);
-  } else {
-    // Fallback: close and reopen (not ideal, but safe)
-    try { document.body.removeChild(document.querySelector('.modal')); } catch (e) {}
-    openModal(next);
+// Swap content in-place (your existing function)
+if (typeof loadArticleIntoModal === 'function') {
+  console.log('[openAdjacent] Using loadArticleIntoModal (no-flash swap) for article id:', next.id);
+  loadArticleIntoModal(next);
+} else {
+  console.warn('[openAdjacent] loadArticleIntoModal not found. Falling back to close + reopen modal for article id:', next.id);
+  try { 
+    document.body.removeChild(document.querySelector('.modal')); 
+  } catch (e) {
+    console.error('[openAdjacent] Failed to remove modal during fallback:', e);
   }
+  openModal(next);
+}
+
 
   // Update the modal's current id
   var mm = document.querySelector('.modal');
