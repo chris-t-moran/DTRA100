@@ -1178,7 +1178,68 @@ function openModal(article) {
   modal.appendChild(content);
   document.body.appendChild(modal);
 
-  // Count a view once per article per ~24h on this device
+  
+  // Self-healing: ensure nav arrows + share icon exist and are clickable
+  (function ensureModalControls(){
+    // header / image containers
+    var header = content.querySelector('header');
+    var imgWrapper = content.querySelector('.imgWrapper');
+
+    // Share button
+    var shareBtn = header ? header.querySelector('.modal-share-btn') : null;
+    if (!shareBtn && header) {
+      shareBtn = document.createElement('button');
+      shareBtn.type = 'button';
+      shareBtn.className = 'modal-share-btn';
+      shareBtn.setAttribute('aria-label','Share this article');
+      shareBtn.innerHTML = '<span class="sr-only">Share</span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 3l4 4-1.41 1.41L13 7.83V14h-2V7.83L9.41 8.41 8 7l4-4zM5 10h2v8h10v-8h2v10H5V10z" fill="currentColor"/></svg>';
+      header.appendChild(shareBtn);
+    }
+
+    // Nav overlay
+    var nav = imgWrapper ? imgWrapper.querySelector('.modal-nav') : null;
+    var prevBtn, nextBtn;
+    if (!nav && imgWrapper) {
+      nav = document.createElement('div');
+      nav.className = 'modal-nav';
+      prevBtn = document.createElement('button');
+      prevBtn.className = 'nav-btn nav-prev';
+      prevBtn.setAttribute('aria-label','Previous');
+      prevBtn.textContent = '‹';
+      nextBtn = document.createElement('button');
+      nextBtn.className = 'nav-btn nav-next';
+      nextBtn.setAttribute('aria-label','Next');
+      nextBtn.textContent = '›';
+      nav.appendChild(prevBtn); nav.appendChild(nextBtn);
+      imgWrapper.appendChild(nav);
+    } else if (nav) {
+      prevBtn = nav.querySelector('.nav-prev');
+      nextBtn = nav.querySelector('.nav-next');
+    }
+
+    // Wire handlers if available
+    if (typeof openAdjacent === 'function') {
+      if (prevBtn && !prevBtn._wired) { prevBtn.addEventListener('click', () => openAdjacent(-1)); prevBtn._wired = true; }
+      if (nextBtn && !nextBtn._wired) { nextBtn.addEventListener('click', () => openAdjacent(1)); nextBtn._wired = true; }
+    }
+
+    if (shareBtn && !shareBtn._wired) {
+      shareBtn.addEventListener('click', async () => {
+        const url = (typeof getArticlePermalink === 'function') ? getArticlePermalink(currentArticle) : location.href;
+        const title = currentArticle && currentArticle.title || 'Triangle 100';
+        const text = currentArticle && currentArticle.short_desc ? String(currentArticle.short_desc).slice(0,160) : '';
+        if (navigator.share) { try { await navigator.share({ title, text, url }); return; } catch(e){} }
+        try {
+          await navigator.clipboard.writeText(url);
+          // visual ping
+          shareBtn.style.transform = 'scale(0.97)';
+          setTimeout(()=>{ shareBtn.style.transform=''; }, 120);
+        } catch(e) {}
+      });
+      shareBtn._wired = true;
+    }
+  })();
+// Count a view once per article per ~24h on this device
   if (shouldCountView(currentArticle.id, 24)) {
   // ensure it's a number (bigint-compatible)
   incrementArticleView(Number(currentArticle.id));
@@ -1512,6 +1573,30 @@ loadArticles();
   .modal .modal-view-btn:hover { background:#eff6ff; }`;
   const style = document.createElement('style');
   style.id = 'modal-view-btn-css';
+  style.type = 'text/css';
+  style.appendChild(document.createTextNode(css));
+  document.head.appendChild(style);
+})();
+
+
+// Inject CSS for modal nav + share icon + snappy swap fade
+(function ensureModalUXCSS(){
+  if (document.getElementById('modal-ux-css')) return;
+  const css = `
+  .modal-nav{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;pointer-events:none;z-index:2;}
+  .modal-nav .nav-btn{pointer-events:auto;appearance:none;border:none;background:rgba(0,0,0,0.45);color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;font-weight:700;line-height:36px;text-align:center;margin:0 8px;cursor:pointer;transition:background .15s ease,transform .05s ease;}
+  .modal-nav .nav-btn:hover{background:rgba(0,0,0,0.6);} .modal-nav .nav-btn:active{transform:translateY(1px);}
+  .modal-share-btn{position:absolute;right:8px;top:8px;appearance:none;border:1px solid rgba(0,0,0,.12);background:#fff;color:#374151;border-radius:8px;padding:6px 10px;font:600 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);display:inline-flex;align-items:center;gap:6px;z-index:3;}
+  .modal-share-btn:hover{background:#f9fafb;}
+  .modal-share-btn .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+  .modal-share-btn svg{display:block;}
+  .modal-content.swap-fade{ transition: opacity .16s ease; }
+  .modal-content.swap-fade.fade-out{ opacity: 0; }
+  .share-popup{position:fixed;left:50%;top:10%;transform:translateX(-50%);background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;box-shadow:0 10px 26px rgba(0,0,0,.12);z-index:2000;font:500 13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+  .share-popup a{color:#2563eb;text-decoration:none;} .share-popup a:hover{text-decoration:underline;}
+  `;
+  const style = document.createElement('style');
+  style.id = 'modal-ux-css';
   style.type = 'text/css';
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
