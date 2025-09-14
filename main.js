@@ -1247,40 +1247,56 @@ function openModal(article) {
   closeBtn.className = 'modal-close-btn';
   closeBtn.textContent = 'Close';
 
-  async function loadArticleIntoModal(next) {
-  // 1) update state
-  currentArticle = next;
+// Smoothly load a new article into the existing modal (no close/reopen)
+function loadArticleIntoModal(next) {
+  var modal = document.querySelector('.modal');
+  if (!modal) return;
 
-  // 2) reset progress & scroll
-  progressBar.style.width = '0%';
-  descriptionWrapper.scrollTop = 0;
+  // Elements created in openModal
+  var content = modal.querySelector('.modal-content');
+  var title = modal.querySelector('header > h2');
+  var shortDesc = modal.querySelector('header > h3');
+  var image = modal.querySelector('.imgWrapper img');
+  var descriptionWrapper = modal.querySelector('.descriptionWrapper');
+  var progressBar = modal.querySelector('.progress-bar');
+  var description = descriptionWrapper ? descriptionWrapper.querySelector('div') : null;
 
-  // 3) content fades (reduce jank)
-  content.classList.add('fade-out');           // reuse your existing .fade-out (opacity)
-  image.classList.add('fade-out');
+  // Reset progress & scroll
+  if (progressBar) progressBar.style.width = '0%';
+  if (descriptionWrapper) descriptionWrapper.scrollTop = 0;
 
-  // 4) swap text content
-  title.textContent = next.title || '';
-  shortDesc.textContent = next.short_desc || '';
-  description.innerHTML = (next.description || '').replace(/\n/g, '<br>');
+  // Snappy fade
+  if (content) content.classList.add('swap-fade','fade-out');
+  if (image) image.classList.add('fade-out');
 
-  // 5) swap image (wait a tick so CSS transition engages)
-  setTimeout(() => {
-    image.src = next.img || '';
-    image.alt = next.title || '';
+  // Swap text
+  if (title) title.textContent = next.title || '';
+  if (shortDesc) shortDesc.textContent = next.short_desc || '';
+  if (description) description.innerHTML = (next.description || '').replace(/\n/g,'<br>');
+
+  // Swap image after a tick so CSS transition runs
+  setTimeout(function(){
+    if (image) {
+      image.src = next.img || '';
+      image.alt = next.title || '';
+    }
   }, 60);
 
-  // 6) count a view for the new article
-  if (shouldCountView(next.id, 24)) {
-    incrementArticleView(Number(next.id));
+  // Update modal’s current id
+  modal.dataset.articleId = Number(next.id) || '';
+
+  // View count (optional)
+  if (typeof shouldCountView === 'function' && shouldCountView(next.id, 24)) {
+    if (typeof incrementArticleView === 'function') incrementArticleView(Number(next.id));
   }
 
-  // 7) end fade
-  setTimeout(() => {
-    image.classList.remove('fade-out');
-    content.classList.remove('fade-out');
+  // End fade
+  setTimeout(function(){
+    if (image) image.classList.remove('fade-out');
+    if (content) content.classList.remove('fade-out');
   }, 180);
 }
+
 
 
 
