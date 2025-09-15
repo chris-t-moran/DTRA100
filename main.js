@@ -1808,58 +1808,54 @@ function panMarkerIntoViewWithContentOffset(marker, opts) {
 // submission handling and the back button.
 // Opens a dialog with STORY-SHARE blurb + submission form (no page reload)
 function showStoryFormPage() {
-  // Ensure a single dialog exists
   let dlg = document.getElementById('story-form-dialog');
   if (!dlg) {
     dlg = document.createElement('dialog');
     dlg.id = 'story-form-dialog';
-    // basic, inline-styled sheet; adjust to taste or move to CSS
-  dlg.innerHTML = `
-  <div id="submission-form" class="sf-card">
-    <header class="sf-header">
-      <h3>Share your story</h3>
-    </header>
+    dlg.innerHTML = `
+      <div id="submission-form" class="sf-card">
+        <header class="sf-header">
+          <h3>Share your story</h3>
+        </header>
 
-    <div class="sf-body">
-      <section id="story-share-content" class="sf-blurb">Loading…</section>
+        <div class="sf-body">
+          <section id="story-share-content" class="sf-blurb">Loading…</section>
 
-      <form id="story-form" class="sf-form">
-        <label>Story Title
-          <input name="title" required placeholder="e.g. Life on O'Daly Road">
-        </label>
+          <form id="story-form" class="sf-form">
+            <label>Story Title
+              <input name="title" required placeholder="e.g. Life on O'Daly Road">
+            </label>
 
-        <label>Your Email (optional)
-          <input name="contributor" type="email" placeholder="e.g. you@example.com">
-        </label>
+            <label>Your Email (optional)
+              <input name="contributor" type="email" placeholder="e.g. you@example.com">
+            </label>
 
-        <label>Your Story
-          <textarea name="description" required
-            placeholder="Your memories of people, places, traditions and memorable events."
-            rows="6"></textarea>
-        </label>
+            <label>Your Story
+              <textarea name="description" required
+                placeholder="Your memories of people, places, traditions and memorable events."
+                rows="6"></textarea>
+            </label>
 
-     <footer class="sf-footer">
-      <button type="button" id="sf-back" class="sf-btn sf-btn-ghost">Back</button>
-      <button type="submit" form="story-form" class="sf-btn sf-btn-primary">Submit</button>
-    </footer>
-        
-      </form>
-    </div>
-
-   
-  </div>
-`;
-
-
+            <footer class="sf-footer">
+              <button type="button" id="sf-back" class="sf-btn sf-btn-ghost">Back</button>
+              <button type="submit" class="sf-btn sf-btn-primary">Submit</button>
+            </footer>
+          </form>
+        </div>
+      </div>
+    `;
     document.body.appendChild(dlg);
 
-    // Close handlers
     const closeAll = () => { try { dlg.close(); } catch {} };
-    dlg.querySelector('#sf-close').addEventListener('click', closeAll);
-    dlg.querySelector('#sf-back').addEventListener('click', closeAll);
-    dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeAll(); }); // ESC/backdrop
 
-    // Submit handler (Supabase insert)
+    // Only wire Back (there is no #sf-close in the header)
+    const backBtn = dlg.querySelector('#sf-back');
+    if (backBtn) backBtn.addEventListener('click', closeAll);
+
+    // ESC / backdrop
+    dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeAll(); });
+
+    // Submit handler
     const form = dlg.querySelector('#story-form');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1888,7 +1884,7 @@ function showStoryFormPage() {
     });
   }
 
-  // Load the STORY-SHARE blurb each time you open (in case it changes)
+  // Load STORY-SHARE blurb
   (async () => {
     try {
       const slot = dlg.querySelector('#story-share-content');
@@ -1897,7 +1893,6 @@ function showStoryFormPage() {
         ? await fetchContentByType('STORY-SHARE')
         : '';
       if (slot) slot.innerHTML = html || '';
-      // Ensure any empty button has a label
       const btn = slot ? slot.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]') : null;
       if (btn && !btn.textContent.trim()) btn.textContent = 'Share your story';
     } catch (e) {
@@ -1905,10 +1900,8 @@ function showStoryFormPage() {
     }
   })();
 
-  // Show the dialog
   try { if (!dlg.open) dlg.showModal(); } catch {}
 }
-
 
 // -----------------------------------------------------------------------------
 // Event listeners and init
