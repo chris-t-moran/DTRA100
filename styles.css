@@ -338,4 +338,84 @@ dialog#share-dialog::backdrop {
 
   /* Heavier mobile weight for Intro & About paragraphs */
   #intro p, #about-project p { font-weight: 500; }
+
+
+/* --- Story Submission Form --- */
+#submission-form {
+  max-width: 600px;
+  margin: 1.5rem auto;
+  padding: 1.5rem;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  background: #f9f9f9;
+}
+
+#submission-form label {
+  display: block;
+  margin-top: 1em;
+  font-weight: 600;
+  color: #333;
+}
+
+#submission-form input,
+#submission-form textarea {
+  width: 100%;
+  padding: 0.6em;
+  margin-top: 0.3em;
+  border-radius: 6px;
+  border: 1px solid #aaa;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+#submission-form textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+#submission-form button {
+  margin-top: 1.5em;
+  padding: 0.75em 1.5em;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#submission-form button:hover {
+  background-color: #43a047;
+}
+
+/* Stack buttons neatly */
+#submission-form button + button {
+  margin-left: 0.5em;
+}
+
+/* Mobile tweaks */
+@media (max-width: 500px) {
+  #submission-form {
+    padding: 1rem;
+    margin: 1rem;
+  }
+  #submission-form label {
+    font-size: 0.95rem;
+  }
+  #submission-form input,
+  #submission-form textarea {
+    font-size: 0.9rem;
+  }
+  #submission-form button {
+    width: 100%;
+    margin-top: 1rem;
+  }
+  #submission-form button + button {
+    margin-left: 0;
+  }
+}
+
+
+  
 }
