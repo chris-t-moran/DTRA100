@@ -354,7 +354,7 @@ dialog#story-form-dialog::backdrop {
 /* Page footer */
 footer {
   background: #4caf50; color: #ffffff; font-size: 0.9rem;
-  height: 20px; padding: 0.3rem; display: flex; align-items: center; justify-content: center;
+  padding: 0.3rem; display: flex; align-items: center; justify-content: center;
 }
 
 /* Leaflet toggle button — gradient style */
