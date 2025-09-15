@@ -775,6 +775,73 @@ async function fetchArticleById(id) {
 }
 
 
+// main.js (patched with Share Story dialog integration)
+// NOTE: This includes the new <dialog> based share form with deep-link (?share=1) support.
+
+console.log("Patched main.js with Share Story dialog integration loaded");
+
+// --- Share Story Dialog Integration ---
+(function(){
+  function ensureShareDialog(){
+    if (document.getElementById('share-story-dialog')) return;
+    const dlg = document.createElement('dialog');
+    dlg.id = 'share-story-dialog';
+    dlg.innerHTML = `
+      <form method="dialog" id="share-story-form" style="max-width:600px;padding:1em;">
+        <h2>Share your story</h2>
+        <div id="story-share-content">Loading…</div>
+        <label>Story Title:<br><input name="title" required></label><br>
+        <label>Your Email:<br><input name="contributor"></label><br>
+        <label>Your Story:<br><textarea name="description" required></textarea></label><br>
+        <menu>
+          <button type="submit">Submit</button>
+          <button type="button" onclick="document.getElementById('share-story-dialog').close()">Cancel</button>
+        </menu>
+      </form>`;
+    document.body.appendChild(dlg);
+  }
+
+  window.openShareDialog = async function(){
+    ensureShareDialog();
+    const dlg = document.getElementById('share-story-dialog');
+    dlg.showModal();
+    try {
+      const html = await fetchContentByType('STORY-SHARE');
+      if (html) document.getElementById('story-share-content').innerHTML = html;
+    } catch(e){ console.warn("Failed to load STORY-SHARE", e); }
+
+    const form = document.getElementById('share-story-form');
+    form.onsubmit = async (ev)=>{
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const { error } = await supabaseClient.from('articles').insert([{
+        title: fd.get('title'),
+        description: fd.get('description'),
+        short_desc: fd.get('description').slice(0,100)+'...',
+        contributor: fd.get('contributor'),
+        active: false
+      }]);
+      if(error){ alert("Error: "+error.message); return; }
+      alert("Thank you! Your story will be reviewed.");
+      dlg.close();
+    };
+  };
+
+  // Deep link ?share=1
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const params = new URLSearchParams(location.search);
+    if(params.has('share')) openShareDialog();
+    // Wire buttons
+    document.querySelectorAll('#share-story-btn,.share-story-btn,button[data-role="share"]').forEach(btn=>{
+      btn.addEventListener('click', e=>{ e.preventDefault(); openShareDialog(); });
+    });
+  });
+})();
+
+
+
+
+
 
 // HTML helpers
 function htmlEscape(str) {
