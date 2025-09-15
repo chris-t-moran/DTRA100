@@ -1806,114 +1806,108 @@ function panMarkerIntoViewWithContentOffset(marker, opts) {
 // Render the story submission form and replace the map when the user
 // clicks the "Get involved" button.  This function also wires up
 // submission handling and the back button.
+// Opens a dialog with STORY-SHARE blurb + submission form (no page reload)
 function showStoryFormPage() {
-  // Scroll to top of page
-  window.scrollTo(0, 0);
+  // Ensure a single dialog exists
+  let dlg = document.getElementById('story-form-dialog');
+  if (!dlg) {
+    dlg = document.createElement('dialog');
+    dlg.id = 'story-form-dialog';
+    // basic, inline-styled sheet; adjust to taste or move to CSS
+    dlg.innerHTML = `
+      <div style="min-width:min(92vw,680px);max-width:680px;border-radius:12px;overflow:hidden">
+        <header style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#4caf50;color:#fff">
+          <h3 style="margin:0;font-size:1.1rem">Share your story</h3>
+          <button type="button" id="sf-close" style="background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:6px 10px;font-weight:600;cursor:pointer">Close</button>
+        </header>
 
-  // Replace map with a static image for the form
-  const mapDiv = document.getElementById('map');
-  mapDiv.innerHTML = '';
-  const img = document.createElement('img');
-  img.src = 'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/lillian-37walshroad-1937_orig.jpg';
-  img.style.width = '100%';
-  img.style.height = '100%';
-  img.style.objectFit = 'cover';
-  img.classList.add('fade-in');
-  mapDiv.appendChild(img);
+        <div class="body" style="background:#fff;max-height:70vh;overflow:auto;padding:16px 18px">
+          <section id="story-share-content" style="margin-bottom:12px">Loading…</section>
 
-  // Build the form inside content
-  const container = document.getElementById('content');
-  container.innerHTML = `
-    <header id="head_logo" class="draggable-content">
-      <a href="https://drumcondratriangle.com/dtra100" class="icon" title="Return to the home page">
-        <img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost ‒ link to homepage" width="150" height="150" />
-      </a>
-      <h1>Triangle&nbsp;100</h1>
-    </header>
-    <!-- Drag handle replicating the desktop/mobile handle for the form view -->
-    <div id="content-handle" class="content-handle"></div>
+          <form id="story-form">
+            <label style="display:block;margin-top:10px">Story Title
+              <input name="title" required placeholder="e.g. Life on O'Daly Road"
+                     style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px">
+            </label>
 
-    <!-- STORY-SHARE dynamic section -->
-    <section id="story-share">
-      <div id="story-share-content" style="min-height: 1rem;"></div>
-    </section>
+            <label style="display:block;margin-top:10px">Your Email (optional)
+              <input name="contributor" type="email" placeholder="e.g. you@example.com"
+                     style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px">
+            </label>
 
-    <div id="submission-form" style="max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;">
-      <form id="story-form">
-        <label for="title" style="display:block;margin-top:1em;">Story Title:</label>
-        <input name="title" placeholder="e.g. Life on O'Daly Road" required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
-        <label for="contributor" style="display:block;margin-top:1em;">Your Email Address:</label>
-        <input name="contributor" placeholder="e.g. harry@brainesgarages.com" style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
-        <label for="description" style="display:block;margin-top:1em;">Your Story:</label>
-        <textarea name="description" placeholder="Your memories of people, places, traditions and memorable events." required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;"></textarea>
-        <button type="submit" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Submit</button>
-        <button id="back-button" type="button" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Back</button>
-      </form>
-    </div>
-  `;
+            <label style="display:block;margin-top:10px">Your Story
+              <textarea name="description" required
+                        placeholder="Your memories of people, places, traditions and memorable events."
+                        rows="6"
+                        style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px"></textarea>
+            </label>
+          </form>
+        </div>
 
-  container.style.opacity = 0;
-  container.classList.add('fade-in');
+        <footer style="display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;background:#fff;border-top:1px solid #eee">
+          <button type="button" id="sf-back"  style="background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer">Back</button>
+          <button type="submit" form="story-form" style="background:#4caf50;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer">Submit</button>
+        </footer>
+      </div>
+    `;
+    document.body.appendChild(dlg);
 
-  // --- Inject STORY-SHARE content now that #story-share exists ---
+    // Close handlers
+    const closeAll = () => { try { dlg.close(); } catch {} };
+    dlg.querySelector('#sf-close').addEventListener('click', closeAll);
+    dlg.querySelector('#sf-back').addEventListener('click', closeAll);
+    dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeAll(); }); // ESC/backdrop
+
+    // Submit handler (Supabase insert)
+    const form = dlg.querySelector('#story-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const title = String(fd.get('title') || '').trim();
+      const description = String(fd.get('description') || '').trim();
+      const contributor = String(fd.get('contributor') || '').trim();
+      if (!title || !description) return;
+
+      try {
+        const { error } = await supabaseClient.from('articles').insert([{
+          title,
+          description,
+          short_desc: description.slice(0, 100) + '…',
+          contributor,
+          active: false
+        }]);
+        if (error) throw error;
+        form.reset();
+        alert('Thank you for your story! It will be reviewed and added soon.');
+        closeAll();
+      } catch (err) {
+        console.error('Submit failed', err);
+        alert('Error submitting your story. Please try again.');
+      }
+    });
+  }
+
+  // Load the STORY-SHARE blurb each time you open (in case it changes)
   (async () => {
     try {
-      // Optional: temporary loading text
-      const placeholder = document.getElementById('story-share-content');
-      if (placeholder) placeholder.textContent = 'Loading…';
-
-      const shareHtml = await fetchContentByType('STORY-SHARE');
-      const target = document.getElementById('story-share-content') || document.getElementById('story-share');
-      if (target) {
-        target.innerHTML = shareHtml || '';
-        // Safety: ensure any share button has a label
-        const btn = target.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]');
-        if (btn && !btn.textContent.trim()) {
-          btn.textContent = 'Share your story';
-        }
-      }
+      const slot = dlg.querySelector('#story-share-content');
+      if (slot) slot.textContent = 'Loading…';
+      const html = (typeof fetchContentByType === 'function')
+        ? await fetchContentByType('STORY-SHARE')
+        : '';
+      if (slot) slot.innerHTML = html || '';
+      // Ensure any empty button has a label
+      const btn = slot ? slot.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]') : null;
+      if (btn && !btn.textContent.trim()) btn.textContent = 'Share your story';
     } catch (e) {
-      console.error('Failed to load STORY-SHARE content:', e);
+      console.warn('Failed to load STORY-SHARE content', e);
     }
   })();
 
-  // Attach event listeners after injecting the form
-  const form = document.getElementById('story-form');
-  const backButton = document.getElementById('back-button');
-  if (backButton) {
-    backButton.addEventListener('click', () => {
-      document.body.classList.add('fade-out');
-      setTimeout(() => {
-        window.location.replace(window.location.pathname);
-      }, 500);
-    });
-  }
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const title = form.title.value.trim();
-    const description = form.description.value.trim();
-    const contributor = form.contributor.value.trim();
-    const { error } = await supabaseClient.from('articles').insert([
-      {
-        title,
-        description,
-        short_desc: description.slice(0, 100) + '...',
-        contributor,
-        active: false
-      }
-    ]);
-    if (error) {
-      alert('Error submitting your story. Please try again.');
-    } else {
-      document.body.classList.add('fade-out');
-      setTimeout(() => {
-        alert('Thank you for your story! It will be reviewed and added soon.');
-        location.href = location.href;
-        window.scrollTo(0, 0);
-      }, 500);
-    }
-  });
+  // Show the dialog
+  try { if (!dlg.open) dlg.showModal(); } catch {}
 }
+
 
 // -----------------------------------------------------------------------------
 // Event listeners and init
