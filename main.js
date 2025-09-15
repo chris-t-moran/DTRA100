@@ -775,73 +775,6 @@ async function fetchArticleById(id) {
 }
 
 
-// main.js (patched with Share Story dialog integration)
-// NOTE: This includes the new <dialog> based share form with deep-link (?share=1) support.
-
-console.log("Patched main.js with Share Story dialog integration loaded");
-
-// --- Share Story Dialog Integration ---
-(function(){
-  function ensureShareDialog(){
-    if (document.getElementById('share-story-dialog')) return;
-    const dlg = document.createElement('dialog');
-    dlg.id = 'share-story-dialog';
-    dlg.innerHTML = `
-      <form method="dialog" id="share-story-form" style="max-width:600px;padding:1em;">
-        <h2>Share your story</h2>
-        <div id="story-share-content">Loading…</div>
-        <label>Story Title:<br><input name="title" required></label><br>
-        <label>Your Email:<br><input name="contributor"></label><br>
-        <label>Your Story:<br><textarea name="description" required></textarea></label><br>
-        <menu>
-          <button type="submit">Submit</button>
-          <button type="button" onclick="document.getElementById('share-story-dialog').close()">Cancel</button>
-        </menu>
-      </form>`;
-    document.body.appendChild(dlg);
-  }
-
-  window.openShareDialog = async function(){
-    ensureShareDialog();
-    const dlg = document.getElementById('share-story-dialog');
-    dlg.showModal();
-    try {
-      const html = await fetchContentByType('STORY-SHARE');
-      if (html) document.getElementById('story-share-content').innerHTML = html;
-    } catch(e){ console.warn("Failed to load STORY-SHARE", e); }
-
-    const form = document.getElementById('share-story-form');
-    form.onsubmit = async (ev)=>{
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const { error } = await supabaseClient.from('articles').insert([{
-        title: fd.get('title'),
-        description: fd.get('description'),
-        short_desc: fd.get('description').slice(0,100)+'...',
-        contributor: fd.get('contributor'),
-        active: false
-      }]);
-      if(error){ alert("Error: "+error.message); return; }
-      alert("Thank you! Your story will be reviewed.");
-      dlg.close();
-    };
-  };
-
-  // Deep link ?share=1
-  window.addEventListener('DOMContentLoaded', ()=>{
-    const params = new URLSearchParams(location.search);
-    if(params.has('share')) openShareDialog();
-    // Wire buttons
-    document.querySelectorAll('#share-story-btn,.share-story-btn,button[data-role="share"]').forEach(btn=>{
-      btn.addEventListener('click', e=>{ e.preventDefault(); openShareDialog(); });
-    });
-  });
-})();
-
-
-
-
-
 
 // HTML helpers
 function htmlEscape(str) {
@@ -1873,115 +1806,7 @@ function panMarkerIntoViewWithContentOffset(marker, opts) {
 // Render the story submission form and replace the map when the user
 // clicks the "Get involved" button.  This function also wires up
 // submission handling and the back button.
-function showStoryFormPage() {
-  // Scroll to top of page
-  window.scrollTo(0, 0);
-
-  // Replace map with a static image for the form
-  const mapDiv = document.getElementById('map');
-  mapDiv.innerHTML = '';
-  const img = document.createElement('img');
-  img.src = 'https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/lillian-37walshroad-1937_orig.jpg';
-  img.style.width = '100%';
-  img.style.height = '100%';
-  img.style.objectFit = 'cover';
-  img.classList.add('fade-in');
-  mapDiv.appendChild(img);
-
-  // Build the form inside content
-  const container = document.getElementById('content');
-  container.innerHTML = `
-    <header id="head_logo" class="draggable-content">
-      <a href="https://drumcondratriangle.com/dtra100" class="icon" title="Return to the home page">
-        <img src="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/hardiman-lampost-transparent2_orig.png" alt="Hardiman Road Lamppost ‒ link to homepage" width="150" height="150" />
-      </a>
-      <h1>Triangle&nbsp;100</h1>
-    </header>
-    <!-- Drag handle replicating the desktop/mobile handle for the form view -->
-    <div id="content-handle" class="content-handle"></div>
-
-    <!-- STORY-SHARE dynamic section -->
-    <section id="story-share">
-      <div id="story-share-content" style="min-height: 1rem;"></div>
-    </section>
-
-    <div id="submission-form" style="max-width:600px;padding:2em;border:1px solid #ccc;border-radius:12px;background:#f9f9f9;">
-      <form id="story-form">
-        <label for="title" style="display:block;margin-top:1em;">Story Title:</label>
-        <input name="title" placeholder="e.g. Life on O'Daly Road" required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
-        <label for="contributor" style="display:block;margin-top:1em;">Your Email Address:</label>
-        <input name="contributor" placeholder="e.g. harry@brainesgarages.com" style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;" />
-        <label for="description" style="display:block;margin-top:1em;">Your Story:</label>
-        <textarea name="description" placeholder="Your memories of people, places, traditions and memorable events." required style="width:100%;padding:0.5em;border-radius:6px;border:1px solid #aaa;"></textarea>
-        <button type="submit" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Submit</button>
-        <button id="back-button" type="button" style="margin-top:1.5em;padding:0.75em 1.5em;background-color:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;">Back</button>
-      </form>
-    </div>
-  `;
-
-  container.style.opacity = 0;
-  container.classList.add('fade-in');
-
-  // --- Inject STORY-SHARE content now that #story-share exists ---
-  (async () => {
-    try {
-      // Optional: temporary loading text
-      const placeholder = document.getElementById('story-share-content');
-      if (placeholder) placeholder.textContent = 'Loading…';
-
-      const shareHtml = await fetchContentByType('STORY-SHARE');
-      const target = document.getElementById('story-share-content') || document.getElementById('story-share');
-      if (target) {
-        target.innerHTML = shareHtml || '';
-        // Safety: ensure any share button has a label
-        const btn = target.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]');
-        if (btn && !btn.textContent.trim()) {
-          btn.textContent = 'Share your story';
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load STORY-SHARE content:', e);
-    }
-  })();
-
-  // Attach event listeners after injecting the form
-  const form = document.getElementById('story-form');
-  const backButton = document.getElementById('back-button');
-  if (backButton) {
-    backButton.addEventListener('click', () => {
-      document.body.classList.add('fade-out');
-      setTimeout(() => {
-        window.location.replace(window.location.pathname);
-      }, 500);
-    });
-  }
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const title = form.title.value.trim();
-    const description = form.description.value.trim();
-    const contributor = form.contributor.value.trim();
-    const { error } = await supabaseClient.from('articles').insert([
-      {
-        title,
-        description,
-        short_desc: description.slice(0, 100) + '...',
-        contributor,
-        active: false
-      }
-    ]);
-    if (error) {
-      alert('Error submitting your story. Please try again.');
-    } else {
-      document.body.classList.add('fade-out');
-      setTimeout(() => {
-        alert('Thank you for your story! It will be reviewed and added soon.');
-        location.href = location.href;
-        window.scrollTo(0, 0);
-      }, 500);
-    }
-  });
-}
-
+// showStoryFormPage removed (replaced by dialog-based share form)
 // -----------------------------------------------------------------------------
 // Event listeners and init
 // -----------------------------------------------------------------------------
@@ -2048,9 +1873,8 @@ function showStoryFormPage() {
 })();
 
 // Attach click handler for the share story button
-document.getElementById('share-story-btn').addEventListener('click', (e) => {
-  e.preventDefault();
-  const pageContent = document.getElementById('content'); 
+(() => { const b = document.getElementById('share-story-btn'); if (b && !b._wiredShareOpen) { b.addEventListener('click', (e)=>{ e.preventDefault(); openShareDialog(); }, false); b._wiredShareOpen = true; } })();
+const pageContent = document.getElementById('content'); 
   pageContent.classList.add('fade-out');
   setTimeout(() => {
     showStoryFormPage();
@@ -2095,4 +1919,162 @@ loadArticles();
   style.type = 'text/css';
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
+})();
+
+
+
+/* =====================
+   Share Story Dialog (modal sheet) — singleton
+   Deep link: ?share=1
+   ===================== */
+(function () {
+  function ensureShareDialogCSS() {
+    if (document.getElementById('share-dialog-css')) return;
+    const css = `
+dialog#share-dialog{width:min(680px,92vw);border:none;border-radius:12px;padding:0;box-shadow:0 20px 40px rgba(0,0,0,.25)}
+dialog#share-dialog::backdrop{background:rgba(0,0,0,.5)}
+.share-sheet header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#4caf50;color:#fff;border-top-left-radius:12px;border-top-right-radius:12px}
+.share-sheet .body{padding:18px;background:#fff;max-height:70vh;overflow:auto}
+.share-sheet footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;background:#fff;border-top:1px solid #eee;border-bottom-left-radius:12px;border-bottom-right-radius:12px}
+.share-sheet button.primary{background:#4caf50;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer}
+.share-sheet button.ghost{background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer}
+`;
+    const style = document.createElement('style');
+    style.id = 'share-dialog-css';
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  function updateShareURL(val, replace) {
+    const url = new URL(location.href);
+    if (val == null) url.searchParams.delete('share');
+    else url.searchParams.set('share', String(val));
+    const fn = replace ? 'replaceState' : 'pushState';
+    try { history[fn]({}, '', url); } catch {}
+  }
+
+  function ensureShareDialog() {
+    ensureShareDialogCSS();
+    if (document.getElementById('share-dialog')) return;
+    const dlg = document.createElement('dialog');
+    dlg.id = 'share-dialog';
+    dlg.innerHTML = `
+      <div class="share-sheet">
+        <header>
+          <h3 style="margin:0;font-size:1.1rem;">Share your story</h3>
+          <button type="button" id="share-close" class="ghost" aria-label="Close">Close</button>
+        </header>
+        <div class="body">
+          <section id="story-share-dynamic" style="margin-bottom:12px;"></section>
+          <form id="share-form">
+            <label style="display:block;margin-top:10px;">Story Title
+              <input name="title" required placeholder="e.g. Life on O'Daly Road" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px;">
+            </label>
+            <label style="display:block;margin-top:10px;">Your Email (optional)
+              <input name="contributor" type="email" placeholder="e.g. you@example.com" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px;">
+            </label>
+            <label style="display:block;margin-top:10px;">Your Story
+              <textarea name="description" required placeholder="Your memories of people, places, traditions and memorable events." rows="6" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px;"></textarea>
+            </label>
+          </form>
+        </div>
+        <footer>
+          <button type="button" id="share-cancel" class="ghost">Back</button>
+          <button type="submit" form="share-form" class="primary">Submit</button>
+        </footer>
+      </div>
+    `;
+    document.body.appendChild(dlg);
+
+    (async () => {
+      try {
+        if (typeof fetchContentByType === 'function') {
+          const html = await fetchContentByType('STORY-SHARE');
+          const slot = dlg.querySelector('#story-share-dynamic');
+          if (slot) slot.innerHTML = html || '';
+          const btn = slot ? slot.querySelector('#share-story-btn, .share-story-btn, button[data-role="share"]') : null;
+          if (btn && !btn.textContent.trim()) btn.textContent = 'Share your story';
+        }
+      } catch (e) { console.warn('Share blurb load failed', e); }
+    })();
+
+    const closeAll = () => { try { dlg.close(); } catch {} updateShareURL(null, true); };
+    dlg.querySelector('#share-close').addEventListener('click', closeAll);
+    dlg.querySelector('#share-cancel').addEventListener('click', closeAll);
+    dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeAll(); });
+
+    const form = dlg.querySelector('#share-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const title = String(fd.get('title')||'').trim();
+      const description = String(fd.get('description')||'').trim();
+      const contributor = String(fd.get('contributor')||'').trim();
+      if (!title || !description) return;
+      try {
+        const { error } = await supabaseClient.from('articles').insert([{
+          title,
+          description,
+          short_desc: description.slice(0,100) + '…',
+          contributor,
+          active: false
+        }]);
+        if (error) throw error;
+        form.reset();
+        alert('Thank you for your story! It will be reviewed and added soon.');
+        closeAll();
+      } catch (err) {
+        console.error('Submit failed', err);
+        alert('Error submitting your story. Please try again.');
+      }
+    });
+  }
+
+  function openShareDialog() {
+    ensureShareDialog();
+    const dlg = document.getElementById('share-dialog');
+    try { if (!dlg.open) dlg.showModal(); } catch {}
+    updateShareURL(1, false);
+  }
+
+  async function handleDeepLinkShare() {
+    const p = new URLSearchParams(location.search);
+    if (p.get('share') === '1') openShareDialog();
+  }
+
+  function wireShareStoryButtons() {
+    const candidates = document.querySelectorAll('#share-story-btn, .share-story-btn, button[data-role="share"]');
+    candidates.forEach(btn => {
+      if (btn._wiredShareOpen) return;
+      btn.addEventListener('click', (e) => { e.preventDefault(); openShareDialog(); });
+      btn._wiredShareOpen = true;
+    });
+  }
+
+  window.__shareDialog = { ensureShareDialogCSS, ensureShareDialog, openShareDialog, updateShareURL, handleDeepLinkShare, wireShareStoryButtons };
+
+  (function initShareDialogBootstrap(){
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        wireShareStoryButtons();
+        handleDeepLinkShare();
+      });
+    } else {
+      wireShareStoryButtons();
+      handleDeepLinkShare();
+    }
+    setTimeout(wireShareStoryButtons, 600);
+    setTimeout(wireShareStoryButtons, 1500);
+
+    window.addEventListener('popstate', () => {
+      const p = new URLSearchParams(location.search);
+      const want = p.get('share') === '1';
+      const dlg = document.getElementById('share-dialog');
+      if (want) {
+        if (!dlg || !dlg.open) openShareDialog();
+      } else if (dlg && dlg.open) {
+        try { dlg.close(); } catch {}
+      }
+    });
+  })();
 })();
