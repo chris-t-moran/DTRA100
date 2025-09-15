@@ -1815,16 +1815,16 @@ function showStoryFormPage() {
     dlg.id = 'story-form-dialog';
     // basic, inline-styled sheet; adjust to taste or move to CSS
   dlg.innerHTML = `
-  <div id="submission-form">
+  <div id="submission-form" class="sf-card">
     <header class="sf-header">
       <h3>Share your story</h3>
-      <button type="button" id="sf-close" class="btn-close">Close</button>
+      <button type="button" id="sf-close" class="sf-btn sf-btn-ghost">Close</button>
     </header>
 
     <div class="sf-body">
-      <section id="story-share-content">Loading…</section>
+      <section id="story-share-content" class="sf-blurb">Loading…</section>
 
-      <form id="story-form">
+      <form id="story-form" class="sf-form">
         <label>Story Title
           <input name="title" required placeholder="e.g. Life on O'Daly Road">
         </label>
@@ -1842,11 +1842,12 @@ function showStoryFormPage() {
     </div>
 
     <footer class="sf-footer">
-      <button type="button" id="sf-back" class="btn-secondary">Back</button>
-      <button type="submit" form="story-form" class="btn-primary">Submit</button>
+      <button type="button" id="sf-back" class="sf-btn sf-btn-ghost">Back</button>
+      <button type="submit" form="story-form" class="sf-btn sf-btn-primary">Submit</button>
     </footer>
   </div>
 `;
+
 
     document.body.appendChild(dlg);
 
