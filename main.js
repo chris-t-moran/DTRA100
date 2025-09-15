@@ -225,7 +225,6 @@ function residentPopupHTML(r) {
   return `
       <div class="resident-popup">
       <header class="rp-header">
-        <div class="rp-avatar" aria-hidden="true"></div>
         <div class="rp-headings">
           <h2 class="rp-title">${name}</h2>
           <div class="rp-subtitle">${esc(addr) || 'Address unknown'}</div>
@@ -261,8 +260,6 @@ function residentPopupHTML(r) {
 }
 .resident-popup { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:#1f2937; }
 .rp-header {
-  display: grid;
-  grid-template-columns: 40px 1fr;
   gap: 10px;
   align-items: center;
   padding: 12px 14px;
