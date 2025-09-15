@@ -1,4 +1,4 @@
-f/*! Resident Move 'Easter Egg' (highlight on selection only) */
+/*! Resident Move 'Easter Egg' (highlight on selection only) */
 (function (global) {
   const ORANGE = '#f97316';
   const ORANGE_FILL = '#fb923c';
