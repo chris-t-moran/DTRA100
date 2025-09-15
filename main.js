@@ -399,10 +399,17 @@ async function injectDynamicContent() {
 
 // Run when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', injectDynamicContent);
+  document.addEventListener('DOMContentLoaded', async () => {
+    await injectDynamicContent();
+    await handleDeepLink();   // 👈 run after content/articles loaded
+  });
 } else {
-  injectDynamicContent();
+  (async () => {
+    await injectDynamicContent();
+    await handleDeepLink();
+  })();
 }
+
 
 /* === END: site_content dynamic injection === */
 
@@ -511,6 +518,39 @@ function getArticleFromCache(id) {
   }
   return null;
 }
+
+// --- Deep link handler: open modal if ?article=id is present ---
+async function handleDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const articleId = params.get('article');
+  if (!articleId) return;
+
+  let article = null;
+
+  // Try to get it from cache
+  if (window.state && Array.isArray(state.articles)) {
+    article = state.articles.find(a => String(a.id) === String(articleId));
+  }
+
+  // If not cached, fetch from Supabase
+  if (!article && typeof fetchArticleById === 'function') {
+    try {
+      article = await fetchArticleById(Number(articleId));
+    } catch (e) {
+      console.warn('Failed to fetch article for deep link', e);
+    }
+  }
+
+  if (article) {
+    openModal(article);
+  }
+}
+
+// Call this once after your articles are loaded
+document.addEventListener('DOMContentLoaded', () => {
+  // If you already have an initArticles or similar, call handleDeepLink at the end of that
+  handleDeepLink();
+});
 
 
 
