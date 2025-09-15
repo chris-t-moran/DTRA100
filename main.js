@@ -1814,42 +1814,40 @@ function showStoryFormPage() {
     dlg = document.createElement('dialog');
     dlg.id = 'story-form-dialog';
     // basic, inline-styled sheet; adjust to taste or move to CSS
-    dlg.innerHTML = `
-      <div style="min-width:min(92vw,680px);max-width:680px;border-radius:12px;overflow:hidden">
-        <header style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#4caf50;color:#fff">
-          <h3 style="margin:0;font-size:1.1rem">Share your story</h3>
-          <button type="button" id="sf-close" style="background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:6px 10px;font-weight:600;cursor:pointer">Close</button>
-        </header>
+  dlg.innerHTML = `
+  <div id="submission-form">
+    <header class="sf-header">
+      <h3>Share your story</h3>
+      <button type="button" id="sf-close" class="btn-close">Close</button>
+    </header>
 
-        <div class="body" style="background:#fff;max-height:70vh;overflow:auto;padding:16px 18px">
-          <section id="story-share-content" style="margin-bottom:12px">Loading…</section>
+    <div class="sf-body">
+      <section id="story-share-content">Loading…</section>
 
-          <form id="story-form">
-            <label style="display:block;margin-top:10px">Story Title
-              <input name="title" required placeholder="e.g. Life on O'Daly Road"
-                     style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px">
-            </label>
+      <form id="story-form">
+        <label>Story Title
+          <input name="title" required placeholder="e.g. Life on O'Daly Road">
+        </label>
 
-            <label style="display:block;margin-top:10px">Your Email (optional)
-              <input name="contributor" type="email" placeholder="e.g. you@example.com"
-                     style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px">
-            </label>
+        <label>Your Email (optional)
+          <input name="contributor" type="email" placeholder="e.g. you@example.com">
+        </label>
 
-            <label style="display:block;margin-top:10px">Your Story
-              <textarea name="description" required
-                        placeholder="Your memories of people, places, traditions and memorable events."
-                        rows="6"
-                        style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-top:6px"></textarea>
-            </label>
-          </form>
-        </div>
+        <label>Your Story
+          <textarea name="description" required
+            placeholder="Your memories of people, places, traditions and memorable events."
+            rows="6"></textarea>
+        </label>
+      </form>
+    </div>
 
-        <footer style="display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;background:#fff;border-top:1px solid #eee">
-          <button type="button" id="sf-back"  style="background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer">Back</button>
-          <button type="submit" form="story-form" style="background:#4caf50;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer">Submit</button>
-        </footer>
-      </div>
-    `;
+    <footer class="sf-footer">
+      <button type="button" id="sf-back" class="btn-secondary">Back</button>
+      <button type="submit" form="story-form" class="btn-primary">Submit</button>
+    </footer>
+  </div>
+`;
+
     document.body.appendChild(dlg);
 
     // Close handlers
