@@ -78,7 +78,7 @@ dialog#story-form-dialog::backdrop {
   padding: 0;
   border-radius: 14px;
   border: 1px solid rgba(0,0,0,.08);
-  background: #fff;
+  background: transparent;
   box-shadow: 0 8px 24px rgba(0,0,0,.06);
   overflow: hidden;
 }
@@ -115,7 +115,7 @@ dialog#story-form-dialog::backdrop {
 .sf-form label {
   display: block;
   margin-top: 1rem;
-  color: #333;
+  color: #4caf50;
   font-weight: 600;
 }
 .sf-form input,
@@ -454,8 +454,6 @@ dialog#share-dialog::backdrop {
   #intro p, #about-project p { font-weight: 500; }
 
    dialog#story-form-dialog {
-    width: 100vw;
-    height: 100vh;
     max-width: none;
     max-height: none;
     border-radius: 0;
