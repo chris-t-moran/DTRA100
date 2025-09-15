@@ -1,4 +1,4 @@
-/*! Resident Move 'Easter Egg' (highlight on selection only) */
+f/*! Resident Move 'Easter Egg' (highlight on selection only) */
 (function (global) {
   const ORANGE = '#f97316';
   const ORANGE_FILL = '#fb923c';
@@ -1818,7 +1818,6 @@ function showStoryFormPage() {
   <div id="submission-form" class="sf-card">
     <header class="sf-header">
       <h3>Share your story</h3>
-      <button type="button" id="sf-close" class="sf-btn sf-btn-ghost">Close</button>
     </header>
 
     <div class="sf-body">
@@ -1838,13 +1837,16 @@ function showStoryFormPage() {
             placeholder="Your memories of people, places, traditions and memorable events."
             rows="6"></textarea>
         </label>
-      </form>
-    </div>
 
-    <footer class="sf-footer">
+     <footer class="sf-footer">
       <button type="button" id="sf-back" class="sf-btn sf-btn-ghost">Back</button>
       <button type="submit" form="story-form" class="sf-btn sf-btn-primary">Submit</button>
     </footer>
+        
+      </form>
+    </div>
+
+   
   </div>
 `;
 
