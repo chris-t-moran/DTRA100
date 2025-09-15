@@ -456,6 +456,12 @@ function getCurrentModalArticleId() {
   return id != null ? Number(id) : null;
 }
 
+function getActiveModal() {
+  var list = document.querySelectorAll('.modal');
+  return list.length ? list[list.length - 1] : null; // last appended
+}
+
+
 function updateArticleURL(id, replace) {
   const url = new URL(window.location.href);
   if (id != null && id !== '') url.searchParams.set('article', String(id));
@@ -1365,6 +1371,23 @@ function togglePeopleMarkers(button) {
 // Create and display a modal for a given article
 function openModal(article) {
   let currentArticle = article;
+
+  // If a modal already exists, reuse it instead of creating a new one
+  var existing = getActiveModal();
+  if (existing) {
+    // Ensure it’s visible
+    existing.classList.add('show');
+    // Update the dataset id and swap content in-place (no flash)
+    existing.dataset.articleId = Number(article.id) || '';
+    if (typeof loadArticleIntoModal === 'function') {
+      loadArticleIntoModal(article);
+      return; // we're done, no new modal created
+    }
+    // If no loader, remove existing and fall through to create fresh
+    try { existing.parentNode.removeChild(existing); } catch(e) {}
+  }
+
+  
   // Helpers we rely on (from earlier builds)
   const getMk = (a) =>
     (typeof getArticleMarker === 'function' ? getArticleMarker(a) : null);
@@ -1672,7 +1695,7 @@ async function openAdjacent(delta) {
   // If still empty, stop gracefully
   if (!window.state || !Array.isArray(state.articlesOrdered) || !state.articlesOrdered.length) return;
 
-  // (keep your build-from-DOM helper if you like as a backup)
+  // (DOM fallback if needed)
   function buildArticlesOrderFromDOM() {
     var arr = [], nodes = document.querySelectorAll('#article-list [data-article-id]');
     nodes.forEach(function (el) {
@@ -1709,17 +1732,24 @@ async function openAdjacent(delta) {
   // No-flash in-place swap
   if (typeof loadArticleIntoModal === 'function') {
     console.log('[openAdjacent] swap ->', next.id);
-    loadArticleIntoModal(next);
+    loadArticleIntoModal(next);   // updates the active modal in-place
   } else {
     console.warn('[openAdjacent] loadArticleIntoModal missing; fallback -> reopen');
-    try { document.body.removeChild(document.querySelector('.modal')); } catch (e) {}
-    openModal(next);
+    var active = getActiveModal();
+    try { if (active && active.parentNode) active.parentNode.removeChild(active); } catch (e) {}
+    openModal(next);  // will recreate a fresh singleton modal
   }
 
   // Persist current ID to modal dataset for future clicks/shares
-  var mm = document.querySelector('.modal');
+  var mm = getActiveModal();                 // <-- use the singleton
   if (mm) mm.dataset.articleId = Number(next.id) || '';
+
+  // Keep URL in sync without adding history entries (optional but recommended)
+  if (typeof updateArticleURL === 'function') {
+    updateArticleURL(next.id, true);         // replaceState
+  }
 }
+
 
 
 
