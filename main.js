@@ -1874,15 +1874,7 @@ function panMarkerIntoViewWithContentOffset(marker, opts) {
 
 // Attach click handler for the share story button
 (() => { const b = document.getElementById('share-story-btn'); if (b && !b._wiredShareOpen) { b.addEventListener('click', (e)=>{ e.preventDefault(); openShareDialog(); }, false); b._wiredShareOpen = true; } })();
-const pageContent = document.getElementById('content'); 
-  pageContent.classList.add('fade-out');
-  setTimeout(() => {
-    showStoryFormPage();
-  }, 600);
-});
 
-// Kick off loading the site
-loadArticles();
 
 // Inject minimal CSS for the modal 'View on Map' button
 (function ensureModalViewBtnCSS(){
