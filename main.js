@@ -1872,8 +1872,6 @@ function panMarkerIntoViewWithContentOffset(marker, opts) {
   });
 })();
 
-// Attach click handler for the share story button
-(() => { const b = document.getElementById('share-story-btn'); if (b && !b._wiredShareOpen) { b.addEventListener('click', (e)=>{ e.preventDefault(); openShareDialog(); }, false); b._wiredShareOpen = true; } })();
 
 
 // Inject minimal CSS for the modal 'View on Map' button
