@@ -1480,18 +1480,32 @@ if (navEl && !navEl._wired) {
     }
 
     if (shareBtn && !shareBtn._wired) {
-      shareBtn.addEventListener('click', async () => {
-        const url = (typeof getArticlePermalink === 'function') ? getArticlePermalink(currentArticle) : location.href;
-        const title = currentArticle && currentArticle.title || 'Triangle 100';
-        const text = currentArticle && currentArticle.short_desc ? String(currentArticle.short_desc).slice(0,160) : '';
-        if (navigator.share) { try { await navigator.share({ title, text, url }); return; } catch(e){} }
-        try {
-          await navigator.clipboard.writeText(url);
-          // visual ping
-          shareBtn.style.transform = 'scale(0.97)';
-          setTimeout(()=>{ shareBtn.style.transform=''; }, 120);
-        } catch(e) {}
-      });
+  shareBtn.addEventListener('click', async function () {
+  // Always read fresh state at click time
+  var id   = getCurrentModalArticleId();
+  var art  = id ? (getArticleFromCache(id) || { id: id }) : null;
+  var url  = getArticlePermalink(art);
+  var title = (art && art.title) ? art.title : 'Triangle 100';
+  var text  = (art && art.short_desc) ? String(art.short_desc).slice(0,160) : '';
+
+  console.log('[share click] id=', id, 'art=', art, 'url=', url);
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { console.warn('[share click] Web Share failed, falling back:', e); }
+  }
+
+  try {
+    await navigator.clipboard.writeText(url);
+    console.log('[share click] copied to clipboard:', url);
+    var old = shareBtn.innerHTML;
+    shareBtn.innerHTML = 'Copied!';
+    setTimeout(function(){ shareBtn.innerHTML = old; }, 900);
+  } catch (e) {
+    console.warn('[share click] clipboard fallback failed:', e);
+  }
+});
+
       shareBtn._wired = true;
     }
   })();
