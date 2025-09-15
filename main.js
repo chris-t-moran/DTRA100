@@ -396,6 +396,25 @@ async function injectDynamicContent() {
   }
 }
 
+// --- Back/forward support: reopen or close modal on history navigation ---
+window.addEventListener('popstate', async function () {
+  const params = new URLSearchParams(location.search);
+  const id = params.get('article');
+  const modal = document.querySelector('.modal');
+
+  if (id && !modal) {
+    // open the requested article
+    let art = getArticleFromCache(Number(id));
+    if (!art && typeof fetchArticleById === 'function') {
+      try { art = await fetchArticleById(Number(id)); } catch {}
+    }
+    if (art) openModal(art);
+  } else if (!id && modal) {
+    // close the modal if URL no longer has an article
+    try { modal.classList.remove('show'); } catch {}
+    setTimeout(() => { try { document.body.removeChild(modal); } catch {} }, 120);
+  }
+});
 
 // Run when DOM is ready
 if (document.readyState === 'loading') {
@@ -436,6 +455,15 @@ function getCurrentModalArticleId() {
   var id = m.dataset && m.dataset.articleId;
   return id != null ? Number(id) : null;
 }
+
+function updateArticleURL(id, replace) {
+  const url = new URL(window.location.href);
+  if (id != null && id !== '') url.searchParams.set('article', String(id));
+  else url.searchParams.delete('article');
+  const fn = replace ? 'replaceState' : 'pushState';
+  try { history[fn]({}, '', url); } catch {}
+}
+
 
 // Global: swap article content inside the existing modal (no close/reopen)
 function loadArticleIntoModal(next) {
@@ -488,6 +516,9 @@ function loadArticleIntoModal(next) {
 
   // Update the modal’s current id so nav/share/close can read it
   modal.dataset.articleId = Number(next.id) || '';
+  // swap current URL param without adding a new history entry
+  updateArticleURL(next.id, true);
+
 
   // Count a view for the new article (once/24h)
   if (typeof shouldCountView === 'function' && shouldCountView(next.id, 24)) {
@@ -1297,6 +1328,9 @@ function openModal(article) {
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.dataset.articleId = Number(article.id) || '';   
+  // reflect the opened article in the URL (push a new entry)
+  updateArticleURL(article.id, false);
+
 
   // content wrapper
   const content = document.createElement('div');
