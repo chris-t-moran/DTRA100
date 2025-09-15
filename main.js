@@ -464,6 +464,52 @@ function updateArticleURL(id, replace) {
   try { history[fn]({}, '', url); } catch {}
 }
 
+// Build a reliable ordered list of articles, even on deep-links
+async function ensureArticlesOrderRobust() {
+  try { if (typeof ensureArticlesOrder === 'function') ensureArticlesOrder(); } catch {}
+
+  // If we already have 2+ items, we're good
+  if (window.state && Array.isArray(state.articlesOrdered) && state.articlesOrdered.length > 1) return;
+
+  // Try DOM fallback
+  function buildFromDOM() {
+    var arr = [], nodes = document.querySelectorAll('#article-list [data-article-id]');
+    nodes.forEach(function (el) {
+      var id = Number(el.getAttribute('data-article-id'));
+      if (!isNaN(id)) arr.push({ id: id });
+    });
+    return arr;
+  }
+
+  if (!window.state) window.state = {};
+  if (!Array.isArray(state.articlesOrdered)) state.articlesOrdered = [];
+
+  if (state.articlesOrdered.length <= 1) {
+    var fromDom = buildFromDOM();
+    if (fromDom.length > 1) state.articlesOrdered = fromDom;
+  }
+
+  // If still not enough, fetch full list from Supabase
+  if ((!state.articlesOrdered || state.articlesOrdered.length <= 1) && typeof supabaseClient !== 'undefined') {
+    try {
+      const { data, error } = await supabaseClient
+        .from('articles')
+        .select('id,title,short_desc,description,img,lat,lon,active')
+        .eq('active', true)
+        .order('id', { ascending: true });
+      if (!error && Array.isArray(data) && data.length) {
+        state.articlesOrdered = data;
+        // maintain a lookup cache too
+        if (!state.articleById) state.articleById = {};
+        data.forEach(function (a) { state.articleById[Number(a.id)] = a; });
+      }
+    } catch (e) {
+      console.warn('[ensureArticlesOrderRobust] Supabase fetch failed', e);
+    }
+  }
+}
+
+
 
 // Global: swap article content inside the existing modal (no close/reopen)
 function loadArticleIntoModal(next) {
@@ -552,6 +598,7 @@ function getArticleFromCache(id) {
 
 // --- Deep link handler: open modal if ?article=id is present ---
 async function handleDeepLink() {
+  
   const params = new URLSearchParams(window.location.search);
   const articleId = params.get('article');
   if (!articleId) return;
@@ -574,12 +621,12 @@ async function handleDeepLink() {
 
   if (article) {
     openModal(article);
+    await ensureArticlesOrderRobust(); // << ensure arrows can navigate
   }
 }
 
 // Call this once after your articles are loaded
 document.addEventListener('DOMContentLoaded', () => {
-  // If you already have an initArticles or similar, call handleDeepLink at the end of that
   handleDeepLink();
 });
 
@@ -1620,31 +1667,24 @@ function closeAndReveal() {
 
 
 async function openAdjacent(delta) {
-  try { if (typeof ensureArticlesOrder === 'function') ensureArticlesOrder(); } catch (e) {}
+  await ensureArticlesOrderRobust();
 
-  // Build order from DOM as a fallback
+  // If still empty, stop gracefully
+  if (!window.state || !Array.isArray(state.articlesOrdered) || !state.articlesOrdered.length) return;
+
+  // (keep your build-from-DOM helper if you like as a backup)
   function buildArticlesOrderFromDOM() {
-    var arr = [];
-    var nodes = document.querySelectorAll('#article-list [data-article-id]');
+    var arr = [], nodes = document.querySelectorAll('#article-list [data-article-id]');
     nodes.forEach(function (el) {
       var id = Number(el.getAttribute('data-article-id'));
-      if (!isNaN(id)) {
-        var a = (typeof getArticleById === 'function') ? getArticleById(id) : { id: id };
-        arr.push(a);
-      }
+      if (!isNaN(id)) arr.push({ id: id });
     });
     return arr;
   }
-
-  if (!window.state) window.state = {};
-  if (!Array.isArray(state.articlesOrdered) || !state.articlesOrdered.length) {
-    if (Array.isArray(state.articles) && state.articles.length) {
-      state.articlesOrdered = state.articles.slice();
-    } else {
-      state.articlesOrdered = buildArticlesOrderFromDOM();
-    }
+  if (state.articlesOrdered.length <= 1) {
+    state.articlesOrdered = buildArticlesOrderFromDOM();
+    if (state.articlesOrdered.length <= 1) return;
   }
-  if (!state.articlesOrdered.length) return;
 
   var curId = getCurrentModalArticleId();
   var idx = -1;
@@ -1658,35 +1698,29 @@ async function openAdjacent(delta) {
   var next = state.articlesOrdered[nextIdx];
 
   // Hydrate if needed
-  if (next && (!next.title || !next.description)) {
+  if (next && (!next.title || !next.description) && typeof fetchArticleById === 'function') {
     try {
-      if (typeof fetchArticleById === 'function') {
-        var full = await fetchArticleById(Number(next.id));
-        if (full) next = full;
-      }
+      var full = await fetchArticleById(Number(next.id));
+      if (full) next = full;
     } catch (e) { console.warn('fetchArticleById failed', e); }
   }
   if (!next) return;
 
-// Swap content in-place (your existing function)
-if (typeof loadArticleIntoModal === 'function') {
-  console.log('[openAdjacent] Using loadArticleIntoModal (no-flash swap) for article id:', next.id);
-  loadArticleIntoModal(next);
-} else {
-  console.warn('[openAdjacent] loadArticleIntoModal not found. Falling back to close + reopen modal for article id:', next.id);
-  try { 
-    document.body.removeChild(document.querySelector('.modal')); 
-  } catch (e) {
-    console.error('[openAdjacent] Failed to remove modal during fallback:', e);
+  // No-flash in-place swap
+  if (typeof loadArticleIntoModal === 'function') {
+    console.log('[openAdjacent] swap ->', next.id);
+    loadArticleIntoModal(next);
+  } else {
+    console.warn('[openAdjacent] loadArticleIntoModal missing; fallback -> reopen');
+    try { document.body.removeChild(document.querySelector('.modal')); } catch (e) {}
+    openModal(next);
   }
-  openModal(next);
-}
 
-
-  // Update the modal's current id
+  // Persist current ID to modal dataset for future clicks/shares
   var mm = document.querySelector('.modal');
   if (mm) mm.dataset.articleId = Number(next.id) || '';
 }
+
 
 
 
