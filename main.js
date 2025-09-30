@@ -606,7 +606,7 @@ function renderArticles(theme) {
 }
 
 // =============================================================================
-// Marker Selection
+// Marker Selection & Reveal
 // =============================================================================
 
 function selectMarker(marker) {
@@ -626,6 +626,84 @@ function selectMarker(marker) {
   }
   
   state.lastSelectedMarker = marker;
+}
+
+function revealAndHighlightMarker(article) {
+  // Find the marker for this article
+  let marker = null;
+  
+  try {
+    const layers = state.articleMarkers?.getLayers() || [];
+    marker = layers.find(m => m._article?.id === article.id);
+  } catch(e) {
+    console.warn('Failed to find marker:', e);
+    return;
+  }
+  
+  if (!marker) return;
+  
+  // If marker is in a cluster, zoom to reveal it
+  const afterVisible = () => {
+    // Check if still clustered and spiderfy if needed
+    try {
+      if (typeof state.articleMarkers.getVisibleParent === 'function') {
+        const parent = state.articleMarkers.getVisibleParent(marker);
+        if (parent && parent !== marker && typeof parent.spiderfy === 'function') {
+          setTimeout(() => parent.spiderfy(), 0);
+        }
+      }
+    } catch(e) {}
+    
+    // Highlight the marker
+    selectMarker(marker);
+    
+    // Bring to front
+    try { marker.bringToFront?.(); } catch(e) {}
+    
+    // Pan into view on mobile (accounting for content panel)
+    if (utils.isMobile()) {
+      setTimeout(() => panMarkerIntoView(marker), 0);
+    }
+  };
+  
+  // Zoom to show the marker if it's not visible
+  if (typeof state.articleMarkers.zoomToShowLayer === 'function') {
+    state.articleMarkers.zoomToShowLayer(marker, afterVisible);
+  } else {
+    afterVisible();
+  }
+}
+
+function panMarkerIntoView(marker) {
+  if (!marker?.getLatLng || !utils.isMobile()) return;
+  
+  const mapEl = state.map.getContainer();
+  const content = document.getElementById('content');
+  if (!mapEl || !content) return;
+  
+  const margin = 20;
+  const mapRect = mapEl.getBoundingClientRect();
+  const contentRect = content.getBoundingClientRect();
+  
+  // Calculate overlap
+  const overlapTop = Math.max(0, Math.min(contentRect.bottom, mapRect.bottom) - Math.max(contentRect.top, mapRect.top));
+  const overlapBottom = Math.max(0, Math.min(mapRect.bottom, contentRect.bottom) - Math.max(mapRect.top, contentRect.top));
+  
+  // Available vertical space for marker
+  const minY = overlapTop + margin;
+  const maxY = mapRect.height - overlapBottom - margin;
+  
+  // Current marker position
+  const pt = state.map.latLngToContainerPoint(marker.getLatLng());
+  
+  // If already visible, don't pan
+  if (pt.y >= minY && pt.y <= maxY) return;
+  
+  // Pan to bring marker into view
+  const targetY = (pt.y < minY) ? minY : maxY;
+  const deltaY = targetY - pt.y;
+  
+  state.map.panBy([0, -deltaY], { animate: true });
 }
 
 // =============================================================================
@@ -664,12 +742,22 @@ function createModal(article) {
   
   // Close handlers
   const closeModal = () => {
+    const articleId = modal.dataset.articleId;
+    
     modal.classList.remove('show');
     setTimeout(() => {
       if (modal.parentNode) modal.parentNode.removeChild(modal);
       currentModal = null;
     }, 120);
     utils.updateURL(null, false);
+    
+    // Reveal marker on map after closing
+    if (articleId) {
+      const article = state.articlesById.get(Number(articleId));
+      if (article) {
+        revealAndHighlightMarker(article);
+      }
+    }
   };
   
   modal.addEventListener('click', (e) => {
