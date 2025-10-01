@@ -198,14 +198,14 @@ const reactions = {
     form.className = 'reaction-form';
     form.innerHTML = `
       <h4>Share your reaction</h4>
-      <div class="reaction-types">
+      <!--<div class="reaction-types">
         ${this.types.map(t => `
           <label class="reaction-type-btn">
             <input type="radio" name="reaction_type" value="${t.id}" required>
             <span>${t.icon} ${t.label}</span>
           </label>
         `).join('')}
-      </div>
+      </div> -->
       <label class="reaction-field">
         <span>Your memory or comment (optional):</span>
         <textarea name="comment" rows="3" placeholder="Share your thoughts..."></textarea>
