@@ -133,7 +133,7 @@ const reactions = {
         .from('article_reactions')
         .insert([{
           article_id: articleId,
-          reaction_type: 'comment',
+          reaction_type: 'memory',
           comment: comment.trim().slice(0, 500), // limit length
           author_name: authorName.trim().slice(0, 100),
           author_email: authorEmail.trim(),
