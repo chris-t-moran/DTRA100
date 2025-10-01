@@ -94,6 +94,214 @@ const viewTracker = (() => {
 
 
 // =============================================================================
+// Tours System
+// =============================================================================
+
+const tours = {
+  async loadAll() {
+    const { data } = await state.db
+      .from('tours')
+      .select(`
+        *,
+        tour_stops(
+          stop_number,
+          intro_text,
+          outro_text,
+          articles(id, title, img, lat, lon)
+        )
+      `)
+      .eq('active', true)
+      .order('sort_order');
+    
+    return data;
+  },
+  
+  async start(tourId) {
+    const tour = await this.loadTour(tourId);
+    state.activeTour = {
+      ...tour,
+      currentStop: 0,
+      startedAt: Date.now()
+    };
+    
+    // Show tour overlay on map
+    this.showTourPath(tour);
+    this.goToStop(0);
+  },
+  
+  showTourPath(tour) {
+    // Draw path connecting all stops
+    const coordinates = tour.tour_stops
+      .sort((a, b) => a.stop_number - b.stop_number)
+      .map(s => [s.articles.lat, s.articles.lon]);
+    
+    const pathLine = L.polyline(coordinates, {
+      color: '#4caf50',
+      weight: 3,
+      opacity: 0.7,
+      dashArray: '10, 10'
+    }).addTo(state.map);
+    
+    // Add numbered markers for each stop
+    tour.tour_stops.forEach((stop, idx) => {
+      const marker = L.marker([stop.articles.lat, stop.articles.lon], {
+        icon: L.divIcon({
+          className: 'tour-stop-marker',
+          html: `<div class="tour-number">${idx + 1}</div>`,
+          iconSize: [30, 30]
+        })
+      }).addTo(state.map);
+    });
+  },
+  
+  goToStop(stopIndex) {
+    const tour = state.activeTour;
+    const stop = tour.tour_stops[stopIndex];
+    
+    tour.currentStop = stopIndex;
+    
+    // Pan map to this stop
+    state.map.flyTo([stop.articles.lat, stop.articles.lon], 17, {
+      duration: 1.5
+    });
+    
+    // Open special tour modal
+    this.showTourStop(stop, stopIndex, tour.tour_stops.length);
+  },
+  
+  showTourStop(stop, current, total) {
+    const modal = document.createElement('div');
+    modal.className = 'modal tour-modal';
+    modal.innerHTML = `
+      <div class="modal-content tour-content">
+        <div class="tour-progress">
+          <span>Stop ${current + 1} of ${total}</span>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: ${(current / total) * 100}%"></div>
+          </div>
+          <button class="tour-exit">Exit Tour</button>
+        </div>
+        
+        ${stop.intro_text ? `
+          <div class="tour-context">
+            <h3>Setting the Scene</h3>
+            <p>${stop.intro_text}</p>
+          </div>
+        ` : ''}
+        
+        <header>
+          <h2>${stop.articles.title}</h2>
+        </header>
+        
+        <div class="imgWrapper">
+          <img src="${stop.articles.img}" />
+        </div>
+        
+        <div class="descriptionWrapper">
+          <div class="modal-description">${stop.articles.description}</div>
+        </div>
+        
+        <footer class="tour-footer">
+          ${current > 0 ? '<button class="tour-prev">← Previous Stop</button>' : '<div></div>'}
+          ${current < total - 1 
+            ? '<button class="tour-next">Next Stop →</button>'
+            : '<button class="tour-complete">Complete Tour</button>'
+          }
+        </footer>
+      </div>
+    `;
+    
+    // Wire up navigation
+    modal.querySelector('.tour-next')?.addEventListener('click', () => {
+      modal.remove();
+      this.goToStop(current + 1);
+    });
+    
+    modal.querySelector('.tour-prev')?.addEventListener('click', () => {
+      modal.remove();
+      this.goToStop(current - 1);
+    });
+    
+    modal.querySelector('.tour-exit')?.addEventListener('click', () => {
+      if (confirm('Exit this tour?')) {
+        this.exitTour();
+        modal.remove();
+      }
+    });
+    
+    modal.querySelector('.tour-complete')?.addEventListener('click', () => {
+      modal.remove();
+      this.completeTour();
+    });
+    
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('show'));
+  },
+  
+  completeTour() {
+    // Show completion screen with stats
+    const duration = Math.round((Date.now() - state.activeTour.startedAt) / 60000);
+    alert(`Tour completed in ${duration} minutes! Thanks for exploring.`);
+    // Could suggest related tours here
+    this.exitTour();
+  },
+  
+  exitTour() {
+    // Clean up map overlays
+    state.map.eachLayer(layer => {
+      if (layer._url) return; // keep base tiles
+      if (layer === state.articleMarkers) return; // keep articles
+      state.map.removeLayer(layer);
+    });
+    state.activeTour = null;
+  }
+};
+
+
+function showToursDialog() {
+  const dialog = document.createElement('dialog');
+  dialog.innerHTML = `
+    <div class="tours-gallery">
+      <header>
+        <h2>Guided Tours</h2>
+        <button class="close-btn">×</button>
+      </header>
+      <div id="tours-list">Loading tours...</div>
+    </div>
+  `;
+  
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  
+  // Load and display tours
+  tours.loadAll().then(data => {
+    const list = dialog.querySelector('#tours-list');
+    list.innerHTML = data.map(tour => `
+      <div class="tour-card" data-tour-id="${tour.id}">
+        <img src="${tour.cover_image}" alt="${tour.title}" />
+        <h3>${tour.title}</h3>
+        <p>${tour.description}</p>
+        <div class="tour-meta">
+          <span>${tour.tour_stops.length} stops</span>
+          <span>~${tour.duration_minutes} min</span>
+        </div>
+        <button class="sf-btn sf-btn-primary">Start Tour</button>
+      </div>
+    `).join('');
+    
+    list.querySelectorAll('.tour-card button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const card = e.target.closest('.tour-card');
+        const tourId = Number(card.dataset.tourId);
+        dialog.close();
+        tours.start(tourId);
+      });
+    });
+  });
+}
+
+
+// =============================================================================
 // Reactions System
 // =============================================================================
 
