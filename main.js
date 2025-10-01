@@ -1150,122 +1150,13 @@ if (document.readyState === 'loading') {
 }
 
 // =============================================================================
-// Inject Required Styles
+// CSS Notes
 // =============================================================================
-
-(function injectStyles() {
-  if (document.getElementById('tri100-styles')) return;
-  
-  const css = `
-    /* Resident glow effect */
-    .resident-glow {
-      filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.8))
-              drop-shadow(0 0 12px rgba(249, 115, 22, 0.5));
-    }
-    
-    /* Modal navigation */
-    .modal-nav {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      pointer-events: none;
-      z-index: 2;
-    }
-    .modal-nav .nav-btn {
-      pointer-events: auto;
-      appearance: none;
-      border: none;
-      background: rgba(0,0,0,0.45);
-      color: #fff;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      font-size: 20px;
-      font-weight: 700;
-      margin: 0 8px;
-      cursor: pointer;
-      transition: background .15s ease;
-    }
-    .modal-nav .nav-btn:hover { background: rgba(0,0,0,0.6); }
-    
-    /* Modal share button */
-    .modal-share-btn {
-      position: absolute;
-      right: 8px;
-      top: 8px;
-      appearance: none;
-      border: 1px solid rgba(0,0,0,.12);
-      background: #fff;
-      color: #374151;
-      border-radius: 8px;
-      padding: 6px 10px;
-      font: 600 13px/1 system-ui, -apple-system, sans-serif;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,.08);
-      z-index: 3;
-    }
-    .modal-share-btn:hover { background: #f9fafb; }
-    
-    /* Modal content fade */
-    .modal-content.fade-out {
-      opacity: 0;
-      transition: opacity .15s ease;
-    }
-    
-    /* Resident popup */
-    .leaflet-popup.resident-popup-wrap .leaflet-popup-content-wrapper {
-      padding: 0;
-      border-radius: 14px;
-      box-shadow: 0 6px 24px rgba(0,0,0,.18);
-      overflow: hidden;
-      border: 1px solid rgba(0,0,0,.08);
-    }
-    .resident-popup {
-      font: 14px/1.4 system-ui, -apple-system, sans-serif;
-      color: #1f2937;
-    }
-    .rp-header {
-      padding: 12px 14px;
-      background: linear-gradient(0deg, #fff7ed 0%, #ffedd5 100%);
-      border-bottom: 1px solid #fde6c9;
-    }
-    .rp-title {
-      margin: 0;
-      font-size: 15px;
-      font-weight: 700;
-      color: #111827;
-    }
-    .rp-subtitle {
-      font-size: 12px;
-      color: #6b7280;
-    }
-    .rp-body {
-      padding: 12px 14px;
-      display: grid;
-      gap: 8px;
-    }
-    .rp-row {
-      display: grid;
-      grid-template-columns: 130px 1fr;
-      gap: 8px;
-    }
-    .rp-label {
-      color: #6b7280;
-      font-size: 12px;
-    }
-    .rp-value {
-      color: #1f2937;
-    }
-    
-    @media (max-width: 420px) {
-      .rp-row { grid-template-columns: 1fr; }
-    }
-  `;
-  
-  const style = document.createElement('style');
-  style.id = 'tri100-styles';
-  style.appendChild(document.createTextNode(css));
-  document.head.appendChild(style);
-})();
+// All styles are in styles.css - this keeps JS lightweight and CSS cacheable.
+// Key classes referenced by this script:
+// - .resident-glow (applied to markers with former addresses)
+// - .modal-nav, .nav-btn (modal navigation arrows)
+// - .modal-share-btn (share button in modal header)
+// - .modal-content.fade-out (content swap animation)
+// - .resident-popup-wrap, .rp-* (resident popup styling)
+// - .sf-* (story form dialog styling)
