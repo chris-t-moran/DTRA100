@@ -12,6 +12,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { CONFIG as IMPORTED_CONFIG } from './config.js';
 const CONFIG = IMPORTED_CONFIG;
 
+
 const state = {
   db: createClient(CONFIG.supabase.url, CONFIG.supabase.key),
   map: null,
@@ -91,375 +92,6 @@ const viewTracker = (() => {
     }
   };
 })();
-
-
-// =============================================================================
-// Tours System
-// =============================================================================
-
-const tours = {
-  async loadAll() {
-    const { data } = await state.db
-      .from('tours')
-      .select(`
-        *,
-        tour_stops(
-          stop_number,
-          intro_text,
-          outro_text,
-          articles(id, title, img, lat, lon)
-        )
-      `)
-      .eq('active', true)
-      .order('sort_order');
-    
-    return data;
-  },
-  
-  async start(tourId) {
-    const tour = await this.loadTour(tourId);
-    state.activeTour = {
-      ...tour,
-      currentStop: 0,
-      startedAt: Date.now()
-    };
-    
-    // Show tour overlay on map
-    this.showTourPath(tour);
-    this.goToStop(0);
-  },
-  
-  showTourPath(tour) {
-    // Draw path connecting all stops
-    const coordinates = tour.tour_stops
-      .sort((a, b) => a.stop_number - b.stop_number)
-      .map(s => [s.articles.lat, s.articles.lon]);
-    
-    const pathLine = L.polyline(coordinates, {
-      color: '#4caf50',
-      weight: 3,
-      opacity: 0.7,
-      dashArray: '10, 10'
-    }).addTo(state.map);
-    
-    // Add numbered markers for each stop
-    tour.tour_stops.forEach((stop, idx) => {
-      const marker = L.marker([stop.articles.lat, stop.articles.lon], {
-        icon: L.divIcon({
-          className: 'tour-stop-marker',
-          html: `<div class="tour-number">${idx + 1}</div>`,
-          iconSize: [30, 30]
-        })
-      }).addTo(state.map);
-    });
-  },
-  
-  goToStop(stopIndex) {
-    const tour = state.activeTour;
-    const stop = tour.tour_stops[stopIndex];
-    
-    tour.currentStop = stopIndex;
-    
-    // Pan map to this stop
-    state.map.flyTo([stop.articles.lat, stop.articles.lon], 17, {
-      duration: 1.5
-    });
-    
-    // Open special tour modal
-    this.showTourStop(stop, stopIndex, tour.tour_stops.length);
-  },
-  
-  showTourStop(stop, current, total) {
-    const modal = document.createElement('div');
-    modal.className = 'modal tour-modal';
-    modal.innerHTML = `
-      <div class="modal-content tour-content">
-        <div class="tour-progress">
-          <span>Stop ${current + 1} of ${total}</span>
-          <div class="progress-bar-container">
-            <div class="progress-bar-fill" style="width: ${(current / total) * 100}%"></div>
-          </div>
-          <button class="tour-exit">Exit Tour</button>
-        </div>
-        
-        ${stop.intro_text ? `
-          <div class="tour-context">
-            <h3>Setting the Scene</h3>
-            <p>${stop.intro_text}</p>
-          </div>
-        ` : ''}
-        
-        <header>
-          <h2>${stop.articles.title}</h2>
-        </header>
-        
-        <div class="imgWrapper">
-          <img src="${stop.articles.img}" />
-        </div>
-        
-        <div class="descriptionWrapper">
-          <div class="modal-description">${stop.articles.description}</div>
-        </div>
-        
-        <footer class="tour-footer">
-          ${current > 0 ? '<button class="tour-prev">← Previous Stop</button>' : '<div></div>'}
-          ${current < total - 1 
-            ? '<button class="tour-next">Next Stop →</button>'
-            : '<button class="tour-complete">Complete Tour</button>'
-          }
-        </footer>
-      </div>
-    `;
-    
-    // Wire up navigation
-    modal.querySelector('.tour-next')?.addEventListener('click', () => {
-      modal.remove();
-      this.goToStop(current + 1);
-    });
-    
-    modal.querySelector('.tour-prev')?.addEventListener('click', () => {
-      modal.remove();
-      this.goToStop(current - 1);
-    });
-    
-    modal.querySelector('.tour-exit')?.addEventListener('click', () => {
-      if (confirm('Exit this tour?')) {
-        this.exitTour();
-        modal.remove();
-      }
-    });
-    
-    modal.querySelector('.tour-complete')?.addEventListener('click', () => {
-      modal.remove();
-      this.completeTour();
-    });
-    
-    document.body.appendChild(modal);
-    requestAnimationFrame(() => modal.classList.add('show'));
-  },
-  
-  completeTour() {
-    // Show completion screen with stats
-    const duration = Math.round((Date.now() - state.activeTour.startedAt) / 60000);
-    alert(`Tour completed in ${duration} minutes! Thanks for exploring.`);
-    // Could suggest related tours here
-    this.exitTour();
-  },
-  
-  exitTour() {
-    // Clean up map overlays
-    state.map.eachLayer(layer => {
-      if (layer._url) return; // keep base tiles
-      if (layer === state.articleMarkers) return; // keep articles
-      state.map.removeLayer(layer);
-    });
-    state.activeTour = null;
-  }
-};
-
-
-function showToursDialog() {
-  const dialog = document.createElement('dialog');
-  dialog.innerHTML = `
-    <div class="tours-gallery">
-      <header>
-        <h2>Guided Tours</h2>
-        <button class="close-btn">×</button>
-      </header>
-      <div id="tours-list">Loading tours...</div>
-    </div>
-  `;
-  
-  document.body.appendChild(dialog);
-  dialog.showModal();
-  
-  // Load and display tours
-  tours.loadAll().then(data => {
-    const list = dialog.querySelector('#tours-list');
-    list.innerHTML = data.map(tour => `
-      <div class="tour-card" data-tour-id="${tour.id}">
-        <img src="${tour.cover_image}" alt="${tour.title}" />
-        <h3>${tour.title}</h3>
-        <p>${tour.description}</p>
-        <div class="tour-meta">
-          <span>${tour.tour_stops.length} stops</span>
-          <span>~${tour.duration_minutes} min</span>
-        </div>
-        <button class="sf-btn sf-btn-primary">Start Tour</button>
-      </div>
-    `).join('');
-    
-    list.querySelectorAll('.tour-card button').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const card = e.target.closest('.tour-card');
-        const tourId = Number(card.dataset.tourId);
-        dialog.close();
-        tours.start(tourId);
-      });
-    });
-  });
-}
-
-
-// =============================================================================
-// Reactions System
-// =============================================================================
-
-const reactions = {
-  types: [
-    { id: 'heart', label: '', icon: '❤️' },
-    { id: 'memory', label: 'Comment', icon: '💭' }
-  ],
-  
-  async load(articleId) {
-    try {
-      const { data, error } = await state.db
-        .from('article_reactions')
-        .select('id, reaction_type, comment, author_name, created_at')
-        .eq('article_id', articleId)
-        .eq('reaction_type', 'comment')
-        .eq('approved', true)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    } catch (e) {
-      console.warn('Failed to load reactions:', e);
-      return [];
-    }
-  },
-  
-  async submit(articleId, reactionType, comment = '', authorName = '', authorEmail = '') {
-    try {
-      // Simple client-side IP hash for spam prevention (not secure, but a deterrent)
-      const ipHash = await crypto.subtle.digest(
-        'SHA-256', 
-        new TextEncoder().encode(navigator.userAgent + Date.now().toString().slice(0, -7))
-      ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16));
-      
-      const { error } = await state.db
-        .from('article_reactions')
-        .insert([{
-          article_id: articleId,
-          reaction_type: 'memory',
-          comment: comment.trim().slice(0, 500), // limit length
-          author_name: authorName.trim().slice(0, 100),
-          author_email: authorEmail.trim(),
-          ip_hash: ipHash
-        }]);
-      
-      if (error) throw error;
-      return true;
-    } catch (e) {
-      console.error('Failed to submit reaction:', e);
-      return false;
-    }
-  },
-  
-  render(reactionsData) {
-    if (!reactionsData.length) return '';
-    
-    const grouped = {};
-    reactionsData.forEach(r => {
-      if (!grouped[r.reaction_type]) grouped[r.reaction_type] = [];
-      grouped[r.reaction_type].push(r);
-    });
-    
-    let html = '<div class="reactions-section"><h4>Community Reactions</h4>';
-    
-    // Show counts
-    html += '<div class="reaction-counts">';
-    this.types.forEach(type => {
-      const count = grouped[type.id]?.length || 0;
-      if (count > 0) {
-        html += `<span class="reaction-badge">${type.icon} ${count}</span>`;
-      }
-    });
-    html += '</div>';
-    
-    // Show comments
-    const withComments = reactionsData.filter(r => r.comment);
-    if (withComments.length > 0) {
-      html += '<div class="reaction-comments">';
-      withComments.slice(0, 5).forEach(r => {
-        const type = this.types.find(t => t.id === r.reaction_type);
-        const date = new Date(r.created_at).toLocaleDateString();
-        html += `
-          <div class="reaction-comment">
-            <span class="reaction-icon">${type?.icon || '💬'}</span>
-            <div class="reaction-content">
-              <p>${utils.escape(r.comment)}</p>
-              <small>${utils.escape(r.author_name || 'Anonymous')} • ${date}</small>
-            </div>
-          </div>
-        `;
-      });
-      html += '</div>';
-    }
-    
-    html += '</div>';
-    return html;
-  },
-  
-  createForm(articleId) {
-    const form = document.createElement('form');
-    form.className = 'reaction-form';
-    form.innerHTML = `
-      <h4>Share your reaction</h4>
-      <!--<div class="reaction-types">
-        ${this.types.map(t => `
-          <label class="reaction-type-btn">
-            <input type="radio" name="reaction_type" value="${t.id}" required>
-            <span>${t.icon} ${t.label}</span>
-          </label>
-        `).join('')}
-      </div> -->
-      <label class="reaction-field">
-        <span>Your memory or comment (optional):</span>
-        <textarea name="comment" rows="3" placeholder="Share your thoughts..."></textarea>
-      </label>
-      <label class="reaction-field">
-        <span>Your name (optional):</span>
-        <input type="text" name="author_name" placeholder="Anonymous">
-      </label>
-      <label class="reaction-field">
-        <span>Email (optional, for follow-up only):</span>
-        <input type="email" name="author_email" placeholder="you@example.com">
-      </label>
-      <button type="submit" class="sf-btn sf-btn-primary">Submit Reaction</button>
-      <p class="reaction-note">Your reaction will appear after moderation.</p>
-    `;
-    
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      const btn = form.querySelector('button[type="submit"]');
-      const oldText = btn.textContent;
-      
-      btn.disabled = true;
-      btn.textContent = 'Submitting...';
-      
-      const success = await this.submit(
-        articleId,
-        fd.get('reaction_type'),
-        fd.get('comment'),
-        fd.get('author_name'),
-        fd.get('author_email')
-      );
-      
-      if (success) {
-        form.innerHTML = '<p class="reaction-success">✓ Thank you! Your reaction will appear after review.</p>';
-      } else {
-        btn.disabled = false;
-        btn.textContent = oldText;
-        alert('Failed to submit. Please try again.');
-      }
-    });
-    
-    return form;
-  }
-};
-
 
 // =============================================================================
 // Address Normalization (for resident search)
@@ -894,7 +526,6 @@ function renderThemes() {
   
   const container = document.getElementById('themes');
   container.innerHTML = '';
-
   
   Object.keys(themes).forEach(theme => {
     const btn = document.createElement('div');
@@ -924,15 +555,6 @@ function renderThemes() {
     if (random) openModal(random);
   });
   container.appendChild(lucky);
-
-  // Add Tours button first
-  const toursBtn = document.createElement('div');
-  toursBtn.className = 'theme theme-tours';
-  toursBtn.textContent = 'Walking Tours';
-  toursBtn.style.background = '#2563eb'; // Different color to stand out
-  toursBtn.addEventListener('click', () => showToursDialog());
-  container.appendChild(toursBtn);
-  
 }
 
 function setActiveTheme(theme) {
@@ -1107,17 +729,6 @@ function createModal(article) {
   
   modal.appendChild(content);
   
-  // Load reactions after rendering
-  (async () => {
-    const data = await reactions.load(article.id);
-    const container = content.querySelector(`#reactions-container-${article.id}`);
-    if (container) container.innerHTML = reactions.render(data);
-    
-    const formContainer = content.querySelector(`#reaction-form-container-${article.id}`);
-    if (formContainer) formContainer.appendChild(reactions.createForm(article.id));
-  })();
-  
-  
   // Close handlers
   const closeModal = () => {
     const articleId = modal.dataset.articleId;
@@ -1196,10 +807,10 @@ function getModalHTML(article) {
     </div>
     <div class="descriptionWrapper">
       <div class="modal-description">${(article.description || '').replace(/\n/g, '<br>')}</div>
-      <div id="reactions-container-${article.id}"></div>
-      <div id="reaction-form-container-${article.id}"></div>
     </div>
-   
+    <footer class="modal-footer">
+      <span class="modal-contrib">Shared by: ${esc(article.contributor || '')}</span>
+    </footer>
   `;
 }
 
@@ -1528,7 +1139,309 @@ if (document.readyState === 'loading') {
 }
 
 // =============================================================================
-// CSS Notes
+// Tours System
+// =============================================================================
+
+const tours = {
+  async loadAll() {
+    try {
+      const { data, error } = await state.db
+        .from('tours')
+        .select(`
+          *,
+          tour_stops(
+            id,
+            stop_number,
+            intro_text,
+            outro_text,
+            article_id,
+            articles(id, title, description, img, lat, lon)
+          )
+        `)
+        .eq('active', true)
+        .order('sort_order');
+      
+      if (error) throw error;
+      
+      // Sort stops within each tour
+      if (data) {
+        data.forEach(tour => {
+          if (tour.tour_stops) {
+            tour.tour_stops.sort((a, b) => a.stop_number - b.stop_number);
+          }
+        });
+      }
+      
+      return data || [];
+    } catch (e) {
+      console.error('Failed to load tours:', e);
+      return [];
+    }
+  },
+  
+  async loadTour(tourId) {
+    try {
+      const { data, error } = await state.db
+        .from('tours')
+        .select(`
+          *,
+          tour_stops(
+            id,
+            stop_number,
+            intro_text,
+            outro_text,
+            article_id,
+            articles(id, title, description, img, lat, lon)
+          )
+        `)
+        .eq('id', tourId)
+        .eq('active', true)
+        .single();
+      
+      if (error) throw error;
+      
+      // Sort stops
+      if (data && data.tour_stops) {
+        data.tour_stops.sort((a, b) => a.stop_number - b.stop_number);
+      }
+      
+      return data;
+    } catch (e) {
+      console.error('Failed to load tour:', e);
+      return null;
+    }
+  },
+  
+  async start(tourId) {
+    const tour = await this.loadTour(tourId);
+    
+    if (!tour || !tour.tour_stops || tour.tour_stops.length === 0) {
+      alert('This tour is not available.');
+      return;
+    }
+    
+    state.activeTour = {
+      ...tour,
+      currentStop: 0,
+      startedAt: Date.now()
+    };
+    
+    // Show tour path on map
+    this.showTourPath(tour);
+    // Go to first stop
+    this.goToStop(0);
+  },
+  
+  showTourPath(tour) {
+    // Clean up any existing tour layers
+    if (state.tourLayers) {
+      state.tourLayers.forEach(layer => state.map.removeLayer(layer));
+    }
+    state.tourLayers = [];
+    
+    // Draw path connecting all stops
+    const coordinates = tour.tour_stops.map(s => [s.articles.lat, s.articles.lon]);
+    
+    const pathLine = L.polyline(coordinates, {
+      color: '#2563eb',
+      weight: 3,
+      opacity: 0.7,
+      dashArray: '10, 10'
+    }).addTo(state.map);
+    
+    state.tourLayers.push(pathLine);
+    
+    // Add numbered markers for each stop
+    tour.tour_stops.forEach((stop, idx) => {
+      const marker = L.marker([stop.articles.lat, stop.articles.lon], {
+        icon: L.divIcon({
+          className: 'tour-stop-marker',
+          html: `<div class="tour-number">${idx + 1}</div>`,
+          iconSize: [30, 30]
+        })
+      }).addTo(state.map);
+      
+      state.tourLayers.push(marker);
+    });
+  },
+  
+  goToStop(stopIndex) {
+    const tour = state.activeTour;
+    if (!tour || !tour.tour_stops[stopIndex]) return;
+    
+    const stop = tour.tour_stops[stopIndex];
+    tour.currentStop = stopIndex;
+    
+    // Pan map to this stop
+    state.map.flyTo([stop.articles.lat, stop.articles.lon], 17, {
+      duration: 1.5
+    });
+    
+    // Wait for animation, then show modal
+    setTimeout(() => {
+      this.showTourStop(stop, stopIndex, tour.tour_stops.length);
+    }, 1600);
+  },
+  
+  showTourStop(stop, current, total) {
+    const modal = document.createElement('div');
+    modal.className = 'modal tour-modal';
+    
+    const content = document.createElement('div');
+    content.className = 'modal-content tour-content';
+    content.innerHTML = `
+      <div class="tour-progress">
+        <span>Stop ${current + 1} of ${total}</span>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: ${((current + 1) / total) * 100}%"></div>
+        </div>
+        <button class="tour-exit" type="button">Exit Tour</button>
+      </div>
+      
+      ${stop.intro_text ? `
+        <div class="tour-context">
+          <h3>Setting the Scene</h3>
+          <p>${utils.escape(stop.intro_text)}</p>
+        </div>
+      ` : ''}
+      
+      <header>
+        <h2>${utils.escape(stop.articles.title)}</h2>
+      </header>
+      
+      <div class="imgWrapper">
+        <img src="${stop.articles.img}" alt="${utils.escape(stop.articles.title)}" />
+      </div>
+      
+      <div class="descriptionWrapper">
+        <div class="modal-description">${(stop.articles.description || '').replace(/\n/g, '<br>')}</div>
+      </div>
+      
+      <footer class="tour-footer">
+        ${current > 0 ? '<button class="tour-prev" type="button">← Previous Stop</button>' : '<div></div>'}
+        ${current < total - 1 
+          ? '<button class="tour-next" type="button">Next Stop →</button>'
+          : '<button class="tour-complete" type="button">Complete Tour ✓</button>'
+        }
+      </footer>
+    `;
+    
+    modal.appendChild(content);
+    
+    // Wire up navigation
+    content.querySelector('.tour-next')?.addEventListener('click', () => {
+      modal.remove();
+      this.goToStop(current + 1);
+    });
+    
+    content.querySelector('.tour-prev')?.addEventListener('click', () => {
+      modal.remove();
+      this.goToStop(current - 1);
+    });
+    
+    content.querySelector('.tour-exit')?.addEventListener('click', () => {
+      if (confirm('Exit this tour?')) {
+        this.exitTour();
+        modal.remove();
+      }
+    });
+    
+    content.querySelector('.tour-complete')?.addEventListener('click', () => {
+      modal.remove();
+      this.completeTour();
+    });
+    
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (!content.contains(e.target)) {
+        if (confirm('Exit this tour?')) {
+          this.exitTour();
+          modal.remove();
+        }
+      }
+    });
+    
+    content.addEventListener('click', (e) => e.stopPropagation());
+    
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('show'));
+  },
+  
+  completeTour() {
+    const duration = Math.round((Date.now() - state.activeTour.startedAt) / 60000);
+    alert(`Tour completed in ${duration} minute${duration !== 1 ? 's' : ''}! Thank you for exploring the Triangle's history.`);
+    this.exitTour();
+  },
+  
+  exitTour() {
+    // Clean up tour layers
+    if (state.tourLayers) {
+      state.tourLayers.forEach(layer => {
+        try { state.map.removeLayer(layer); } catch(e) {}
+      });
+      state.tourLayers = [];
+    }
+    state.activeTour = null;
+  }
+};
+
+function showToursDialog() {
+  const dialog = document.createElement('dialog');
+  dialog.id = 'tours-dialog';
+  dialog.innerHTML = `
+    <div class="tours-gallery">
+      <header>
+        <h2>Guided Tours</h2>
+        <button class="close-btn" type="button">×</button>
+      </header>
+      <div id="tours-list">Loading tours...</div>
+    </div>
+  `;
+  
+  document.body.appendChild(dialog);
+  
+  dialog.querySelector('.close-btn').addEventListener('click', () => {
+    dialog.close();
+    setTimeout(() => document.body.removeChild(dialog), 300);
+  });
+  
+  dialog.showModal();
+  
+  // Load and display tours
+  tours.loadAll().then(data => {
+    const list = dialog.querySelector('#tours-list');
+    
+    if (!data || data.length === 0) {
+      list.innerHTML = '<p class="no-tours">No tours available yet. Check back soon!</p>';
+      return;
+    }
+    
+    list.innerHTML = data.map(tour => `
+      <div class="tour-card" data-tour-id="${tour.id}">
+        ${tour.cover_image ? `<img src="${tour.cover_image}" alt="${utils.escape(tour.title)}" />` : ''}
+        <div class="tour-card-content">
+          <h3>${utils.escape(tour.title)}</h3>
+          <p>${utils.escape(tour.description || '')}</p>
+          <div class="tour-meta">
+            <span>${tour.tour_stops?.length || 0} stops</span>
+            ${tour.duration_minutes ? `<span>~${tour.duration_minutes} min</span>` : ''}
+          </div>
+          <button class="sf-btn sf-btn-primary" type="button">Start Tour</button>
+        </div>
+      </div>
+    `).join('');
+    
+    list.querySelectorAll('.tour-card button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const card = e.target.closest('.tour-card');
+        const tourId = Number(card.dataset.tourId);
+        dialog.close();
+        setTimeout(() => document.body.removeChild(dialog), 300);
+        tours.start(tourId);
+      });
+    });
+  });
+}
 // =============================================================================
 // All styles are in styles.css - this keeps JS lightweight and CSS cacheable.
 // Key classes referenced by this script:
