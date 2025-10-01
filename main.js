@@ -133,7 +133,7 @@ const reactions = {
         .from('article_reactions')
         .insert([{
           article_id: articleId,
-          reaction_type: reactionType,
+          reaction_type: 'comment',
           comment: comment.trim().slice(0, 500), // limit length
           author_name: authorName.trim().slice(0, 100),
           author_email: authorEmail.trim(),
@@ -978,12 +978,10 @@ function getModalHTML(article) {
     </div>
     <div class="descriptionWrapper">
       <div class="modal-description">${(article.description || '').replace(/\n/g, '<br>')}</div>
-      <div id="reactions-container-${article.id}"></div>
+      <!-- <div id="reactions-container-${article.id}"></div> -->
       <div id="reaction-form-container-${article.id}"></div>
     </div>
-    <footer class="modal-footer">
-      <span class="modal-contrib">Shared by: ${esc(article.contributor || '')}</span>
-    </footer>
+   
   `;
 }
 
