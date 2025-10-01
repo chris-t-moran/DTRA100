@@ -978,6 +978,7 @@ function getModalHTML(article) {
     </div>
     <div class="descriptionWrapper">
       <div class="modal-description">${(article.description || '').replace(/\n/g, '<br>')}</div>
+      <div id="reactions-container-${article.id}"></div>
       <div id="reaction-form-container-${article.id}"></div>
     </div>
    
