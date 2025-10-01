@@ -528,6 +528,130 @@ dialog#share-dialog::backdrop {
   color: #1f2937;
 }
 
+
+
+/* Reactions Section */
+.reactions-section {
+  margin: 2rem 0 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+.reactions-section h4 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: #4caf50;
+}
+.reaction-counts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.reaction-badge {
+  padding: 4px 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+.reaction-comments {
+  display: grid;
+  gap: 12px;
+}
+.reaction-comment {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.reaction-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.reaction-content p {
+  margin: 0 0 4px;
+  color: #374151;
+}
+.reaction-content small {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+/* Reaction Form */
+.reaction-form {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+.reaction-form h4 {
+  margin: 0 0 1rem;
+  color: #4caf50;
+}
+.reaction-types {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.reaction-type-btn {
+  cursor: pointer;
+}
+.reaction-type-btn input {
+  display: none;
+}
+.reaction-type-btn span {
+  display: block;
+  padding: 8px 16px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.reaction-type-btn input:checked + span {
+  border-color: #4caf50;
+  background: #f0fdf4;
+}
+.reaction-field {
+  display: block;
+  margin: 1rem 0;
+}
+.reaction-field span {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: #4caf50;
+  font-size: 0.9rem;
+}
+.reaction-field input,
+.reaction-field textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+}
+.reaction-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.reaction-success {
+  padding: 1rem;
+  background: #f0fdf4;
+  color: #15803d;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+}
+
+
+
+
+
 @media (max-width: 420px) {
   .rp-row { grid-template-columns: 1fr; }
 }
