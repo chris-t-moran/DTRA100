@@ -894,6 +894,15 @@ function renderThemes() {
   
   const container = document.getElementById('themes');
   container.innerHTML = '';
+
+  
+  // Add Tours button first
+  const toursBtn = document.createElement('div');
+  toursBtn.className = 'theme theme-tours';
+  toursBtn.textContent = '🚶 Guided Tours';
+  toursBtn.style.background = '#2563eb'; // Different color to stand out
+  toursBtn.addEventListener('click', () => showToursDialog());
+  container.appendChild(toursBtn);
   
   Object.keys(themes).forEach(theme => {
     const btn = document.createElement('div');
