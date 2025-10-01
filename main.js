@@ -99,8 +99,8 @@ const viewTracker = (() => {
 
 const reactions = {
   types: [
-    { id: 'like', label: '', icon: '❤️' },
-    { id: 'comment', label: 'Comment', icon: '💭' }
+    { id: 'heart', label: '', icon: '❤️' },
+    { id: 'memory', label: 'Comment', icon: '💭' }
   ],
   
   async load(articleId) {
