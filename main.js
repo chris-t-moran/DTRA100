@@ -99,9 +99,8 @@ const viewTracker = (() => {
 
 const reactions = {
   types: [
-    { id: 'heart', label: '', icon: '❤️' },
-    { id: 'memory', label: 'I remember this', icon: '💭' },
-    { id: 'photo', label: 'I have photos', icon: '📷' }
+    { id: 'like', label: '', icon: '❤️' },
+    { id: 'comment', label: 'Comment', icon: '💭' }
   ],
   
   async load(articleId) {
@@ -110,6 +109,7 @@ const reactions = {
         .from('article_reactions')
         .select('id, reaction_type, comment, author_name, created_at')
         .eq('article_id', articleId)
+        .eq('reaction_type', 'comment')
         .eq('approved', true)
         .order('created_at', { ascending: false });
       
