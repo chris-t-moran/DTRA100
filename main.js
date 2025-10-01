@@ -899,7 +899,64 @@ function createModal(article) {
     if (formContainer) formContainer.appendChild(reactions.createForm(article.id));
   })();
   
-  // ... rest of your modal code
+  
+  // Close handlers
+  const closeModal = () => {
+    const articleId = modal.dataset.articleId;
+    
+    modal.classList.remove('show');
+    setTimeout(() => {
+      if (modal.parentNode) modal.parentNode.removeChild(modal);
+      currentModal = null;
+    }, 120);
+    utils.updateURL(null, false);
+    
+    // Reveal marker on map after closing
+    if (articleId) {
+      const article = state.articlesById.get(Number(articleId));
+      if (article) {
+        revealAndHighlightMarker(article);
+      }
+    }
+  };
+  
+  modal.addEventListener('click', (e) => {
+    if (!content.contains(e.target)) closeModal();
+  });
+  
+  content.addEventListener('click', (e) => e.stopPropagation());
+  
+  const onEsc = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      window.removeEventListener('keydown', onEsc);
+    }
+  };
+  window.addEventListener('keydown', onEsc);
+  
+  // Navigation
+  content.querySelector('.nav-prev')?.addEventListener('click', () => navigateModal(-1));
+  content.querySelector('.nav-next')?.addEventListener('click', () => navigateModal(1));
+  
+  // Share
+  content.querySelector('.modal-share-btn')?.addEventListener('click', async () => {
+    const url = utils.getPermalink(article.id);
+    const shareData = { title: article.title, text: article.short_desc, url };
+    
+    if (navigator.share) {
+      try { await navigator.share(shareData); return; } catch(e) {}
+    }
+    
+    try {
+      await navigator.clipboard.writeText(url);
+      const btn = content.querySelector('.modal-share-btn');
+      const old = btn.innerHTML;
+      btn.innerHTML = 'Copied!';
+      setTimeout(() => btn.innerHTML = old, 900);
+    } catch(e) {}
+  });
+  
+  return modal;
 }
 
 function getModalHTML(article) {
