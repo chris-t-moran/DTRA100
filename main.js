@@ -896,14 +896,6 @@ function renderThemes() {
   container.innerHTML = '';
 
   
-  // Add Tours button first
-  const toursBtn = document.createElement('div');
-  toursBtn.className = 'theme theme-tours';
-  toursBtn.textContent = '🚶 Guided Tours';
-  toursBtn.style.background = '#2563eb'; // Different color to stand out
-  toursBtn.addEventListener('click', () => showToursDialog());
-  container.appendChild(toursBtn);
-  
   Object.keys(themes).forEach(theme => {
     const btn = document.createElement('div');
     btn.className = 'theme';
@@ -932,6 +924,15 @@ function renderThemes() {
     if (random) openModal(random);
   });
   container.appendChild(lucky);
+
+  // Add Tours button first
+  const toursBtn = document.createElement('div');
+  toursBtn.className = 'theme theme-tours';
+  toursBtn.textContent = 'Walking Tours';
+  toursBtn.style.background = '#2563eb'; // Different color to stand out
+  toursBtn.addEventListener('click', () => showToursDialog());
+  container.appendChild(toursBtn);
+  
 }
 
 function setActiveTheme(theme) {
