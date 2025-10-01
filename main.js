@@ -99,7 +99,7 @@ const viewTracker = (() => {
 
 const reactions = {
   types: [
-    { id: 'heart', label: 'Love this', icon: '❤️' },
+    { id: 'heart', label: '', icon: '❤️' },
     { id: 'memory', label: 'I remember this', icon: '💭' },
     { id: 'photo', label: 'I have photos', icon: '📷' }
   ],
