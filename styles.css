@@ -729,68 +729,52 @@ dialog#tours-dialog::backdrop {
   max-width: 600px;
 }
 .tour-progress {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
 }
+
+.tour-progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+}
+
 .progress-bar-container {
-  flex: 1;
-  height: 6px;
+  height: 4px;
   background: #e5e7eb;
-  border-radius: 3px;
   overflow: hidden;
 }
+
 .progress-bar-fill {
   height: 100%;
   background: #4caf50;
   transition: width 0.3s ease;
 }
-.tour-exit {
-  padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-.tour-context {
-  padding: 16px;
-  background: #fffbeb;
-  border-left: 4px solid #f59e0b;
-  margin: 16px;
-}
-.tour-context h3 {
-  margin: 0 0 8px;
-  font-size: 1rem;
-  color: #92400e;
-}
-.tour-context p {
-  margin: 0;
-  color: #78350f;
-}
-.tour-footer {
+
+.tour-progress-nav {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 16px;
-  border-top: 1px solid #e5e7eb;
+  padding: 12px 16px;
 }
-.tour-footer button {
-  padding: 10px 16px;
+
+.tour-progress-nav button {
+  padding: 8px 16px;
   border: 1px solid #d1d5db;
-  background: #fff;
-  border-radius: 8px;
+  background: white;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.9rem;
 }
+
 .tour-next, .tour-complete {
   background: #4caf50;
-  color: #fff;
+  color: white;
   border-color: #4caf50;
 }
+
 
 /* Tour markers on map */
 .tour-stop-marker {
