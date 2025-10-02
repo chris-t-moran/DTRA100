@@ -879,6 +879,12 @@ dialog#tours-dialog::backdrop {
   background: rgba(0,0,0,0.3); /* Lighter backdrop so map visible */
 }
 
+/* Tour modal - no max-height on desktop */
+.tour-modal .descriptionWrapper {
+  max-height: none;
+}
+
+
 @media (max-width: 768px) {
   .tour-modal .modal-content {
     left: auto;  /* Disables the left: 0 from desktop */
