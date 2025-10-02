@@ -3,15 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
   <title>
   <!-- Content populated dynamically -->  
   </title>
-
   <!-- Global styles for the site -->
   <link rel="stylesheet" href="styles.css" />
-
   <!-- Leaflet CSS & marker cluster CSS -->
   <link
     rel="stylesheet"
@@ -25,7 +21,8 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
   />
-
+  <!-- Leaflet Routing Machine CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
   <!-- Favicon for the site -->
   <link
     rel="icon"
@@ -33,14 +30,13 @@
     href="https://www.drumcondratriangle.com/uploads/1/1/8/4/118430940/dtralogo_orig.png"
   />
 </head>
-
 <body>
   <div id="mainpage">
     <!-- Sidebar / content section -->
     <section id="content" aria-label="Site content">
       <!-- Logo and heading -->
       <header id="head_logo" class="draggable-content">
-        <a
+        
           href="https://drumcondratriangle.com/dtra100"
           class="icon"
           title="Return to the home page"
@@ -54,18 +50,14 @@
         </a>
         <h1>Triangle&nbsp;100</h1>
       </header>
-
       <!-- Drag handle for mobile: visible on small screens to allow dragging the panel -->
       <div id="content-handle" class="content-handle"></div>
-
       <!-- Introductory text -->
       <section id="intro">
       <!-- Content populated dynamically -->
       </section>
-
       <!-- Theme/category buttons will be injected here -->
       <nav id="themes" aria-label="Story categories"></nav>
-
       <!-- Share your story button -->
       <button
         id="share-story-btn"
@@ -75,25 +67,25 @@
       >
         Get involved and share your story!
       </button>
-
       <!-- Article listing will be injected here -->
       <section id="article-list" aria-live="polite"></section>
-
       <!-- About section placeholder -->
       <section id="about-project">
         <!-- Content populated dynamically from Supabase (str_contentType='ABOUT') -->
       </section>
     </section>
-
     <!-- Map container -->
     <section id="map" aria-label="Interactive map"></section>
   </div>
-
-  <!-- Leaflet and marker cluster scripts -->
+  
+  <!-- CRITICAL: Scripts must load in this exact order -->
+  <!-- 1. Leaflet core (everything else depends on this) -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- 2. Leaflet plugins (depend on Leaflet) -->
   <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-
-  <!-- Main application module -->
+  <!-- 3. Leaflet Routing Machine (depends on Leaflet) -->
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+  <!-- 4. Your application code (depends on all of the above) -->
   <script type="module" src="main.js"></script>
 </body>
 </html>
