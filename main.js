@@ -1455,39 +1455,46 @@ showTourPath(tour) {
   state.tourLayers.push(routingControl);
 },
   
-  goToStop(stopIndex) {
+goToStop(stopIndex) {
     const tour = state.activeTour;
     if (!tour || !tour.tour_stops[stopIndex]) return;
     
     const stop = tour.tour_stops[stopIndex];
     tour.currentStop = stopIndex;
     
+    // On mobile, offset the target point upward so marker appears above the panel
+    let targetLatLng = [stop.articles.lat, stop.articles.lon];
     
-  // On mobile, offset the target point upward so marker appears above the panel
-  let targetLatLng = [stop.articles.lat, stop.articles.lon];
-  
-  if (utils.isMobile()) {
-    const map = state.map;
-    const point = map.latLngToContainerPoint(targetLatLng);
+    if (utils.isMobile()) {
+      const map = state.map;
+      const point = map.latLngToContainerPoint(targetLatLng);
+      
+      // Shift the point up by ~35% of screen height (so it lands in visible area)
+      const offsetY = window.innerHeight * 0.35;
+      point.y -= offsetY;
+      
+      // Convert back to lat/lng
+      targetLatLng = map.containerPointToLatLng(point);
+    }
     
-    // Shift the point up by ~40% of screen height (so it lands in visible area)
-    const offsetY = window.innerHeight * -0.10;
-    point.y -= offsetY;
+    // Pan map to this stop (offset on mobile)
+    state.map.flyTo(targetLatLng, 17, {
+      duration: 1.5
+    });
     
-    // Convert back to lat/lng
-    targetLatLng = map.containerPointToLatLng(point);
-  }
-  
-  // Pan map to this stop (offset on mobile)
-  state.map.flyTo(targetLatLng, 17, {
-    duration: 1.5
-  });
-  
-  // Wait for animation, then show overlay
-  setTimeout(() => {
-    this.showTourStop(stop, stopIndex, tour.tour_stops.length);
-  }, 1600);
-},
+    // Show path after first zoom completes (only once)
+    if (stopIndex === 0 && !state.tourPathShown) {
+      setTimeout(() => {
+        this.showTourPath(tour);
+        state.tourPathShown = true;
+      }, 1600);
+    }
+    
+    // Wait for animation, then show overlay
+    setTimeout(() => {
+      this.showTourStop(stop, stopIndex, tour.tour_stops.length);
+    }, 1600);
+  },
   
   showTourStop(stop, current, total) {
     const modal = document.createElement('div');
@@ -1579,15 +1586,22 @@ showTourPath(tour) {
     this.exitTour();
   },
   
-  exitTour() {
-    // Clean up tour layers
+    exitTour() {
+    // Clean up tour layers and routing control
     if (state.tourLayers) {
       state.tourLayers.forEach(layer => {
-        try { state.map.removeLayer(layer); } catch(e) {}
+        try { 
+          state.map.removeLayer(layer);
+          // If it's a routing control, also remove its container
+          if (layer._container) {
+            layer._container.remove();
+          }
+        } catch(e) {}
       });
       state.tourLayers = [];
     }
     state.activeTour = null;
+    state.tourPathShown = false;
   }
 };
 
