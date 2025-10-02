@@ -1471,7 +1471,7 @@ showTourPath(tour) {
     const point = map.latLngToContainerPoint(targetLatLng);
     
     // Shift the point up by ~40% of screen height (so it lands in visible area)
-    const offsetY = window.innerHeight * 0.35;
+    const offsetY = window.innerHeight * 0.70;
     point.y -= offsetY;
     
     // Convert back to lat/lng
