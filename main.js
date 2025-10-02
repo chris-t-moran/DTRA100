@@ -1473,88 +1473,88 @@ showTourPath(tour) {
     }, 1600);
   },
   
-   showTourStop(stop, current, total) {
-    const overlay = document.createElement('div');
-    overlay.className = 'tour-overlay';
+  showTourStop(stop, current, total) {
+    const modal = document.createElement('div');
+    modal.className = 'modal tour-modal';
     
-    // Truncate description for preview
-    const fullDesc = stop.articles.description || '';
-    const preview = fullDesc.length > 250 
-      ? fullDesc.slice(0, 250) + '...' 
-      : fullDesc;
-    
-    overlay.innerHTML = `
-      <div class="tour-overlay-content">
-        <div class="tour-overlay-header">
-          <span class="tour-stop-label">Stop ${current + 1} of ${total}</span>
-          <div class="tour-overlay-progress" style="width: ${((current + 1) / total) * 100}%"></div>
-          <button class="tour-overlay-close" type="button" title="Exit tour">×</button>
+    const content = document.createElement('div');
+    content.className = 'modal-content tour-content';
+    content.innerHTML = `
+      <div class="tour-progress">
+        <span>Stop ${current + 1} of ${total}</span>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: ${((current + 1) / total) * 100}%"></div>
         </div>
-        
-        ${stop.intro_text ? `
-          <div class="tour-intro">
-            <strong>Setting the scene:</strong> ${utils.escape(stop.intro_text)}
-          </div>
-        ` : ''}
-        
-        <div class="tour-overlay-body">
-          <h3>${utils.escape(stop.articles.title)}</h3>
-          
-          <img src="${stop.articles.img}" alt="${utils.escape(stop.articles.title)}" />
-          
-          <div class="tour-overlay-description">
-            ${preview.replace(/\n/g, '<br>')}
-            ${fullDesc.length > 250 ? '<button class="tour-read-more" type="button">Read full story →</button>' : ''}
-          </div>
-        </div>
-        
-        <div class="tour-overlay-nav">
-          ${current > 0 
-            ? '<button class="tour-prev-mini" type="button">← Previous</button>' 
-            : '<div></div>'}
-          ${current < total - 1 
-            ? '<button class="tour-next-mini" type="button">Next →</button>'
-            : '<button class="tour-complete-mini" type="button">Finish Tour ✓</button>'}
-        </div>
+        <button class="tour-exit" type="button">Exit Tour</button>
       </div>
+      
+      ${stop.intro_text ? `
+        <div class="tour-context">
+          <h3>Setting the Scene</h3>
+          <p>${utils.escape(stop.intro_text)}</p>
+        </div>
+      ` : ''}
+      
+      <header>
+        <h2>${utils.escape(stop.articles.title)}</h2>
+      </header>
+      
+      <div class="imgWrapper">
+        <img src="${stop.articles.img}" alt="${utils.escape(stop.articles.title)}" />
+      </div>
+      
+      <div class="descriptionWrapper">
+        <div class="modal-description">${(stop.articles.description || '').replace(/\n/g, '<br>')}</div>
+      </div>
+      
+      <footer class="tour-footer">
+        ${current > 0 ? '<button class="tour-prev" type="button">← Previous Stop</button>' : '<div></div>'}
+        ${current < total - 1 
+          ? '<button class="tour-next" type="button">Next Stop →</button>'
+          : '<button class="tour-complete" type="button">Complete Tour ✓</button>'
+        }
+      </footer>
     `;
     
-    document.body.appendChild(overlay);
-    requestAnimationFrame(() => overlay.classList.add('show'));
+    modal.appendChild(content);
     
     // Wire up navigation
-    overlay.querySelector('.tour-next-mini')?.addEventListener('click', () => {
-      overlay.classList.remove('show');
-      setTimeout(() => {
-        overlay.remove();
-        this.goToStop(current + 1);
-      }, 200);
+    content.querySelector('.tour-next')?.addEventListener('click', () => {
+      modal.remove();
+      this.goToStop(current + 1);
     });
     
-    overlay.querySelector('.tour-prev-mini')?.addEventListener('click', () => {
-      overlay.classList.remove('show');
-      setTimeout(() => {
-        overlay.remove();
-        this.goToStop(current - 1);
-      }, 200);
+    content.querySelector('.tour-prev')?.addEventListener('click', () => {
+      modal.remove();
+      this.goToStop(current - 1);
     });
     
-    overlay.querySelector('.tour-read-more')?.addEventListener('click', () => {
-      // Open full modal with complete article
-      openModal(stop.articles);
-    });
-    
-    overlay.querySelector('.tour-overlay-close')?.addEventListener('click', () => {
+    content.querySelector('.tour-exit')?.addEventListener('click', () => {
       if (confirm('Exit this tour?')) {
-        overlay.remove();
         this.exitTour();
+        modal.remove();
       }
     });
     
-    overlay.querySelector('.tour-complete-mini')?.addEventListener('click', () => {
-      overlay.remove();
+    content.querySelector('.tour-complete')?.addEventListener('click', () => {
+      modal.remove();
       this.completeTour();
     });
+    
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (!content.contains(e.target)) {
+        if (confirm('Exit this tour?')) {
+          this.exitTour();
+          modal.remove();
+        }
+      }
+    });
+    
+    content.addEventListener('click', (e) => e.stopPropagation());
+    
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('show'));
   },
   
   completeTour() {
