@@ -1415,38 +1415,45 @@ const tours = {
     this.goToStop(0);
   },
   
-  showTourPath(tour) {
-    // Clean up any existing tour layers
-    if (state.tourLayers) {
-      state.tourLayers.forEach(layer => state.map.removeLayer(layer));
-    }
-    state.tourLayers = [];
-    
-    // Draw path connecting all stops
-    const coordinates = tour.tour_stops.map(s => [s.articles.lat, s.articles.lon]);
-    
-    const pathLine = L.polyline(coordinates, {
-      color: '#2563eb',
-      weight: 3,
-      opacity: 0.7,
-      dashArray: '10, 10'
-    }).addTo(state.map);
-    
-    state.tourLayers.push(pathLine);
-    
-    // Add numbered markers for each stop
-    tour.tour_stops.forEach((stop, idx) => {
-      const marker = L.marker([stop.articles.lat, stop.articles.lon], {
+showTourPath(tour) {
+  // Clean up any existing tour layers
+  if (state.tourLayers) {
+    state.tourLayers.forEach(layer => state.map.removeLayer(layer));
+  }
+  state.tourLayers = [];
+  
+  const waypoints = tour.tour_stops.map(s => L.latLng(s.articles.lat, s.articles.lon));
+  
+  const routingControl = L.Routing.control({
+    waypoints: waypoints,
+    lineOptions: {
+      styles: [{ color: '#2563eb', opacity: 0.7, weight: 3 }]
+    },
+    createMarker: function(i, waypoint, n) {
+      // Return custom numbered markers
+      return L.marker(waypoint.latLng, {
         icon: L.divIcon({
           className: 'tour-stop-marker',
-          html: `<div class="tour-number">${idx + 1}</div>`,
+          html: `<div class="tour-number">${i + 1}</div>`,
           iconSize: [30, 30]
         })
-      }).addTo(state.map);
-      
-      state.tourLayers.push(marker);
-    });
-  },
+      });
+    },
+    routeWhileDragging: false,
+    addWaypoints: false,
+    draggableWaypoints: false,
+    fitSelectedRoutes: false,
+    showAlternatives: false
+  }).addTo(state.map);
+  
+  // Hide the text directions panel
+  const container = routingControl.getContainer();
+  if (container) {
+    container.style.display = 'none';
+  }
+  
+  state.tourLayers.push(routingControl);
+},
   
   goToStop(stopIndex) {
     const tour = state.activeTour;
