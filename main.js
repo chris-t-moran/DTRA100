@@ -1462,16 +1462,32 @@ showTourPath(tour) {
     const stop = tour.tour_stops[stopIndex];
     tour.currentStop = stopIndex;
     
-    // Pan map to this stop
-    state.map.flyTo([stop.articles.lat, stop.articles.lon], 17, {
-      duration: 1.5
-    });
     
-    // Wait for animation, then show modal
-    setTimeout(() => {
-      this.showTourStop(stop, stopIndex, tour.tour_stops.length);
-    }, 1600);
-  },
+  // On mobile, offset the target point upward so marker appears above the panel
+  let targetLatLng = [stop.articles.lat, stop.articles.lon];
+  
+  if (utils.isMobile()) {
+    const map = state.map;
+    const point = map.latLngToContainerPoint(targetLatLng);
+    
+    // Shift the point up by ~40% of screen height (so it lands in visible area)
+    const offsetY = window.innerHeight * 0.35;
+    point.y -= offsetY;
+    
+    // Convert back to lat/lng
+    targetLatLng = map.containerPointToLatLng(point);
+  }
+  
+  // Pan map to this stop (offset on mobile)
+  state.map.flyTo(targetLatLng, 17, {
+    duration: 1.5
+  });
+  
+  // Wait for animation, then show overlay
+  setTimeout(() => {
+    this.showTourStop(stop, stopIndex, tour.tour_stops.length);
+  }, 1600);
+},
   
   showTourStop(stop, current, total) {
     const modal = document.createElement('div');
