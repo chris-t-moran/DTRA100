@@ -346,6 +346,7 @@ dialog#story-form-dialog::backdrop {
   text-align: justify; 
   scrollbar-width: none; 
   padding: 25px;
+  max-height: 200px;
 }
 .descriptionWrapper::-webkit-scrollbar { display: none; }
 .progress-bar {
