@@ -868,3 +868,42 @@ dialog#tours-dialog::backdrop {
 
   
 }
+
+/* Add to your styles.css */
+.tour-modal .modal-content {
+  max-width: 450px;
+  max-height: 100vh;
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 0;
+  animation: slideInRight 0.3s ease forwards;
+  overflow-y: auto;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.tour-modal {
+  background: rgba(0,0,0,0.3); /* Lighter backdrop so map visible */
+}
+
+@media (max-width: 768px) {
+  .tour-modal .modal-content {
+    max-width: 100%;
+    max-height: 70vh;
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    border-radius: 12px 12px 0 0;
+    animation: slideInUp 0.3s ease forwards;
+  }
+  
+  @keyframes slideInUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+}
