@@ -773,7 +773,6 @@ function renderArticles(theme) {
     const msg = document.createElement('p');
     msg.textContent = `Showing 10 of ${filtered.length} stories`;
     msg.style.textAlign = 'center';
-    msg.style.color = '#6b7280';
     msg.style.marginTop = '1rem';
     msg.style.fontSize = '0.9rem';
     list.appendChild(msg);
