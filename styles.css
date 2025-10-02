@@ -871,7 +871,7 @@ dialog#tours-dialog::backdrop {
 
 /* Add to your styles.css */
 .tour-modal .modal-content {
-  max-width: 450px;
+  max-width: 570px;
   max-height: 100vh;
   position: fixed;
   left: 0;
