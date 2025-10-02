@@ -1588,17 +1588,24 @@ exitTour() {
   if (state.tourLayers) {
     state.tourLayers.forEach(layer => {
       try { 
-        // Remove from map first
-        state.map.removeLayer(layer);
-        
-        // For routing controls, need extra cleanup
-        if (layer._container && layer._container.parentNode) {
-          layer._container.parentNode.removeChild(layer._container);
+        // For routing controls, remove waypoint markers manually
+        if (layer._markers) {
+          layer._markers.forEach(marker => {
+            try { state.map.removeLayer(marker); } catch(e) {}
+          });
         }
         
-        // Also remove any routing lines it created
+        // Remove the line/route
         if (layer._line) {
           state.map.removeLayer(layer._line);
+        }
+        
+        // Remove the control itself
+        state.map.removeControl(layer);
+        
+        // Remove DOM container
+        if (layer._container && layer._container.parentNode) {
+          layer._container.parentNode.removeChild(layer._container);
         }
       } catch(e) {
         console.warn('Layer removal failed:', e);
@@ -1606,6 +1613,11 @@ exitTour() {
     });
     state.tourLayers = [];
   }
+  
+  // Fallback: remove any orphaned tour markers from DOM
+  document.querySelectorAll('.tour-stop-marker').forEach(el => {
+    try { el.parentNode.remove(); } catch(e) {}
+  });
   
   // Clean up any orphaned routing elements
   const routingContainers = document.querySelectorAll('.leaflet-routing-container');
