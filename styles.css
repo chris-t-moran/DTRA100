@@ -894,7 +894,6 @@ dialog#tours-dialog::backdrop {
 @media (max-width: 768px) {
   .tour-modal .modal-content {
     left: auto;  /* Disables the left: 0 from desktop */
-    right: 0;    /* Optional: keeps it on the right side */
     max-width: 100%;
     max-height: 70vh;
     position: fixed;
