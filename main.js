@@ -1503,45 +1503,57 @@ showTourPath(tour) {
 },
   
 goToStop(stopIndex) {
-    const tour = state.activeTour;
-    if (!tour || !tour.tour_stops[stopIndex]) return;
-    
-    const stop = tour.tour_stops[stopIndex];
-    tour.currentStop = stopIndex;
-    
-    // On mobile, offset the target point upward so marker appears above the panel
-    let targetLatLng = [stop.articles.lat, stop.articles.lon];
-    
-    if (utils.isMobile()) {
-      const map = state.map;
-      const point = map.latLngToContainerPoint(targetLatLng);
-      
-      // Shift the point up by -.10% of screen height (so it lands in visible area)
-      const offsetY = window.innerHeight * -0.10;
-      point.y -= offsetY;
-      
-      // Convert back to lat/lng
-      targetLatLng = map.containerPointToLatLng(point);
-    }
-    
-    // Pan map to this stop (offset on mobile)
-    state.map.flyTo(targetLatLng, 17, {
-      duration: 1.5
-    });
-    
-    // Show path after first zoom completes (only once)
-    if (stopIndex === 0 && !state.tourPathShown) {
-      setTimeout(() => {
-        this.showTourPath(tour);
-        state.tourPathShown = true;
-      }, 1600);
-    }
-    
-    // Wait for animation, then show overlay
+  const tour = state.activeTour;
+  if (!tour || !tour.tour_stops[stopIndex]) return;
+  
+  const stop = tour.tour_stops[stopIndex];
+  tour.currentStop = stopIndex;
+  
+  // Remove active class from all tour markers
+  document.querySelectorAll('.tour-number').forEach(el => {
+    el.classList.remove('active');
+  });
+  
+  // On mobile, offset the target point upward so marker appears above the panel
+  let targetLatLng = [stop.articles.lat, stop.articles.lon];
+  
+  if (utils.isMobile()) {
+    const map = state.map;
+    const point = map.latLngToContainerPoint(targetLatLng);
+    const offsetY = window.innerHeight * -0.10;
+    point.y -= offsetY;
+    targetLatLng = map.containerPointToLatLng(point);
+  }
+  
+  // Pan map to this stop (offset on mobile)
+  state.map.flyTo(targetLatLng, 17, {
+    duration: 1.5
+  });
+  
+  // Show path after first zoom completes (only once)
+  if (stopIndex === 0 && !state.tourPathShown) {
     setTimeout(() => {
-      this.showTourStop(stop, stopIndex, tour.tour_stops.length);
+      this.showTourPath(tour);
+      state.tourPathShown = true;
+      // Mark first marker as active after path is drawn
+      setTimeout(() => {
+        const markers = document.querySelectorAll('.tour-number');
+        if (markers[stopIndex]) markers[stopIndex].classList.add('active');
+      }, 100);
     }, 1600);
-  },
+  } else {
+    // Mark current marker as active immediately
+    setTimeout(() => {
+      const markers = document.querySelectorAll('.tour-number');
+      if (markers[stopIndex]) markers[stopIndex].classList.add('active');
+    }, 1700); // After zoom completes
+  }
+  
+  // Wait for animation, then show overlay
+  setTimeout(() => {
+    this.showTourStop(stop, stopIndex, tour.tour_stops.length);
+  }, 1600);
+},
   
 showTourStop(stop, current, total) {
   const modal = document.createElement('div');
