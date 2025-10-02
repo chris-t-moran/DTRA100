@@ -874,7 +874,7 @@ dialog#tours-dialog::backdrop {
   max-width: 450px;
   max-height: 100vh;
   position: fixed;
-  right: 0;
+  left: 0;
   top: 0;
   bottom: 0;
   border-radius: 0;
@@ -883,7 +883,7 @@ dialog#tours-dialog::backdrop {
 }
 
 @keyframes slideInLeft {
-  from { transform: translateX(100%); }
+  from { transform: translateX(-100%); }
   to { transform: translateX(0); }
 }
 
