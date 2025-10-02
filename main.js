@@ -1493,89 +1493,89 @@ goToStop(stopIndex) {
     }, 1600);
   },
   
-  showTourStop(stop, current, total) {
-    const modal = document.createElement('div');
-    modal.className = 'modal tour-modal';
-    
-    const content = document.createElement('div');
-    content.className = 'modal-content tour-content';
-    content.innerHTML = `
-      <div class="tour-progress">
+showTourStop(stop, current, total) {
+  const modal = document.createElement('div');
+  modal.className = 'modal tour-modal';
+  
+  const content = document.createElement('div');
+  content.className = 'modal-content tour-content';
+  content.innerHTML = `
+    <div class="tour-progress">
+      <div class="tour-progress-top">
         <span>Stop ${current + 1} of ${total}</span>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" style="width: ${((current + 1) / total) * 100}%"></div>
-        </div>
         <button class="tour-exit" type="button">Exit Tour</button>
       </div>
-      
-      ${stop.intro_text ? `
-        <div class="tour-context">
-          <h3>Setting the Scene</h3>
-          <p>${utils.escape(stop.intro_text)}</p>
-        </div>
-      ` : ''}
-      
-      <header>
-        <h2>${utils.escape(stop.articles.title)}</h2>
-      </header>
-      
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" style="width: ${((current + 1) / total) * 100}%"></div>
+      </div>
+      <div class="tour-progress-nav">
+        ${current > 0 ? '<button class="tour-prev" type="button">← Previous</button>' : '<div></div>'}
+        ${current < total - 1 
+          ? '<button class="tour-next" type="button">Next →</button>'
+          : '<button class="tour-complete" type="button">Finish Tour ✓</button>'
+        }
+      </div>
+    </div>
+    
+    ${stop.intro_text ? `
+      <div class="tour-context">
+        <h3>Setting the Scene</h3>
+        <p>${utils.escape(stop.intro_text)}</p>
+      </div>
+    ` : ''}
+    
+    <header>
+      <h2>${utils.escape(stop.articles.title)}</h2>
+    </header>
+  
+    <div class="descriptionWrapper">
       <div class="imgWrapper">
         <img src="${stop.articles.img}" alt="${utils.escape(stop.articles.title)}" />
       </div>
-      
-      <div class="descriptionWrapper">
-        <div class="modal-description">${(stop.articles.description || '').replace(/\n/g, '<br>')}</div>
-      </div>
-      
-      <footer class="tour-footer">
-        ${current > 0 ? '<button class="tour-prev" type="button">← Previous Stop</button>' : '<div></div>'}
-        ${current < total - 1 
-          ? '<button class="tour-next" type="button">Next Stop →</button>'
-          : '<button class="tour-complete" type="button">Complete Tour ✓</button>'
-        }
-      </footer>
-    `;
-    
-    modal.appendChild(content);
-    
-    // Wire up navigation
-    content.querySelector('.tour-next')?.addEventListener('click', () => {
+    <div class="modal-description">${(stop.articles.description || '').replace(/\n/g, '<br>')}</div>
+    </div>
+  `;
+  
+  modal.appendChild(content);
+  
+  // Wire up navigation (same event handlers)
+  content.querySelector('.tour-next')?.addEventListener('click', () => {
+    modal.remove();
+    this.goToStop(current + 1);
+  });
+  
+  content.querySelector('.tour-prev')?.addEventListener('click', () => {
+    modal.remove();
+    this.goToStop(current - 1);
+  });
+  
+  content.querySelector('.tour-exit')?.addEventListener('click', () => {
+    if (confirm('Exit this tour?')) {
+      this.exitTour();
       modal.remove();
-      this.goToStop(current + 1);
-    });
-    
-    content.querySelector('.tour-prev')?.addEventListener('click', () => {
-      modal.remove();
-      this.goToStop(current - 1);
-    });
-    
-    content.querySelector('.tour-exit')?.addEventListener('click', () => {
+    }
+  });
+  
+  content.querySelector('.tour-complete')?.addEventListener('click', () => {
+    modal.remove();
+    this.completeTour();
+  });
+  
+  // Close on backdrop click
+  modal.addEventListener('click', (e) => {
+    if (!content.contains(e.target)) {
       if (confirm('Exit this tour?')) {
         this.exitTour();
         modal.remove();
       }
-    });
-    
-    content.querySelector('.tour-complete')?.addEventListener('click', () => {
-      modal.remove();
-      this.completeTour();
-    });
-    
-    // Close on backdrop click
-    modal.addEventListener('click', (e) => {
-      if (!content.contains(e.target)) {
-        if (confirm('Exit this tour?')) {
-          this.exitTour();
-          modal.remove();
-        }
-      }
-    });
-    
-    content.addEventListener('click', (e) => e.stopPropagation());
-    
-    document.body.appendChild(modal);
-    requestAnimationFrame(() => modal.classList.add('show'));
-  },
+    }
+  });
+  
+  content.addEventListener('click', (e) => e.stopPropagation());
+  
+  document.body.appendChild(modal);
+  requestAnimationFrame(() => modal.classList.add('show'));
+},
   
   completeTour() {
     const duration = Math.round((Date.now() - state.activeTour.startedAt) / 60000);
