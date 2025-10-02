@@ -878,11 +878,11 @@ dialog#tours-dialog::backdrop {
   top: 0;
   bottom: 0;
   border-radius: 0;
-  animation: slideInRight 0.3s ease forwards;
+  animation: slideInLeft 0.3s ease forwards;
   overflow-y: auto;
 }
 
-@keyframes slideInRight {
+@keyframes slideInLeft {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
