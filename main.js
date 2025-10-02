@@ -739,13 +739,17 @@ function renderArticles(theme) {
     ? state.articles.filter(a => a.theme === theme)
     : state.articles;
   
+  // Shuffle and limit to 10 articles
+  const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+  const limited = shuffled.slice(0, 10);
+  
   const list = document.getElementById('article-list');
   list.innerHTML = '';
   
   const grid = document.createElement('ul');
   grid.className = 'grid';
   
-  filtered.forEach(article => {
+  limited.forEach(article => {
     const li = document.createElement('li');
     li.className = 'card';
     li.dataset.articleId = article.id;
@@ -763,6 +767,17 @@ function renderArticles(theme) {
   });
   
   list.appendChild(grid);
+  
+  // Optional: show how many articles exist vs displayed
+  if (filtered.length > 10) {
+    const msg = document.createElement('p');
+    msg.textContent = `Showing 10 of ${filtered.length} stories`;
+    msg.style.textAlign = 'center';
+    msg.style.color = '#6b7280';
+    msg.style.marginTop = '1rem';
+    msg.style.fontSize = '0.9rem';
+    list.appendChild(msg);
+  }
 }
 
 // =============================================================================
