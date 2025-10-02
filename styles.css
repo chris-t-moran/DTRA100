@@ -773,7 +773,7 @@ dialog#tours-dialog::backdrop {
   font-size: 0.9rem;
 }
 
-.tour-next, .tour-complete {
+.tour-next, .tour-complete, .tour-prev, .tour-exit {
   background: #4caf50;
   color: white;
   border-color: #4caf50;
