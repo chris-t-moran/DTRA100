@@ -868,3 +868,209 @@ dialog#tours-dialog::backdrop {
 
   
 }
+
+
+/* Tour Overlay - Compact info card that doesn't obscure the map */
+.tour-overlay {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 380px;
+  max-height: 80vh;
+  z-index: 1001;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.tour-overlay.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tour-overlay-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+
+.tour-overlay-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #2563eb;
+  color: white;
+}
+
+.tour-stop-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  z-index: 2;
+}
+
+.tour-overlay-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.5);
+  transition: width 0.3s ease;
+}
+
+.tour-overlay-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+  z-index: 2;
+}
+
+.tour-overlay-close:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.tour-intro {
+  padding: 12px 16px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.tour-intro strong {
+  color: #92400e;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.tour-overlay-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.tour-overlay-body h3 {
+  padding: 12px 16px 8px;
+  margin: 0;
+  font-size: 1.1rem;
+  color: #4caf50;
+}
+
+.tour-overlay-body img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.tour-overlay-description {
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.tour-read-more {
+  display: block;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  width: 100%;
+  color: #2563eb;
+  transition: background 0.2s;
+}
+
+.tour-read-more:hover {
+  background: #e5e7eb;
+}
+
+.tour-overlay-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.tour-overlay-nav button {
+  padding: 10px 16px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.tour-overlay-nav button:hover {
+  background: #f9fafb;
+  transform: translateY(-1px);
+}
+
+.tour-next-mini, .tour-complete-mini {
+  background: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
+.tour-next-mini:hover, .tour-complete-mini:hover {
+  background: #45a049;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .tour-overlay {
+    bottom: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    max-height: 65vh;
+  }
+  
+  .tour-overlay-content {
+    border-radius: 16px 16px 0 0;
+    max-height: 65vh;
+  }
+  
+  .tour-overlay-body img {
+    height: 180px;
+  }
+}
+
+@media (max-width: 500px) {
+  .tour-overlay {
+    max-height: 70vh;
+  }
+  
+  .tour-overlay-nav {
+    flex-direction: column;
+  }
+  
+  .tour-overlay-nav button {
+    width: 100%;
+  }
+}
