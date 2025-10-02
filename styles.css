@@ -340,8 +340,12 @@ dialog#story-form-dialog::backdrop {
 .imgWrapper:hover img { transform: scale(1.1); }
 
 .descriptionWrapper {
-  background-color: #ffffff; max-height: 200px; overflow-y: auto; margin-top: 10px;
-  text-align: justify; scrollbar-width: none; padding: 25px;
+  background-color: #ffffff; 
+  overflow-y: auto; 
+  margin-top: 10px;
+  text-align: justify; 
+  scrollbar-width: none; 
+  padding: 25px;
 }
 .descriptionWrapper::-webkit-scrollbar { display: none; }
 .progress-bar {
@@ -762,7 +766,6 @@ dialog#tours-dialog::backdrop {
 .tour-progress-nav button {
   padding: 8px 16px;
   border: 1px solid #d1d5db;
-  background: white;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
