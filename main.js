@@ -1409,10 +1409,7 @@ const tours = {
       startedAt: Date.now()
     };
     
-    // Show tour path on map
-    this.showTourPath(tour);
-    // Go to first stop
-    this.goToStop(0);
+  this.goToStop(0);
   },
   
 showTourPath(tour) {
@@ -1586,23 +1583,39 @@ goToStop(stopIndex) {
     this.exitTour();
   },
   
-    exitTour() {
-    // Clean up tour layers and routing control
-    if (state.tourLayers) {
-      state.tourLayers.forEach(layer => {
-        try { 
-          state.map.removeLayer(layer);
-          // If it's a routing control, also remove its container
-          if (layer._container) {
-            layer._container.remove();
-          }
-        } catch(e) {}
-      });
-      state.tourLayers = [];
-    }
-    state.activeTour = null;
-    state.tourPathShown = false;
+exitTour() {
+  // Clean up tour layers and routing control
+  if (state.tourLayers) {
+    state.tourLayers.forEach(layer => {
+      try { 
+        // Remove from map first
+        state.map.removeLayer(layer);
+        
+        // For routing controls, need extra cleanup
+        if (layer._container && layer._container.parentNode) {
+          layer._container.parentNode.removeChild(layer._container);
+        }
+        
+        // Also remove any routing lines it created
+        if (layer._line) {
+          state.map.removeLayer(layer._line);
+        }
+      } catch(e) {
+        console.warn('Layer removal failed:', e);
+      }
+    });
+    state.tourLayers = [];
   }
+  
+  // Clean up any orphaned routing elements
+  const routingContainers = document.querySelectorAll('.leaflet-routing-container');
+  routingContainers.forEach(container => {
+    try { container.remove(); } catch(e) {}
+  });
+  
+  state.activeTour = null;
+  state.tourPathShown = false;
+}
 };
 
 function showToursDialog() {
