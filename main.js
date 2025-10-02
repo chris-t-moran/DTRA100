@@ -1469,8 +1469,8 @@ goToStop(stopIndex) {
       const map = state.map;
       const point = map.latLngToContainerPoint(targetLatLng);
       
-      // Shift the point up by ~35% of screen height (so it lands in visible area)
-      const offsetY = window.innerHeight * -0.15;
+      // Shift the point up by -.10% of screen height (so it lands in visible area)
+      const offsetY = window.innerHeight * -0.10;
       point.y -= offsetY;
       
       // Convert back to lat/lng
