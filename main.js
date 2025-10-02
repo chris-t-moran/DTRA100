@@ -1339,6 +1339,40 @@ if (document.readyState === 'loading') {
 // Tours System
 // =============================================================================
 
+function slideContentPanelDown() {
+  if (!utils.isMobile()) return; // Mobile only
+  
+  const content = document.getElementById('content');
+  if (!content) return;
+  
+  const vh = window.innerHeight;
+  const targetTop = Math.round(vh * 0.85); // Slide to 85% down (shows 15% of content)
+  
+  const prev = content.style.transition;
+  content.style.transition = 'top 400ms ease';
+  content.style.top = targetTop + 'px';
+  
+  setTimeout(() => { content.style.transition = prev || ''; }, 500);
+}
+
+function restoreContentPanel() {
+  if (!utils.isMobile()) return;
+  
+  const content = document.getElementById('content');
+  if (!content) return;
+  
+  const vh = window.innerHeight;
+  const defaultTop = Math.round(vh * 0.5); // Back to 50%
+  
+  const prev = content.style.transition;
+  content.style.transition = 'top 400ms ease';
+  content.style.top = defaultTop + 'px';
+  
+  setTimeout(() => { content.style.transition = prev || ''; }, 500);
+}
+
+
+
 const tours = {
   async loadAll() {
     try {
@@ -1422,7 +1456,9 @@ const tours = {
       currentStop: 0,
       startedAt: Date.now()
     };
-    
+
+   // Slide content panel down on mobile
+  slideContentPanelDown();    
   this.goToStop(0);
   },
   
@@ -1641,6 +1677,8 @@ exitTour() {
   
   state.activeTour = null;
   state.tourPathShown = false;
+
+  restoreContentPanel();
 }
 };
 
