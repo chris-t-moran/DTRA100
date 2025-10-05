@@ -761,6 +761,76 @@ function clearResidentFilter() {
 }
 
 // =============================================================================
+// Article Search System
+// =============================================================================
+
+const articleSearch = {
+  // Search articles by query string
+  search(query, articles) {
+    if (!query || query.trim().length === 0) {
+      return articles;
+    }
+    
+    const searchTerms = query.toLowerCase().trim().split(/\s+/);
+    
+    return articles.filter(article => {
+      const searchableText = [
+        article.title || '',
+        article.short_desc || '',
+        article.description || '',
+        article.theme || '',
+        article.contributor || ''
+      ].join(' ').toLowerCase();
+      
+      // Article matches if it contains ALL search terms
+      return searchTerms.every(term => searchableText.includes(term));
+    });
+  },
+  
+  // Render search UI
+  createSearchBox() {
+    const container = document.createElement('div');
+    container.className = 'article-search-container';
+    container.innerHTML = `
+      <div class="article-search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20">
+          <circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <input 
+          type="search" 
+          id="article-search-input"
+          placeholder="Search stories by title, description, or theme..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button type="button" class="search-clear-btn" id="search-clear-btn" style="display:none;">
+          ×
+        </button>
+      </div>
+      <div id="search-results-count" class="search-results-count"></div>
+    `;
+    
+    return container;
+  },
+  
+  // Update results count display
+  updateResultsCount(filtered, total, query) {
+    const countEl = document.getElementById('search-results-count');
+    if (!countEl) return;
+    
+    if (query && filtered.length !== total) {
+      countEl.textContent = `Found ${filtered.length} of ${total} stories`;
+      countEl.style.display = 'block';
+    } else {
+      countEl.style.display = 'none';
+    }
+  }
+};
+
+
+
+// =============================================================================
 // UI - Article Grid & Themes
 // =============================================================================
 
@@ -774,11 +844,54 @@ function renderThemes() {
   const container = document.getElementById('themes');
   container.innerHTML = '';
   
+  // Add search box at the top
+  const searchBox = articleSearch.createSearchBox();
+  container.appendChild(searchBox);
+  
+  // Wire up search functionality
+  const searchInput = document.getElementById('article-search-input');
+  const clearBtn = document.getElementById('search-clear-btn');
+  
+  searchInput.addEventListener('input', utils.debounce((e) => {
+    const query = e.target.value;
+    
+    // Show/hide clear button
+    if (clearBtn) {
+      clearBtn.style.display = query ? 'block' : 'none';
+    }
+    
+    // Clear active theme when searching
+    if (query) {
+      state.activeTheme = null;
+      setActiveTheme(null);
+    }
+    
+    renderArticles(state.activeTheme, query);
+  }, 300));
+  
+  // Clear button functionality
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      clearBtn.style.display = 'none';
+      renderArticles(state.activeTheme, '');
+      searchInput.focus();
+    });
+  }
+  
+  // Create theme buttons container
+  const themesWrapper = document.createElement('div');
+  themesWrapper.className = 'themes-buttons';
+  
   Object.keys(themes).forEach(theme => {
     const btn = document.createElement('div');
     btn.className = 'theme';
     btn.textContent = theme;
     btn.addEventListener('click', () => {
+      // Clear search when selecting theme
+      searchInput.value = '';
+      if (clearBtn) clearBtn.style.display = 'none';
+      
       if (state.activeTheme === theme) {
         state.activeTheme = null;
         renderArticles(null);
@@ -789,7 +902,7 @@ function renderThemes() {
         setActiveTheme(theme);
       }
     });
-    container.appendChild(btn);
+    themesWrapper.appendChild(btn);
   });
   
   const lucky = document.createElement('div');
@@ -800,34 +913,49 @@ function renderThemes() {
     const random = state.articles[Math.floor(Math.random() * state.articles.length)];
     if (random) openModal(random);
   });
-  container.appendChild(lucky);
+  themesWrapper.appendChild(lucky);
 
   const toursBtn = document.createElement('div');
   toursBtn.className = 'theme theme-tours';
   toursBtn.textContent = '🚶 Guided Tours';
   toursBtn.style.background = '#2563eb';
   toursBtn.addEventListener('click', () => showToursDialog());
-  container.appendChild(toursBtn);
+  themesWrapper.appendChild(toursBtn);
+  
+  container.appendChild(themesWrapper);
 }
 
 function setActiveTheme(theme) {
-  document.querySelectorAll('#themes .theme').forEach(el => {
+  document.querySelectorAll('.themes-buttons .theme').forEach(el => {
     el.classList.toggle('active', el.textContent === theme);
   });
 }
 
-function renderArticles(theme) {
-  const filtered = theme 
+function renderArticles(theme, searchQuery = null) {
+  // Start with theme filter
+  let filtered = theme 
     ? state.articles.filter(a => a.theme === theme)
     : state.articles;
   
+  // Apply search filter if query exists
+  const query = searchQuery || document.getElementById('article-search-input')?.value || '';
+  if (query.trim()) {
+    filtered = articleSearch.search(query, filtered);
+  }
+  
   const list = document.getElementById('article-list');
   
+  // Show empty state if no matches
   if (filtered.length === 0) {
-    loadingUI.showEmpty('article-list', `No stories found for "${theme}"`);
+    const message = query 
+      ? `No stories found matching "${query}"`
+      : `No stories found for "${theme}"`;
+    loadingUI.showEmpty('article-list', message);
+    articleSearch.updateResultsCount(0, state.articles.length, query);
     return;
   }
   
+  // Shuffle and limit to 10 articles
   const shuffled = [...filtered].sort(() => Math.random() - 0.5);
   const limited = shuffled.slice(0, 10);
   
@@ -857,12 +985,16 @@ function renderArticles(theme) {
   
   list.appendChild(grid);
   
+  // Show count message
   if (filtered.length > 10) {
     const msg = document.createElement('p');
     msg.textContent = `Showing 10 of ${filtered.length} stories`;
     msg.style.cssText = 'text-align:center;margin-top:1rem;font-size:0.9rem;color:#6b7280';
     list.appendChild(msg);
   }
+  
+  // Update search results count
+  articleSearch.updateResultsCount(filtered.length, state.articles.length, query);
 }
 
 // =============================================================================
