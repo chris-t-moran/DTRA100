@@ -1514,6 +1514,12 @@ goToStop(stopIndex) {
     el.classList.remove('active');
   });
   
+  // Add active class to current marker BEFORE zoom
+  setTimeout(() => {
+    const markers = document.querySelectorAll('.tour-number');
+    if (markers[stopIndex]) markers[stopIndex].classList.add('active');
+  }, 100);
+  
   // On mobile, offset the target point upward so marker appears above the panel
   let targetLatLng = [stop.articles.lat, stop.articles.lon];
   
@@ -1535,18 +1541,7 @@ goToStop(stopIndex) {
     setTimeout(() => {
       this.showTourPath(tour);
       state.tourPathShown = true;
-      // Mark first marker as active after path is drawn
-      setTimeout(() => {
-        const markers = document.querySelectorAll('.tour-number');
-        if (markers[stopIndex]) markers[stopIndex].classList.add('active');
-      }, 100);
     }, 1600);
-  } else {
-    // Mark current marker as active immediately
-    setTimeout(() => {
-      const markers = document.querySelectorAll('.tour-number');
-      if (markers[stopIndex]) markers[stopIndex].classList.add('active');
-    }, 1700); // After zoom completes
   }
   
   // Wait for animation, then show overlay
