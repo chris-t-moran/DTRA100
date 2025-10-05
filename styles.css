@@ -241,6 +241,9 @@ dialog#story-form-dialog::backdrop {
   width: 100%;
   margin-top: 1.5rem;
   margin-bottom: 1rem;
+}
+
+.themes-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
