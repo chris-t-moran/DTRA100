@@ -273,7 +273,7 @@ dialog#story-form-dialog::backdrop {
 }
 
 /* Article listing */
-#article-list { width: 100%; max-width: 570px; padding-top: 10px; }
+#article-list { width: 100%; max-width: 570px; padding-top: 10px; padding-bottom: 10px; }
 #article-list ul.grid {
   list-style: none; padding: 0; margin: 0;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
