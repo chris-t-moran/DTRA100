@@ -1514,11 +1514,13 @@ goToStop(stopIndex) {
     el.classList.remove('active');
   });
   
-  // Add active class to current marker BEFORE zoom
-  setTimeout(() => {
-    const markers = document.querySelectorAll('.tour-number');
-    if (markers[stopIndex]) markers[stopIndex].classList.add('active');
-  }, 100);
+  // For stops after the first, add active class immediately
+  if (stopIndex > 0) {
+    setTimeout(() => {
+      const markers = document.querySelectorAll('.tour-number');
+      if (markers[stopIndex]) markers[stopIndex].classList.add('active');
+    }, 100);
+  }
   
   // On mobile, offset the target point upward so marker appears above the panel
   let targetLatLng = [stop.articles.lat, stop.articles.lon];
@@ -1541,6 +1543,11 @@ goToStop(stopIndex) {
     setTimeout(() => {
       this.showTourPath(tour);
       state.tourPathShown = true;
+      // Now add active class to first marker after path is drawn
+      setTimeout(() => {
+        const markers = document.querySelectorAll('.tour-number');
+        if (markers[0]) markers[0].classList.add('active');
+      }, 100);
     }, 1600);
   }
   
