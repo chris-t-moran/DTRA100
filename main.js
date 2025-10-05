@@ -800,7 +800,7 @@ const articleSearch = {
         <input 
           type="search" 
           id="article-search-input"
-          placeholder="Search stories by title, description, or theme..."
+          placeholder="Search stories keyword..."
           autocomplete="off"
           spellcheck="false"
         />
