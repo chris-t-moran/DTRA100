@@ -134,6 +134,157 @@ const utils = {
   }
 };
 
+
+// =============================================================================
+// Keyboard Shortcuts Help
+// =============================================================================
+
+const keyboardShortcuts = {
+  show() {
+    const existing = document.getElementById('keyboard-help');
+    if (existing) {
+      existing.remove();
+      return;
+    }
+    
+    const help = document.createElement('div');
+    help.id = 'keyboard-help';
+    help.className = 'keyboard-help-overlay';
+    help.setAttribute('role', 'dialog');
+    help.setAttribute('aria-labelledby', 'keyboard-help-title');
+    help.innerHTML = `
+      <div class="keyboard-help-content">
+        <header>
+          <h2 id="keyboard-help-title">Keyboard Shortcuts</h2>
+          <button class="close-btn" type="button" aria-label="Close help">×</button>
+        </header>
+        <div class="shortcuts-list">
+          <div class="shortcut-item">
+            <kbd>Esc</kbd>
+            <span>Close modal or dialog</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>←</kbd> <kbd>→</kbd>
+            <span>Navigate between articles in modal</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>Tab</kbd>
+            <span>Move between interactive elements</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>Shift + Tab</kbd>
+            <span>Move backward between elements</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>?</kbd>
+            <span>Show this help</span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(help);
+    
+    const closeHelp = () => help.remove();
+    help.querySelector('.close-btn').addEventListener('click', closeHelp);
+    help.addEventListener('click', (e) => {
+      if (e.target === help) closeHelp();
+    });
+    
+    help.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeHelp();
+    });
+    
+    requestAnimationFrame(() => help.classList.add('show'));
+    
+    // Focus first button
+    setTimeout(() => help.querySelector('.close-btn').focus(), 100);
+  }
+};
+
+// Global keyboard shortcut listener
+document.addEventListener('keydown', (e) => {
+  // Show help with ? key (shift + /)
+  if (e.key === '?' && !e.target.matches('input, textarea')) {
+    e.preventDefault();
+    keyboardShortcuts.show();
+  }
+});
+
+// Add help button to page (optional - can be added to your HTML)
+function addKeyboardHelpButton() {
+  const btn = document.createElement('button');
+  btn.className = 'keyboard-help-btn';
+  btn.type = 'button';
+  btn.setAttribute('aria-label', 'Keyboard shortcuts help');
+  btn.innerHTML = '?';
+  btn.addEventListener('click', () => keyboardShortcuts.show());
+  document.body.appendChild(btn);
+}
+
+
+// =============================================================================
+// Accessibility Enhancements
+// =============================================================================
+
+const a11y = {
+  // Focus trap for modals
+  trapFocus(container) {
+    const focusableElements = container.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    
+    const handleTab = (e) => {
+      if (e.key !== 'Tab') return;
+      
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+    
+    container.addEventListener('keydown', handleTab);
+    
+    // Focus first element
+    if (firstElement) {
+      setTimeout(() => firstElement.focus(), 100);
+    }
+    
+    return () => container.removeEventListener('keydown', handleTab);
+  },
+  
+  // Announce to screen readers
+  announce(message, priority = 'polite') {
+    const announcer = document.getElementById('sr-announcer') || this.createAnnouncer();
+    announcer.setAttribute('aria-live', priority);
+    announcer.textContent = message;
+    
+    // Clear after announcement
+    setTimeout(() => {
+      announcer.textContent = '';
+    }, 1000);
+  },
+  
+  createAnnouncer() {
+    const announcer = document.createElement('div');
+    announcer.id = 'sr-announcer';
+    announcer.className = 'sr-only';
+    announcer.setAttribute('aria-live', 'polite');
+    announcer.setAttribute('aria-atomic', 'true');
+    document.body.appendChild(announcer);
+    return announcer;
+  }
+};
+
 // =============================================================================
 // Reactions System
 // =============================================================================
@@ -1091,8 +1242,12 @@ function panMarkerIntoView(marker) {
 
 let currentModal = null;
 
+// Clean up when closing modal
 function openModal(article) {
   if (currentModal) {
+    // Clean up old modal's event listeners
+    if (currentModal._cleanupKeyboard) currentModal._cleanupKeyboard();
+    if (currentModal._cleanupFocusTrap) currentModal._cleanupFocusTrap();
     updateModalContent(article);
     return;
   }
@@ -1108,10 +1263,14 @@ function openModal(article) {
   }
 }
 
+
 function createModal(article) {
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.dataset.articleId = article.id;
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'modal-title');
   
   const content = document.createElement('div');
   content.className = 'modal-content';
@@ -1119,6 +1278,7 @@ function createModal(article) {
   
   modal.appendChild(content);
 
+  // Load reactions
   (async () => {
     const data = await reactions.load(article.id);
     const container = content.querySelector(`#reactions-container-${article.id}`);
@@ -1144,31 +1304,65 @@ function createModal(article) {
         revealAndHighlightMarker(article);
       }
     }
+    
+    // Restore focus to trigger element if possible
+    if (modal._triggerElement) {
+      modal._triggerElement.focus();
+    }
+    
+    // Announce to screen readers
+    a11y.announce('Article closed');
   };
   
+  // Store what triggered the modal for focus restoration
+  modal._triggerElement = document.activeElement;
+  
+  // Backdrop click
   modal.addEventListener('click', (e) => {
     if (!content.contains(e.target)) closeModal();
   });
   
   content.addEventListener('click', (e) => e.stopPropagation());
   
-  const onEsc = (e) => {
-    if (e.key === 'Escape') {
-      closeModal();
-      window.removeEventListener('keydown', onEsc);
+  // Keyboard handlers
+  const handleKeyboard = (e) => {
+    switch(e.key) {
+      case 'Escape':
+        closeModal();
+        break;
+      case 'ArrowLeft':
+        if (!e.target.matches('input, textarea')) {
+          e.preventDefault();
+          navigateModal(-1);
+        }
+        break;
+      case 'ArrowRight':
+        if (!e.target.matches('input, textarea')) {
+          e.preventDefault();
+          navigateModal(1);
+        }
+        break;
     }
   };
-  window.addEventListener('keydown', onEsc);
   
+  window.addEventListener('keydown', handleKeyboard);
+  modal._cleanupKeyboard = () => window.removeEventListener('keydown', handleKeyboard);
+  
+  // Navigation buttons
   content.querySelector('.nav-prev')?.addEventListener('click', () => navigateModal(-1));
   content.querySelector('.nav-next')?.addEventListener('click', () => navigateModal(1));
   
+  // Share button
   content.querySelector('.modal-share-btn')?.addEventListener('click', async () => {
     const url = utils.getPermalink(article.id);
     const shareData = { title: article.title, text: article.short_desc, url };
     
     if (navigator.share) {
-      try { await navigator.share(shareData); return; } catch(e) {}
+      try { 
+        await navigator.share(shareData);
+        a11y.announce('Story shared successfully');
+        return;
+      } catch(e) {}
     }
     
     try {
@@ -1176,9 +1370,19 @@ function createModal(article) {
       const btn = content.querySelector('.modal-share-btn');
       const old = btn.innerHTML;
       btn.innerHTML = 'Copied!';
+      a11y.announce('Link copied to clipboard');
       setTimeout(() => btn.innerHTML = old, 900);
-    } catch(e) {}
+    } catch(e) {
+      a11y.announce('Failed to copy link', 'assertive');
+    }
   });
+  
+  // Set up focus trap
+  const cleanupFocusTrap = a11y.trapFocus(content);
+  modal._cleanupFocusTrap = cleanupFocusTrap;
+  
+  // Announce to screen readers
+  a11y.announce(`Article opened: ${article.title}`);
   
   return modal;
 }
@@ -1892,14 +2096,19 @@ const tours = {
   }
 };
 
+// =============================================================================
+// Enhanced Tours Dialog with Keyboard Support
+// =============================================================================
+
 function showToursDialog() {
   const dialog = document.createElement('dialog');
   dialog.id = 'tours-dialog';
+  dialog.setAttribute('aria-labelledby', 'tours-dialog-title');
   dialog.innerHTML = `
     <div class="tours-gallery">
       <header>
-        <h2>Guided Tours</h2>
-        <button class="close-btn" type="button">×</button>
+        <h2 id="tours-dialog-title">Guided Tours</h2>
+        <button class="close-btn" type="button" aria-label="Close tours dialog">×</button>
       </header>
       <div id="tours-list">
         <div class="loading-state">
@@ -1912,13 +2121,27 @@ function showToursDialog() {
   
   document.body.appendChild(dialog);
   
-  dialog.querySelector('.close-btn').addEventListener('click', () => {
+  const closeDialog = () => {
     dialog.close();
     setTimeout(() => document.body.removeChild(dialog), 300);
+  };
+  
+  dialog.querySelector('.close-btn').addEventListener('click', closeDialog);
+  
+  // Keyboard support
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeDialog();
+    }
   });
   
   dialog.showModal();
   
+  // Set up focus trap
+  const cleanupFocusTrap = a11y.trapFocus(dialog);
+  dialog.addEventListener('close', cleanupFocusTrap);
+  
+  // Load tours
   tours.loadAll()
     .then(data => {
       const list = dialog.querySelector('#tours-list');
@@ -1930,13 +2153,13 @@ function showToursDialog() {
       
       list.innerHTML = data.map(tour => `
         <div class="tour-card" data-tour-id="${tour.id}">
-          ${tour.cover_image ? `<img src="${tour.cover_image}" alt="${utils.escape(tour.title)}" />` : ''}
+          ${tour.cover_image ? `<img src="${tour.cover_image}" alt="" />` : ''}
           <div class="tour-card-content">
             <h3>${utils.escape(tour.title)}</h3>
             <p>${utils.escape(tour.description || '')}</p>
             <div class="tour-meta">
               <span>${tour.tour_stops?.length || 0} stops</span>
-              ${tour.duration_minutes ? `<span>~${tour.duration_minutes} min</span>` : ''}
+              ${tour.duration_minutes ? `<span>~${tour.duration_minutes} minutes</span>` : ''}
             </div>
             <button class="sf-btn sf-btn-primary" type="button">Start Tour</button>
           </div>
@@ -1947,17 +2170,18 @@ function showToursDialog() {
         btn.addEventListener('click', (e) => {
           const card = e.target.closest('.tour-card');
           const tourId = Number(card.dataset.tourId);
-          dialog.close();
-          setTimeout(() => document.body.removeChild(dialog), 300);
+          closeDialog();
           tours.start(tourId);
         });
       });
+      
+      a11y.announce(`${data.length} tours available`);
     })
     .catch(error => {
       const list = dialog.querySelector('#tours-list');
       list.innerHTML = `
         <div class="error-state">
-          <svg class="error-icon" viewBox="0 0 24 24" width="48" height="48">
+          <svg class="error-icon" viewBox="0 0 24 24" width="48" height="48" aria-hidden="true">
             <circle cx="12" cy="12" r="10" fill="none" stroke="#ef4444" stroke-width="2"/>
             <path d="M12 8v4M12 16h.01" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -1971,6 +2195,8 @@ function showToursDialog() {
         document.getElementById('tours-dialog').remove();
         showToursDialog();
       });
+      
+      a11y.announce('Failed to load tours', 'assertive');
     });
 }
 
