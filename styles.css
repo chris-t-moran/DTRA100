@@ -88,6 +88,54 @@ html, body {
 }
 
 /* ==============================================
+   ACCESSIBILITY UTILITIES
+   ============================================== */
+
+/* Screen Reader Only Content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip to Content Link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 3000;
+  border-radius: 0 0 4px 0;
+  font-weight: 600;
+  transition: top var(--transition-base);
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid var(--color-primary-dark);
+  outline-offset: 2px;
+}
+
+/* Universal Focus Indicators */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ==============================================
    LAYOUT CONTAINERS
    ============================================== */
 #mainpage {
@@ -1278,6 +1326,132 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ==============================================
+   KEYBOARD SHORTCUTS HELP
+   ============================================== */
+
+/* Floating Help Button */
+.keyboard-help-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: none;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+  z-index: 1000;
+  transition: transform var(--transition-slow), box-shadow var(--transition-slow);
+}
+
+.keyboard-help-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+}
+
+.keyboard-help-btn:focus-visible {
+  outline: 3px solid rgba(76, 175, 80, 0.5);
+  outline-offset: 2px;
+}
+
+/* Keyboard Help Overlay */
+.keyboard-help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity var(--transition-slow);
+}
+
+.keyboard-help-overlay.show {
+  opacity: 1;
+}
+
+/* Keyboard Help Content */
+.keyboard-help-content {
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-2xl);
+}
+
+.keyboard-help-content header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.keyboard-help-content h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--color-gray-800);
+}
+
+.keyboard-help-content .close-btn {
+  background: none;
+  border: none;
+  color: var(--color-gray-600);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  transition: color var(--transition-base);
+}
+
+.keyboard-help-content .close-btn:hover {
+  color: var(--color-gray-800);
+}
+
+/* Shortcuts List */
+.shortcuts-list {
+  padding: 20px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.shortcut-item:last-child {
+  border-bottom: none;
+}
+
+.shortcut-item kbd {
+  display: inline-block;
+  padding: 4px 8px;
+  background: var(--color-gray-100);
+  border: 1px solid var(--color-gray-300);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 0 var(--color-gray-300);
+  min-width: 32px;
+  text-align: center;
+  color: var(--color-gray-700);
+}
+
+.shortcut-item span {
+  flex: 1;
+  color: var(--color-gray-500);
 }
 
 /* ==============================================
