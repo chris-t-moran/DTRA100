@@ -1560,7 +1560,6 @@ showTourStop(stop, current, total) {
     <div class="tour-progress">
       <div class="tour-progress-top">
         <span>Stop ${current + 1} of ${total}</span>
-        <button class="tour-exit" type="button">Exit Tour</button>
       </div>
       <div class="progress-bar-container">
         <div class="progress-bar-fill" style="width: ${((current + 1) / total) * 100}%"></div>
