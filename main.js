@@ -989,7 +989,7 @@ function renderArticles(theme, searchQuery = null) {
   if (filtered.length > 10) {
     const msg = document.createElement('p');
     msg.textContent = `Showing 10 of ${filtered.length} stories`;
-    msg.style.cssText = 'text-align:center;margin-top:1rem;font-size:0.9rem;color:#6b7280';
+    msg.style.cssText = 'text-align:center;margin-top:1rem;font-size:0.9rem';
     list.appendChild(msg);
   }
   
