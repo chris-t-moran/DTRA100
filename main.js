@@ -12,7 +12,6 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { CONFIG as IMPORTED_CONFIG } from './config.js';
 const CONFIG = IMPORTED_CONFIG;
 
-
 const state = {
   db: createClient(CONFIG.supabase.url, CONFIG.supabase.key),
   map: null,
@@ -26,6 +25,79 @@ const state = {
   lastSelectedMarker: null,
   residentMoveLayer: null,
   searchControl: null
+};
+
+// =============================================================================
+// Loading & Error State Management
+// =============================================================================
+
+const loadingUI = {
+  show(containerId, message = 'Loading...') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = `
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>${message}</p>
+      </div>
+    `;
+  },
+  
+  showError(containerId, message, retryFn = null) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const retryBtn = retryFn ? `
+      <button class="retry-btn" type="button">Try Again</button>
+    ` : '';
+    
+    container.innerHTML = `
+      <div class="error-state">
+        <svg class="error-icon" viewBox="0 0 24 24" width="48" height="48">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="#ef4444" stroke-width="2"/>
+          <path d="M12 8v4M12 16h.01" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h3>Something went wrong</h3>
+        <p>${message}</p>
+        ${retryBtn}
+      </div>
+    `;
+    
+    if (retryFn) {
+      container.querySelector('.retry-btn')?.addEventListener('click', retryFn);
+    }
+  },
+  
+  showEmpty(containerId, message = 'No items found') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>${message}</p>
+      </div>
+    `;
+  },
+  
+  showMapLoading() {
+    const mapEl = document.getElementById('map');
+    if (!mapEl || document.getElementById('map-loading')) return;
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'map-loading';
+    overlay.className = 'map-loading-overlay';
+    overlay.innerHTML = `
+      <div class="spinner"></div>
+      <p>Loading map data...</p>
+    `;
+    mapEl.appendChild(overlay);
+  },
+  
+  hideMapLoading() {
+    const overlay = document.getElementById('map-loading');
+    if (overlay) overlay.remove();
+  }
 };
 
 // =============================================================================
@@ -92,7 +164,6 @@ const reactions = {
   
   async submit(articleId, reactionType, comment = '', authorName = '', authorEmail = '') {
     try {
-      // Simple client-side IP hash for spam prevention (not secure, but a deterrent)
       const ipHash = await crypto.subtle.digest(
         'SHA-256', 
         new TextEncoder().encode(navigator.userAgent + Date.now().toString().slice(0, -7))
@@ -103,7 +174,7 @@ const reactions = {
         .insert([{
           article_id: articleId,
           reaction_type: 'memory',
-          comment: comment.trim().slice(0, 500), // limit length
+          comment: comment.trim().slice(0, 500),
           author_name: authorName.trim().slice(0, 100),
           author_email: authorEmail.trim(),
           ip_hash: ipHash
@@ -127,8 +198,6 @@ const reactions = {
     });
     
     let html = '<div class="reactions-section"><h4>Community Reactions</h4>';
-    
-    // Show counts
     html += '<div class="reaction-counts">';
     this.types.forEach(type => {
       const count = grouped[type.id]?.length || 0;
@@ -138,7 +207,6 @@ const reactions = {
     });
     html += '</div>';
     
-    // Show comments
     const withComments = reactionsData.filter(r => r.comment);
     if (withComments.length > 0) {
       html += '<div class="reaction-comments">';
@@ -167,14 +235,6 @@ const reactions = {
     form.className = 'reaction-form';
     form.innerHTML = `
       <h4>Share your reaction</h4>
-      <!-- <div class="reaction-types">
-        ${this.types.map(t => `
-          <label class="reaction-type-btn">
-            <input type="radio" name="reaction_type" value="${t.id}" required>
-            <span>${t.icon} ${t.label}</span>
-          </label>
-        `).join('')}
-      </div>  -->
       <label class="reaction-field">
         <span>Your memory or comment (optional):</span>
         <textarea name="comment" rows="3" placeholder="Share your thoughts..."></textarea>
@@ -221,10 +281,8 @@ const reactions = {
   }
 };
 
-
-
 // =============================================================================
-// View Tracking (Session-based - lighter than localStorage)
+// View Tracking (Session-based)
 // =============================================================================
 
 const viewTracker = (() => {
@@ -296,20 +354,27 @@ const addressUtils = (() => {
 })();
 
 // =============================================================================
-// Data Loading
+// Data Loading with Error Handling
 // =============================================================================
 
 async function loadContent() {
   const fetchByType = async (type) => {
-    const { data } = await state.db
-      .from('site_content')
-      .select('str_content')
-      .eq('str_contentType', type)
-      .eq('active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    return data?.str_content || null;
+    try {
+      const { data, error } = await state.db
+        .from('site_content')
+        .select('str_content')
+        .eq('str_contentType', type)
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data?.str_content || null;
+    } catch (e) {
+      console.warn(`Failed to load ${type} content:`, e);
+      return null;
+    }
   };
   
   try {
@@ -321,7 +386,13 @@ async function loadContent() {
     ]);
     
     const introEl = document.getElementById('intro');
-    if (introEl && intro) introEl.innerHTML = intro;
+    if (introEl) {
+      if (intro) {
+        introEl.innerHTML = intro;
+      } else {
+        introEl.innerHTML = '<p>Welcome to the Drumcondra Triangle Centenary Project</p>';
+      }
+    }
     
     if (title) {
       const tmp = document.createElement('div');
@@ -352,34 +423,51 @@ async function loadContent() {
 }
 
 async function loadArticles() {
-  const { data, error } = await state.db
-    .from('articles')
-    .select('*')
-    .eq('active', true)
-    .order('id', { ascending: true });
-  
-  if (error) {
+  try {
+    const { data, error } = await state.db
+      .from('articles')
+      .select('*')
+      .eq('active', true)
+      .order('id', { ascending: true });
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      console.warn('No articles found');
+      return;
+    }
+    
+    state.articles = data;
+    data.forEach(a => state.articlesById.set(a.id, a));
+    
+  } catch (error) {
     console.error('Articles load failed:', error);
-    return;
+    throw new Error('Failed to load stories. Please check your connection.');
   }
-  
-  state.articles = data;
-  data.forEach(a => state.articlesById.set(a.id, a));
 }
 
 async function loadResidents() {
-  const { data, error } = await state.db
-    .from('residents')
-    .select('*')
-    .eq('active', true);
-  
-  if (error) {
+  try {
+    const { data, error } = await state.db
+      .from('residents')
+      .select('*')
+      .eq('active', true);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      console.warn('No residents found');
+      state.residents = [];
+      return;
+    }
+    
+    state.residents = data;
+    buildResidentIndex();
+    
+  } catch (error) {
     console.error('Residents load failed:', error);
-    return;
+    state.residents = [];
   }
-  
-  state.residents = data;
-  buildResidentIndex();
 }
 
 function buildResidentIndex() {
@@ -614,7 +702,6 @@ function toggleResidents(btn) {
   mapEl.classList.toggle('sepia', !showing);
   
   if (showing) {
-    // Show articles
     state.residentMarkers.forEach(m => state.map.removeLayer(m));
     if (state.articleMarkers) state.map.addLayer(state.articleMarkers);
     if (state.residentMoveLayer) state.map.removeLayer(state.residentMoveLayer);
@@ -622,7 +709,6 @@ function toggleResidents(btn) {
     try { state.map.removeControl(state.searchControl); } catch(e) {}
     clearResidentFilter();
   } else {
-    // Show residents
     if (state.articleMarkers) state.map.removeLayer(state.articleMarkers);
     state.residentMarkers.forEach(m => m.addTo(state.map));
     btn.innerHTML = 'Switch to Stories';
@@ -706,7 +792,6 @@ function renderThemes() {
     container.appendChild(btn);
   });
   
-  // Lucky Dip
   const lucky = document.createElement('div');
   lucky.className = 'theme';
   lucky.textContent = 'Lucky Dip!';
@@ -717,15 +802,12 @@ function renderThemes() {
   });
   container.appendChild(lucky);
 
-  // Add Tours button first
   const toursBtn = document.createElement('div');
   toursBtn.className = 'theme theme-tours';
   toursBtn.textContent = '🚶 Guided Tours';
-  toursBtn.style.background = '#2563eb'; // Different color to stand out
+  toursBtn.style.background = '#2563eb';
   toursBtn.addEventListener('click', () => showToursDialog());
   container.appendChild(toursBtn);
-
-  
 }
 
 function setActiveTheme(theme) {
@@ -739,11 +821,16 @@ function renderArticles(theme) {
     ? state.articles.filter(a => a.theme === theme)
     : state.articles;
   
-  // Shuffle and limit to 10 articles
+  const list = document.getElementById('article-list');
+  
+  if (filtered.length === 0) {
+    loadingUI.showEmpty('article-list', `No stories found for "${theme}"`);
+    return;
+  }
+  
   const shuffled = [...filtered].sort(() => Math.random() - 0.5);
   const limited = shuffled.slice(0, 10);
   
-  const list = document.getElementById('article-list');
   list.innerHTML = '';
   
   const grid = document.createElement('ul');
@@ -758,7 +845,9 @@ function renderArticles(theme) {
     link.href = 'javascript:void(0)';
     link.addEventListener('click', () => openModal(article));
     link.innerHTML = `
-      <img src="${article.img}" alt="${utils.escape(article.title)}" />
+      <img src="${article.img}" 
+           alt="${utils.escape(article.title)}"
+           onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22150%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2214%22%3EImage unavailable%3C/text%3E%3C/svg%3E'" />
       <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${utils.escape(article.title)}</div>
     `;
     
@@ -768,13 +857,10 @@ function renderArticles(theme) {
   
   list.appendChild(grid);
   
-  // Optional: show how many articles exist vs displayed
   if (filtered.length > 10) {
     const msg = document.createElement('p');
     msg.textContent = `Showing 10 of ${filtered.length} stories`;
-    msg.style.textAlign = 'center';
-    msg.style.marginTop = '1rem';
-    msg.style.fontSize = '0.9rem';
+    msg.style.cssText = 'text-align:center;margin-top:1rem;font-size:0.9rem;color:#6b7280';
     list.appendChild(msg);
   }
 }
@@ -803,7 +889,6 @@ function selectMarker(marker) {
 }
 
 function revealAndHighlightMarker(article) {
-  // Find the marker for this article
   let marker = null;
   
   try {
@@ -816,9 +901,7 @@ function revealAndHighlightMarker(article) {
   
   if (!marker) return;
   
-  // If marker is in a cluster, zoom to reveal it
   const afterVisible = () => {
-    // Check if still clustered and spiderfy if needed
     try {
       if (typeof state.articleMarkers.getVisibleParent === 'function') {
         const parent = state.articleMarkers.getVisibleParent(marker);
@@ -828,19 +911,14 @@ function revealAndHighlightMarker(article) {
       }
     } catch(e) {}
     
-    // Highlight the marker
     selectMarker(marker);
-    
-    // Bring to front
     try { marker.bringToFront?.(); } catch(e) {}
     
-    // Pan into view on mobile (accounting for content panel)
     if (utils.isMobile()) {
       setTimeout(() => panMarkerIntoView(marker), 0);
     }
   };
   
-  // Zoom to show the marker if it's not visible
   if (typeof state.articleMarkers.zoomToShowLayer === 'function') {
     state.articleMarkers.zoomToShowLayer(marker, afterVisible);
   } else {
@@ -859,21 +937,16 @@ function panMarkerIntoView(marker) {
   const mapRect = mapEl.getBoundingClientRect();
   const contentRect = content.getBoundingClientRect();
   
-  // Calculate overlap
   const overlapTop = Math.max(0, Math.min(contentRect.bottom, mapRect.bottom) - Math.max(contentRect.top, mapRect.top));
   const overlapBottom = Math.max(0, Math.min(mapRect.bottom, contentRect.bottom) - Math.max(mapRect.top, contentRect.top));
   
-  // Available vertical space for marker
   const minY = overlapTop + margin;
   const maxY = mapRect.height - overlapBottom - margin;
   
-  // Current marker position
   const pt = state.map.latLngToContainerPoint(marker.getLatLng());
   
-  // If already visible, don't pan
   if (pt.y >= minY && pt.y <= maxY) return;
   
-  // Pan to bring marker into view
   const targetY = (pt.y < minY) ? minY : maxY;
   const deltaY = targetY - pt.y;
   
@@ -914,7 +987,6 @@ function createModal(article) {
   
   modal.appendChild(content);
 
-  // Load reactions after rendering
   (async () => {
     const data = await reactions.load(article.id);
     const container = content.querySelector(`#reactions-container-${article.id}`);
@@ -924,8 +996,6 @@ function createModal(article) {
     if (formContainer) formContainer.appendChild(reactions.createForm(article.id));
   })();
   
-  
-  // Close handlers
   const closeModal = () => {
     const articleId = modal.dataset.articleId;
     
@@ -936,7 +1006,6 @@ function createModal(article) {
     }, 120);
     utils.updateURL(null, false);
     
-    // Reveal marker on map after closing
     if (articleId) {
       const article = state.articlesById.get(Number(articleId));
       if (article) {
@@ -959,11 +1028,9 @@ function createModal(article) {
   };
   window.addEventListener('keydown', onEsc);
   
-  // Navigation
   content.querySelector('.nav-prev')?.addEventListener('click', () => navigateModal(-1));
   content.querySelector('.nav-next')?.addEventListener('click', () => navigateModal(1));
   
-  // Share
   content.querySelector('.modal-share-btn')?.addEventListener('click', async () => {
     const url = utils.getPermalink(article.id);
     const shareData = { title: article.title, text: article.short_desc, url };
@@ -1011,6 +1078,7 @@ function getModalHTML(article) {
     </footer>
   `;
 }
+
 function updateModalContent(article) {
   if (!currentModal) return;
   
@@ -1027,7 +1095,6 @@ function updateModalContent(article) {
       viewTracker.increment(article.id);
     }
     
-    // Re-bind handlers
     content.querySelector('.nav-prev')?.addEventListener('click', () => navigateModal(-1));
     content.querySelector('.nav-next')?.addEventListener('click', () => navigateModal(1));
     content.querySelector('.modal-share-btn')?.addEventListener('click', async () => {
@@ -1090,6 +1157,8 @@ function createResidentPopup(r) {
     </div>
   `;
 }
+
+
 
 // =============================================================================
 // Story Submission Form
@@ -1169,7 +1238,6 @@ function showStoryForm() {
     });
   }
   
-  // Load STORY-SHARE content
   (async () => {
     const slot = dlg.querySelector('#story-share-content');
     if (!slot) return;
@@ -1296,10 +1364,13 @@ function setupMobileDrag() {
 }
 
 // =============================================================================
-// Initialization
+// Initialization with Loading States
 // =============================================================================
 
 async function init() {
+  loadingUI.show('article-list', 'Loading stories...');
+  loadingUI.showMapLoading();
+  
   try {
     await Promise.all([
       loadContent(),
@@ -1307,12 +1378,23 @@ async function init() {
       loadResidents()
     ]);
     
+    if (!state.articles || state.articles.length === 0) {
+      loadingUI.showError(
+        'article-list',
+        'No stories are available at the moment.',
+        init
+      );
+      loadingUI.hideMapLoading();
+      return;
+    }
+    
     await initMap();
+    loadingUI.hideMapLoading();
+    
     renderThemes();
     renderArticles(null);
     setupMobileDrag();
     
-    // Wire share button
     document.getElementById('share-story-btn')?.addEventListener('click', (e) => {
       e.preventDefault();
       const content = document.getElementById('content');
@@ -1320,15 +1402,30 @@ async function init() {
       setTimeout(() => showStoryForm(), 600);
     });
     
-    // Handle deep links
     await handleDeepLink();
     
-  } catch(e) {
+  } catch (e) {
     console.error('Initialization failed:', e);
+    
+    loadingUI.showError(
+      'article-list',
+      'Unable to load the application. Please check your internet connection.',
+      init
+    );
+    loadingUI.hideMapLoading();
+    
+    const mapEl = document.getElementById('map');
+    if (mapEl) {
+      mapEl.innerHTML = `
+        <div class="map-error">
+          <p>Map unavailable</p>
+          <button class="retry-btn" onclick="location.reload()">Reload Page</button>
+        </div>
+      `;
+    }
   }
 }
 
-// Start when ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
@@ -1336,17 +1433,17 @@ if (document.readyState === 'loading') {
 }
 
 // =============================================================================
-// Tours System
+// Tours System with Loading States
 // =============================================================================
 
 function slideContentPanelDown() {
-  if (!utils.isMobile()) return; // Mobile only
+  if (!utils.isMobile()) return;
   
   const content = document.getElementById('content');
   if (!content) return;
   
   const vh = window.innerHeight;
-  const targetTop = Math.round(vh * 0.85); // Slide to 85% down (shows 15% of content)
+  const targetTop = Math.round(vh * 0.85);
   
   const prev = content.style.transition;
   content.style.transition = 'top 400ms ease';
@@ -1362,7 +1459,7 @@ function restoreContentPanel() {
   if (!content) return;
   
   const vh = window.innerHeight;
-  const defaultTop = Math.round(vh * 0.5); // Back to 50%
+  const defaultTop = Math.round(vh * 0.5);
   
   const prev = content.style.transition;
   content.style.transition = 'top 400ms ease';
@@ -1370,8 +1467,6 @@ function restoreContentPanel() {
   
   setTimeout(() => { content.style.transition = prev || ''; }, 500);
 }
-
-
 
 const tours = {
   async loadAll() {
@@ -1394,7 +1489,6 @@ const tours = {
       
       if (error) throw error;
       
-      // Sort stops within each tour
       if (data) {
         data.forEach(tour => {
           if (tour.tour_stops) {
@@ -1406,7 +1500,7 @@ const tours = {
       return data || [];
     } catch (e) {
       console.error('Failed to load tours:', e);
-      return [];
+      throw new Error('Unable to load tours');
     }
   },
   
@@ -1431,7 +1525,6 @@ const tours = {
       
       if (error) throw error;
       
-      // Sort stops
       if (data && data.tour_stops) {
         data.tour_stops.sort((a, b) => a.stop_number - b.stop_number);
       }
@@ -1457,188 +1550,168 @@ const tours = {
       startedAt: Date.now()
     };
 
-   // Slide content panel down on mobile
-  slideContentPanelDown();    
-  this.goToStop(0);
+    slideContentPanelDown();    
+    this.goToStop(0);
   },
   
-showTourPath(tour) {
-  // Clean up any existing tour layers
-  if (state.tourLayers) {
-    state.tourLayers.forEach(layer => state.map.removeLayer(layer));
-  }
-  state.tourLayers = [];
+  showTourPath(tour) {
+    if (state.tourLayers) {
+      state.tourLayers.forEach(layer => state.map.removeLayer(layer));
+    }
+    state.tourLayers = [];
+    
+    const waypoints = tour.tour_stops.map(s => L.latLng(s.articles.lat, s.articles.lon));
+    
+    const routingControl = L.Routing.control({
+      waypoints: waypoints,
+      lineOptions: {
+        styles: [{ color: '#2563eb', opacity: 0.7, weight: 3 }]
+      },
+      createMarker: function(i, waypoint, n) {
+        return L.marker(waypoint.latLng, {
+          icon: L.divIcon({
+            className: 'tour-stop-marker',
+            html: `<div class="tour-number">${i + 1}</div>`,
+            iconSize: [30, 30]
+          })
+        });
+      },
+      routeWhileDragging: false,
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: false,
+      showAlternatives: false
+    }).addTo(state.map);
+    
+    const container = routingControl.getContainer();
+    if (container) {
+      container.style.display = 'none';
+    }
+    
+    state.tourLayers.push(routingControl);
+  },
   
-  const waypoints = tour.tour_stops.map(s => L.latLng(s.articles.lat, s.articles.lon));
-  
-  const routingControl = L.Routing.control({
-    waypoints: waypoints,
-    lineOptions: {
-      styles: [{ color: '#2563eb', opacity: 0.7, weight: 3 }]
-    },
-    createMarker: function(i, waypoint, n) {
-      // Return custom numbered markers
-      return L.marker(waypoint.latLng, {
-        icon: L.divIcon({
-          className: 'tour-stop-marker',
-          html: `<div class="tour-number">${i + 1}</div>`,
-          iconSize: [30, 30]
-        })
-      });
-    },
-    routeWhileDragging: false,
-    addWaypoints: false,
-    draggableWaypoints: false,
-    fitSelectedRoutes: false,
-    showAlternatives: false
-  }).addTo(state.map);
-  
-  // Hide the text directions panel
-  const container = routingControl.getContainer();
-  if (container) {
-    container.style.display = 'none';
-  }
-  
-  state.tourLayers.push(routingControl);
-},
-  
-goToStop(stopIndex) {
-  const tour = state.activeTour;
-  if (!tour || !tour.tour_stops[stopIndex]) return;
-  
-  const stop = tour.tour_stops[stopIndex];
-  tour.currentStop = stopIndex;
-  
-  // Remove active class from all tour markers
-  document.querySelectorAll('.tour-number').forEach(el => {
-    el.classList.remove('active');
-  });
-  
-  // For stops after the first, add active class immediately
-  if (stopIndex > 0) {
-    setTimeout(() => {
-      const markers = document.querySelectorAll('.tour-number');
-      if (markers[stopIndex]) markers[stopIndex].classList.add('active');
-    }, 100);
-  }
-  
-  // On mobile, offset the target point upward so marker appears above the panel
-  let targetLatLng = [stop.articles.lat, stop.articles.lon];
-  
-  if (utils.isMobile()) {
-    const map = state.map;
-    const point = map.latLngToContainerPoint(targetLatLng);
-    const offsetY = window.innerHeight * -0.10;
-    point.y -= offsetY;
-    targetLatLng = map.containerPointToLatLng(point);
-  }
-  
-  // Pan map to this stop (offset on mobile)
-  state.map.flyTo(targetLatLng, 17, {
-    duration: 1.5
-  });
-  
-  // Show path after first zoom completes (only once)
-  if (stopIndex === 0 && !state.tourPathShown) {
-    setTimeout(() => {
-      this.showTourPath(tour);
-      state.tourPathShown = true;
-      // Now add active class to first marker after path is drawn
+  goToStop(stopIndex) {
+    const tour = state.activeTour;
+    if (!tour || !tour.tour_stops[stopIndex]) return;
+    
+    const stop = tour.tour_stops[stopIndex];
+    tour.currentStop = stopIndex;
+    
+    document.querySelectorAll('.tour-number').forEach(el => {
+      el.classList.remove('active');
+    });
+    
+    if (stopIndex > 0) {
       setTimeout(() => {
         const markers = document.querySelectorAll('.tour-number');
-        if (markers[0]) markers[0].classList.add('active');
+        if (markers[stopIndex]) markers[stopIndex].classList.add('active');
       }, 100);
+    }
+    
+    let targetLatLng = [stop.articles.lat, stop.articles.lon];
+    
+    if (utils.isMobile()) {
+      const map = state.map;
+      const point = map.latLngToContainerPoint(targetLatLng);
+      const offsetY = window.innerHeight * -0.10;
+      point.y -= offsetY;
+      targetLatLng = map.containerPointToLatLng(point);
+    }
+    
+    state.map.flyTo(targetLatLng, 17, {
+      duration: 1.5
+    });
+    
+    if (stopIndex === 0 && !state.tourPathShown) {
+      setTimeout(() => {
+        this.showTourPath(tour);
+        state.tourPathShown = true;
+        setTimeout(() => {
+          const markers = document.querySelectorAll('.tour-number');
+          if (markers[0]) markers[0].classList.add('active');
+        }, 100);
+      }, 1600);
+    }
+    
+    setTimeout(() => {
+      this.showTourStop(stop, stopIndex, tour.tour_stops.length);
     }, 1600);
-  }
+  },
   
-  // Wait for animation, then show overlay
-  setTimeout(() => {
-    this.showTourStop(stop, stopIndex, tour.tour_stops.length);
-  }, 1600);
-},
-  
-showTourStop(stop, current, total) {
-  const modal = document.createElement('div');
-  modal.className = 'modal tour-modal';
-  
-  const content = document.createElement('div');
-  content.className = 'modal-content tour-content';
-  content.innerHTML = `
-    <div class="tour-progress">
-      <div class="tour-progress-top">
-        <span>Stop ${current + 1} of ${total}</span>
-      </div>
-      <div class="progress-bar-container">
-        <div class="progress-bar-fill" style="width: ${((current + 1) / total) * 100}%"></div>
-      </div>
-      <div class="tour-progress-nav">
-        ${current > 0 ? '<button class="tour-prev" type="button">← Previous</button>' : '<div></div>'}
-        ${current < total - 1 
-          ? '<button class="tour-next" type="button">Next →</button>'
-          : '<button class="tour-complete" type="button">Finish Tour ✓</button>'
-        }
-      </div>
-    </div>
+  showTourStop(stop, current, total) {
+    const modal = document.createElement('div');
+    modal.className = 'modal tour-modal';
     
-    ${stop.intro_text ? `
-      <div class="tour-context">
-        <h3>Setting the Scene</h3>
-        <p>${utils.escape(stop.intro_text)}</p>
+    const content = document.createElement('div');
+    content.className = 'modal-content tour-content';
+    content.innerHTML = `
+      <div class="tour-progress">
+        <div class="tour-progress-top">
+          <span>Stop ${current + 1} of ${total}</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: ${((current + 1) / total) * 100}%"></div>
+        </div>
+        <div class="tour-progress-nav">
+          ${current > 0 ? '<button class="tour-prev" type="button">← Previous</button>' : '<div></div>'}
+          ${current < total - 1 
+            ? '<button class="tour-next" type="button">Next →</button>'
+            : '<button class="tour-complete" type="button">Finish Tour ✓</button>'
+          }
+        </div>
       </div>
-    ` : ''}
+      
+      ${stop.intro_text ? `
+        <div class="tour-context">
+          <h3>Setting the Scene</h3>
+          <p>${utils.escape(stop.intro_text)}</p>
+        </div>
+      ` : ''}
+      
+      <header>
+        <h2>${utils.escape(stop.articles.title)}</h2>
+      </header>
     
-    <header>
-      <h2>${utils.escape(stop.articles.title)}</h2>
-    </header>
-  
-    <div class="descriptionWrapper">
-      <div class="imgWrapper">
-        <img src="${stop.articles.img}" alt="${utils.escape(stop.articles.title)}" />
+      <div class="descriptionWrapper">
+        <div class="imgWrapper">
+          <img src="${stop.articles.img}" alt="${utils.escape(stop.articles.title)}" />
+        </div>
+        <div class="modal-description">${(stop.articles.description || '').replace(/\n/g, '<br>')}</div>
       </div>
-    <div class="modal-description">${(stop.articles.description || '').replace(/\n/g, '<br>')}</div>
-    </div>
-  `;
-  
-  modal.appendChild(content);
-  
-  // Wire up navigation (same event handlers)
-  content.querySelector('.tour-next')?.addEventListener('click', () => {
-    modal.remove();
-    this.goToStop(current + 1);
-  });
-  
-  content.querySelector('.tour-prev')?.addEventListener('click', () => {
-    modal.remove();
-    this.goToStop(current - 1);
-  });
-  
-  content.querySelector('.tour-exit')?.addEventListener('click', () => {
-    if (confirm('Exit this tour?')) {
-      this.exitTour();
+    `;
+    
+    modal.appendChild(content);
+    
+    content.querySelector('.tour-next')?.addEventListener('click', () => {
       modal.remove();
-    }
-  });
-  
-  content.querySelector('.tour-complete')?.addEventListener('click', () => {
-    modal.remove();
-    this.completeTour();
-  });
-  
-  // Close on backdrop click
-  modal.addEventListener('click', (e) => {
-    if (!content.contains(e.target)) {
-      if (confirm('Exit this tour?')) {
-        this.exitTour();
-        modal.remove();
+      this.goToStop(current + 1);
+    });
+    
+    content.querySelector('.tour-prev')?.addEventListener('click', () => {
+      modal.remove();
+      this.goToStop(current - 1);
+    });
+    
+    content.querySelector('.tour-complete')?.addEventListener('click', () => {
+      modal.remove();
+      this.completeTour();
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (!content.contains(e.target)) {
+        if (confirm('Exit this tour?')) {
+          this.exitTour();
+          modal.remove();
+        }
       }
-    }
-  });
-  
-  content.addEventListener('click', (e) => e.stopPropagation());
-  
-  document.body.appendChild(modal);
-  requestAnimationFrame(() => modal.classList.add('show'));
-},
+    });
+    
+    content.addEventListener('click', (e) => e.stopPropagation());
+    
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('show'));
+  },
   
   completeTour() {
     const duration = Math.round((Date.now() - state.activeTour.startedAt) / 60000);
@@ -1646,53 +1719,45 @@ showTourStop(stop, current, total) {
     this.exitTour();
   },
   
-exitTour() {
-  // Clean up tour layers and routing control
-  if (state.tourLayers) {
-    state.tourLayers.forEach(layer => {
-      try { 
-        // For routing controls, remove waypoint markers manually
-        if (layer._markers) {
-          layer._markers.forEach(marker => {
-            try { state.map.removeLayer(marker); } catch(e) {}
-          });
+  exitTour() {
+    if (state.tourLayers) {
+      state.tourLayers.forEach(layer => {
+        try { 
+          if (layer._markers) {
+            layer._markers.forEach(marker => {
+              try { state.map.removeLayer(marker); } catch(e) {}
+            });
+          }
+          
+          if (layer._line) {
+            state.map.removeLayer(layer._line);
+          }
+          
+          state.map.removeControl(layer);
+          
+          if (layer._container && layer._container.parentNode) {
+            layer._container.parentNode.removeChild(layer._container);
+          }
+        } catch(e) {
+          console.warn('Layer removal failed:', e);
         }
-        
-        // Remove the line/route
-        if (layer._line) {
-          state.map.removeLayer(layer._line);
-        }
-        
-        // Remove the control itself
-        state.map.removeControl(layer);
-        
-        // Remove DOM container
-        if (layer._container && layer._container.parentNode) {
-          layer._container.parentNode.removeChild(layer._container);
-        }
-      } catch(e) {
-        console.warn('Layer removal failed:', e);
-      }
+      });
+      state.tourLayers = [];
+    }
+    
+    document.querySelectorAll('.tour-stop-marker').forEach(el => {
+      try { el.parentNode.remove(); } catch(e) {}
     });
-    state.tourLayers = [];
+    
+    const routingContainers = document.querySelectorAll('.leaflet-routing-container');
+    routingContainers.forEach(container => {
+      try { container.remove(); } catch(e) {}
+    });
+    
+    state.activeTour = null;
+    state.tourPathShown = false;
+    restoreContentPanel();
   }
-  
-  // Fallback: remove any orphaned tour markers from DOM
-  document.querySelectorAll('.tour-stop-marker').forEach(el => {
-    try { el.parentNode.remove(); } catch(e) {}
-  });
-  
-  // Clean up any orphaned routing elements
-  const routingContainers = document.querySelectorAll('.leaflet-routing-container');
-  routingContainers.forEach(container => {
-    try { container.remove(); } catch(e) {}
-  });
-  
-  state.activeTour = null;
-  state.tourPathShown = false;
-
-  restoreContentPanel();
-}
 };
 
 function showToursDialog() {
@@ -1704,7 +1769,12 @@ function showToursDialog() {
         <h2>Guided Tours</h2>
         <button class="close-btn" type="button">×</button>
       </header>
-      <div id="tours-list">Loading tours...</div>
+      <div id="tours-list">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading tours...</p>
+        </div>
+      </div>
     </div>
   `;
   
@@ -1717,47 +1787,58 @@ function showToursDialog() {
   
   dialog.showModal();
   
-  // Load and display tours
-  tours.loadAll().then(data => {
-    const list = dialog.querySelector('#tours-list');
-    
-    if (!data || data.length === 0) {
-      list.innerHTML = '<p class="no-tours">No tours available yet. Check back soon!</p>';
-      return;
-    }
-    
-    list.innerHTML = data.map(tour => `
-      <div class="tour-card" data-tour-id="${tour.id}">
-        ${tour.cover_image ? `<img src="${tour.cover_image}" alt="${utils.escape(tour.title)}" />` : ''}
-        <div class="tour-card-content">
-          <h3>${utils.escape(tour.title)}</h3>
-          <p>${utils.escape(tour.description || '')}</p>
-          <div class="tour-meta">
-            <span>${tour.tour_stops?.length || 0} stops</span>
-            ${tour.duration_minutes ? `<span>~${tour.duration_minutes} min</span>` : ''}
+  tours.loadAll()
+    .then(data => {
+      const list = dialog.querySelector('#tours-list');
+      
+      if (!data || data.length === 0) {
+        list.innerHTML = '<p class="no-tours">No tours available yet. Check back soon!</p>';
+        return;
+      }
+      
+      list.innerHTML = data.map(tour => `
+        <div class="tour-card" data-tour-id="${tour.id}">
+          ${tour.cover_image ? `<img src="${tour.cover_image}" alt="${utils.escape(tour.title)}" />` : ''}
+          <div class="tour-card-content">
+            <h3>${utils.escape(tour.title)}</h3>
+            <p>${utils.escape(tour.description || '')}</p>
+            <div class="tour-meta">
+              <span>${tour.tour_stops?.length || 0} stops</span>
+              ${tour.duration_minutes ? `<span>~${tour.duration_minutes} min</span>` : ''}
+            </div>
+            <button class="sf-btn sf-btn-primary" type="button">Start Tour</button>
           </div>
-          <button class="sf-btn sf-btn-primary" type="button">Start Tour</button>
         </div>
-      </div>
-    `).join('');
-    
-    list.querySelectorAll('.tour-card button').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const card = e.target.closest('.tour-card');
-        const tourId = Number(card.dataset.tourId);
-        dialog.close();
-        setTimeout(() => document.body.removeChild(dialog), 300);
-        tours.start(tourId);
+      `).join('');
+      
+      list.querySelectorAll('.tour-card button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const card = e.target.closest('.tour-card');
+          const tourId = Number(card.dataset.tourId);
+          dialog.close();
+          setTimeout(() => document.body.removeChild(dialog), 300);
+          tours.start(tourId);
+        });
+      });
+    })
+    .catch(error => {
+      const list = dialog.querySelector('#tours-list');
+      list.innerHTML = `
+        <div class="error-state">
+          <svg class="error-icon" viewBox="0 0 24 24" width="48" height="48">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="#ef4444" stroke-width="2"/>
+            <path d="M12 8v4M12 16h.01" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <h3>Failed to load tours</h3>
+          <p>Please check your connection and try again.</p>
+          <button class="retry-btn" type="button">Try Again</button>
+        </div>
+      `;
+      
+      list.querySelector('.retry-btn').addEventListener('click', () => {
+        document.getElementById('tours-dialog').remove();
+        showToursDialog();
       });
     });
-  });
 }
-// =============================================================================
-// All styles are in styles.css - this keeps JS lightweight and CSS cacheable.
-// Key classes referenced by this script:
-// - .resident-glow (applied to markers with former addresses)
-// - .modal-nav, .nav-btn (modal navigation arrows)
-// - .modal-share-btn (share button in modal header)
-// - .modal-content.fade-out (content swap animation)
-// - .resident-popup-wrap, .rp-* (resident popup styling)
-// - .sf-* (story form dialog styling)
+
