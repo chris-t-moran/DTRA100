@@ -113,6 +113,22 @@ const utils = {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;'),
+
+  // Story descriptions may contain formatting HTML; strip anything executable.
+  // Falls back to plain escaped text if DOMPurify failed to load.
+  richText: (str) => {
+    const html = String(str ?? '').replace(/\n/g, '<br>');
+    return window.DOMPurify
+      ? window.DOMPurify.sanitize(html, { ADD_ATTR: ['target'] })
+      : utils.escape(str).replace(/\n/g, '<br>');
+  },
+
+  // Image/link URLs: allow http(s) and relative paths only, attribute-escaped.
+  safeUrl: (url) => {
+    const u = String(url ?? '').trim();
+    const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(u);
+    return (!hasScheme || /^https?:/i.test(u)) ? utils.escape(u) : '';
+  },
   
   debounce: (fn, ms) => {
     let timer;
@@ -1124,7 +1140,7 @@ function renderArticles(theme, searchQuery = null) {
     link.href = 'javascript:void(0)';
     link.addEventListener('click', () => openModal(article));
     link.innerHTML = `
-      <img src="${article.img}" 
+      <img src="${utils.safeUrl(article.img)}" 
            alt="${utils.escape(article.title)}"
            onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22150%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2214%22%3EImage unavailable%3C/text%3E%3C/svg%3E'" />
       <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${utils.escape(article.title)}</div>
@@ -1398,14 +1414,14 @@ function getModalHTML(article) {
       <h3>${esc(article.short_desc)}</h3>
     </header>
     <div class="imgWrapper">
-      <img src="${article.img}" alt="${esc(article.title)}" />
+      <img src="${utils.safeUrl(article.img)}" alt="${esc(article.title)}" />
       <div class="modal-nav">
         <button class="nav-btn nav-prev" aria-label="Previous">‹</button>
         <button class="nav-btn nav-next" aria-label="Next">›</button>
       </div>
     </div>
     <div class="descriptionWrapper">
-      <div class="modal-description">${(article.description || '').replace(/\n/g, '<br>')}</div>
+      <div class="modal-description">${utils.richText(article.description)}</div>
       <div id="reactions-container-${article.id}"></div>
       <div id="reaction-form-container-${article.id}"></div>
     </div>
@@ -1618,6 +1634,7 @@ async function handleDeepLink() {
         .from('articles')
         .select('*')
         .eq('id', id)
+        .eq('active', true)
         .maybeSingle();
       
       if (data) {
@@ -2011,9 +2028,9 @@ const tours = {
     
       <div class="descriptionWrapper">
         <div class="imgWrapper">
-          <img src="${stop.articles.img}" alt="${utils.escape(stop.articles.title)}" />
+          <img src="${utils.safeUrl(stop.articles.img)}" alt="${utils.escape(stop.articles.title)}" />
         </div>
-        <div class="modal-description">${(stop.articles.description || '').replace(/\n/g, '<br>')}</div>
+        <div class="modal-description">${utils.richText(stop.articles.description)}</div>
       </div>
     `;
     
@@ -2153,7 +2170,7 @@ function showToursDialog() {
       
       list.innerHTML = data.map(tour => `
         <div class="tour-card" data-tour-id="${tour.id}">
-          ${tour.cover_image ? `<img src="${tour.cover_image}" alt="" />` : ''}
+          ${tour.cover_image ? `<img src="${utils.safeUrl(tour.cover_image)}" alt="" />` : ''}
           <div class="tour-card-content">
             <h3>${utils.escape(tour.title)}</h3>
             <p>${utils.escape(tour.description || '')}</p>
