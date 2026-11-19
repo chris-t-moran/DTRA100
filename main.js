@@ -10,11 +10,13 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // =============================================================================
 
 import { CONFIG as IMPORTED_CONFIG } from './config.js';
-import { initHistoryFeatures, showHouseLookup, showNumbers, handleHouseLink } from './history-features.js';
+import { initHistoryFeatures, showHouseLookup, showNumbers, handleHouseLink, storiesForHouse } from './history-features.js';
 const CONFIG = IMPORTED_CONFIG;
 
 // Public article columns (contributor_email is private and not readable by visitors)
-const ARTICLE_COLUMNS = 'id, title, short_desc, description, theme, img, url, contributor, lat, lon, active, inserted_at, updated_at, views';
+const BASE_ARTICLE_COLUMNS = 'id, title, short_desc, description, theme, img, url, contributor, lat, lon, active, inserted_at, updated_at, views';
+// resident_id links a story to its house; falls back gracefully if the column isn't there yet
+let ARTICLE_COLUMNS = BASE_ARTICLE_COLUMNS + ', resident_id';
 
 const state = {
   db: createClient(CONFIG.supabase.url, CONFIG.supabase.key),
@@ -638,6 +640,10 @@ async function loadArticles() {
       .eq('active', true)
       .order('id', { ascending: true });
     
+    if (error && error.code === '42703' && ARTICLE_COLUMNS !== BASE_ARTICLE_COLUMNS) {
+      ARTICLE_COLUMNS = BASE_ARTICLE_COLUMNS;
+      return loadArticles();
+    }
     if (error) throw error;
     
     if (!data || data.length === 0) {
@@ -734,6 +740,14 @@ async function initMap() {
   
   // Resident markers (not added to map initially)
   createResidentMarkers();
+  
+  // "A story from this house" buttons inside 1929 resident pop-ups
+  state.map.getContainer().addEventListener('click', (e) => {
+    const btn = e.target.closest('.rp-story');
+    if (!btn) return;
+    const article = state.articlesById.get(Number(btn.dataset.article));
+    if (article) { state.map.closePopup(); openModal(article); }
+  });
   
   // Controls
   addResidentsToggle();
@@ -1394,7 +1408,14 @@ function createModal(article) {
     if (!content.contains(e.target)) closeModal();
   });
   
-  content.addEventListener('click', (e) => e.stopPropagation());
+  content.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const link = e.target.closest('.modal-house-link');
+    if (link) {
+      closeModal();
+      setTimeout(() => showHouseLookup({ road: link.dataset.road, num: link.dataset.num }), 150);
+    }
+  });
   
   // Keyboard handlers
   const handleKeyboard = (e) => {
@@ -1478,6 +1499,7 @@ function getModalHTML(article) {
     </div>
     <div class="descriptionWrapper">
       <div class="modal-description">${utils.richText(article.description)}</div>
+      ${modalHouseNote(article)}
       <div id="reactions-container-${article.id}"></div>
       <div id="reaction-form-container-${article.id}"></div>
     </div>
@@ -1485,6 +1507,16 @@ function getModalHTML(article) {
       <span class="modal-contrib">Shared by: ${esc(article.contributor || '')}</span>
     </footer>
   `;
+}
+
+function modalHouseNote(article) {
+  if (article.resident_id == null) return '';
+  const r = state.residents.find(x => Number(x.id) === Number(article.resident_id));
+  if (!r) return '';
+  const road = r.road === "O'Neachtain" ? "O'Neachtain Road" : r.road === 'Coymn Place' ? 'Comyn Place' : r.road;
+  return `<p class="modal-house"><button type="button" class="modal-house-link"
+      data-road="${utils.escape(r.road)}" data-num="${utils.escape(r.housenumber)}">🏠 In 1929, ${utils.escape(r.housenumber)} ${utils.escape(road)}
+      was first leased to ${utils.escape(r.lessee || 'a family not yet traced')}. Find out more →</button></p>`;
 }
 
 function updateModalContent(article) {
@@ -1561,6 +1593,7 @@ function createResidentPopup(r) {
       <div class="rp-body">
         ${former}
         ${occ}
+        ${storiesForHouse(r).map(a => `<button type="button" class="rp-story" data-article="${a.id}">📖 A story from this house: ${esc(a.title)}</button>`).join('')}
       </div>
     </div>
   `;
@@ -1815,10 +1848,10 @@ async function init() {
       return;
     }
     
+    initHistoryFeatures({ state, utils, a11y, openModal, showStoryForm, toggleResidents });
     await initMap();
     loadingUI.hideMapLoading();
     
-    initHistoryFeatures({ state, utils, a11y, openModal, showStoryForm, toggleResidents });
     renderThemes();
     renderArticles(null);
     setupMobileDrag();

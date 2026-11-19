@@ -39,20 +39,12 @@ function priceRange(list) {
   return p.length ? [Math.min(...p), Math.max(...p)] : null;
 }
 
-// Distance in metres (good enough at this scale)
-function metres(aLat, aLon, bLat, bLon) {
-  const k = 111320, dLat = (aLat - bLat) * k, dLon = (aLon - bLon) * k * Math.cos(aLat * Math.PI / 180);
-  return Math.hypot(dLat, dLon);
-}
-
-function storyForHouse(r) {
-  let best = null, bestD = 25; // within 25 m of the house
-  (ctx.state.articles || []).forEach(a => {
-    if (!a.active || a.lat == null || a.lon == null) return;
-    const d = metres(Number(a.lat), Number(a.lon), r.lat, r.lon);
-    if (d < bestD) { best = a; bestD = d; }
-  });
-  return best;
+// -----------------------------------------------------------------------------
+// Stories linked to a house (articles.resident_id, set in the Supabase Table Editor)
+// -----------------------------------------------------------------------------
+export function storiesForHouse(r) {
+  if (!r) return [];
+  return (ctx?.state.articles || []).filter(a => a.active && a.resident_id != null && Number(a.resident_id) === Number(r.id));
 }
 
 // -----------------------------------------------------------------------------
@@ -155,7 +147,7 @@ function renderHouse(out, road, num) {
   const cards = found.map(r => {
     const occ = hasOccupation(r.occupation) ? r.occupation : null;
     const price = money(r.consideration);
-    const story = storyForHouse(r);
+    const stories = storiesForHouse(r);
     return `
       <article class="hx-house" data-id="${r.id}">
         <p class="hx-eyebrow">${esc(addr)} · first lessee, 1929</p>
@@ -167,7 +159,7 @@ function renderHouse(out, road, num) {
               ? ` <span class="hx-muted">(houses on ${esc(roadName(road))} went for ${money(range[0])}–${money(range[1])})</span>` : ''}</dd></div>` : ''}
           ${r.MilitaryHistory ? `<div><dt>Note</dt><dd>A military history has been recorded for this household</dd></div>` : ''}
         </dl>
-        ${story ? `<button type="button" class="hx-story-link" data-article="${story.id}">📖 Read the story: ${esc(story.title)}</button>` : ''}
+        ${stories.map(a => `<button type="button" class="hx-story-link" data-article="${a.id}">📖 A story from this house: ${esc(a.title)}</button>`).join('')}
       </article>`;
   }).join('');
 
