@@ -10,6 +10,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // =============================================================================
 
 import { CONFIG as IMPORTED_CONFIG } from './config.js';
+import { initHistoryFeatures, showHouseLookup, showNumbers, handleHouseLink } from './history-features.js';
 const CONFIG = IMPORTED_CONFIG;
 
 // Public article columns (contributor_email is private and not readable by visitors)
@@ -124,6 +125,31 @@ const utils = {
     return window.DOMPurify
       ? window.DOMPurify.sanitize(html, { ADD_ATTR: ['target'] })
       : utils.escape(str).replace(/\n/g, '<br>');
+  },
+
+  // Friendly, non-blocking notification (replaces alert()).
+  toast: (message, { type = 'info', duration = 4500 } = {}) => {
+    // An open modal dialog makes the rest of the page inert, so show toasts inside it.
+    const host = [...document.querySelectorAll('dialog[open]')].pop() || document.body;
+    let region = host.querySelector(':scope > .toast-region');
+    if (!region) {
+      region = document.createElement('div');
+      region.className = 'toast-region';
+      region.setAttribute('role', 'status');
+      region.setAttribute('aria-live', 'polite');
+      host.appendChild(region);
+    }
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    const icon = { success: '✓', error: '!', info: 'i' }[type] || 'i';
+    el.innerHTML = `<span class="toast-icon" aria-hidden="true">${icon}</span><span class="toast-msg"></span>
+      <button type="button" class="toast-close" aria-label="Dismiss">×</button>`;
+    el.querySelector('.toast-msg').textContent = message;
+    const remove = () => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); };
+    el.querySelector('.toast-close').addEventListener('click', remove);
+    region.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    if (duration) setTimeout(remove, duration);
   },
 
   // Spam guard: hidden "website" field only bots fill in, plus a minimum
@@ -455,7 +481,7 @@ const reactions = {
       } else {
         btn.disabled = false;
         btn.textContent = oldText;
-        alert(utils.submitErrorMessage(result.error));
+        utils.toast(utils.submitErrorMessage(result.error), { type: 'error', duration: 7000 });
       }
     });
     
@@ -1104,6 +1130,20 @@ function renderThemes() {
   toursBtn.style.background = '#2563eb';
   toursBtn.addEventListener('click', () => showToursDialog());
   themesWrapper.appendChild(toursBtn);
+
+  const houseBtn = document.createElement('button');
+  houseBtn.type = 'button';
+  houseBtn.className = 'theme theme-house';
+  houseBtn.textContent = '🏠 Who lived in my house?';
+  houseBtn.addEventListener('click', () => showHouseLookup());
+  themesWrapper.appendChild(houseBtn);
+
+  const numbersBtn = document.createElement('button');
+  numbersBtn.type = 'button';
+  numbersBtn.className = 'theme theme-numbers';
+  numbersBtn.textContent = '📊 1929 in numbers';
+  numbersBtn.addEventListener('click', () => showNumbers());
+  themesWrapper.appendChild(numbersBtn);
   
   container.appendChild(themesWrapper);
 }
@@ -1593,8 +1633,8 @@ function showStoryForm() {
       
       if (utils.looksLikeBot(e.target, 8000)) {
         e.target.reset();
-        alert(thanks);
         closeForm();
+        utils.toast(thanks, { type: 'success', duration: 6000 });
         return;
       }
       
@@ -1611,11 +1651,11 @@ function showStoryForm() {
         if (error) throw error;
         
         e.target.reset();
-        alert(thanks);
         closeForm();
+        utils.toast(thanks, { type: 'success', duration: 6000 });
       } catch (err) {
         console.error('Submit failed:', err);
-        alert(utils.submitErrorMessage(err));
+        utils.toast(utils.submitErrorMessage(err), { type: 'error', duration: 7000 });
       }
     });
   }
@@ -1657,7 +1697,7 @@ async function handleDeepLink() {
   const params = new URLSearchParams(window.location.search);
   const articleId = params.get('article');
   
-  if (!articleId) return;
+  if (!articleId) { handleHouseLink(); return; }
   
   const id = Number(articleId);
   let article = state.articlesById.get(id);
@@ -1778,6 +1818,7 @@ async function init() {
     await initMap();
     loadingUI.hideMapLoading();
     
+    initHistoryFeatures({ state, utils, a11y, openModal, showStoryForm, toggleResidents });
     renderThemes();
     renderArticles(null);
     setupMobileDrag();
@@ -1927,7 +1968,7 @@ const tours = {
     const tour = await this.loadTour(tourId);
     
     if (!tour || !tour.tour_stops || tour.tour_stops.length === 0) {
-      alert('This tour is not available.');
+      utils.toast('Sorry, this tour isn\'t available right now.', { type: 'error' });
       return;
     }
     
@@ -2102,7 +2143,7 @@ const tours = {
   
   completeTour() {
     const duration = Math.round((Date.now() - state.activeTour.startedAt) / 60000);
-    alert(`Tour completed in ${duration} minute${duration !== 1 ? 's' : ''}! Thank you for exploring the Triangle's history.`);
+    utils.toast(`Tour complete in ${duration} minute${duration !== 1 ? 's' : ''}! Thank you for exploring the Triangle's history.`, { type: 'success', duration: 7000 });
     this.exitTour();
   },
   
