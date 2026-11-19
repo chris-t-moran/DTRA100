@@ -3,7 +3,7 @@
  * Drumcondra Triangle Centenary Project
  */
 
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/+esm';
 
 // =============================================================================
 // Configuration & State
@@ -11,6 +11,9 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 import { CONFIG as IMPORTED_CONFIG } from './config.js';
 const CONFIG = IMPORTED_CONFIG;
+
+// Public article columns (contributor_email is private and not readable by visitors)
+const ARTICLE_COLUMNS = 'id, title, short_desc, description, theme, img, url, contributor, lat, lon, active, inserted_at, updated_at, views';
 
 const state = {
   db: createClient(CONFIG.supabase.url, CONFIG.supabase.key),
@@ -122,6 +125,19 @@ const utils = {
       ? window.DOMPurify.sanitize(html, { ADD_ATTR: ['target'] })
       : utils.escape(str).replace(/\n/g, '<br>');
   },
+
+  // Spam guard: hidden "website" field only bots fill in, plus a minimum
+  // time between the form appearing and being submitted.
+  honeypotHTML: '<div class="hp-field" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">' +
+    '<label>Leave this empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>',
+  looksLikeBot: (form, minMs = 4000) => {
+    const hp = form.querySelector('input[name="website"]');
+    const opened = Number(form.dataset.openedAt || 0);
+    return (hp && hp.value.trim() !== '') || (opened && Date.now() - opened < minMs);
+  },
+  submitErrorMessage: (err) => /too many/i.test(err?.message || '')
+    ? 'Thanks! We have received a lot of submissions just now. Please try again in a little while.'
+    : 'Sorry, something went wrong submitting. Please try again.',
 
   // Image/link URLs: allow http(s) and relative paths only, attribute-escaped.
   safeUrl: (url) => {
@@ -331,11 +347,6 @@ const reactions = {
   
   async submit(articleId, reactionType, comment = '', authorName = '', authorEmail = '') {
     try {
-      const ipHash = await crypto.subtle.digest(
-        'SHA-256', 
-        new TextEncoder().encode(navigator.userAgent + Date.now().toString().slice(0, -7))
-      ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16));
-      
       const { error } = await state.db
         .from('article_reactions')
         .insert([{
@@ -343,15 +354,14 @@ const reactions = {
           reaction_type: 'memory',
           comment: comment.trim().slice(0, 500),
           author_name: authorName.trim().slice(0, 100),
-          author_email: authorEmail.trim(),
-          ip_hash: ipHash
+          author_email: authorEmail.trim().slice(0, 254) || null
         }]);
       
       if (error) throw error;
-      return true;
+      return { ok: true };
     } catch (e) {
       console.error('Failed to submit reaction:', e);
-      return false;
+      return { ok: false, error: e };
     }
   },
   
@@ -404,22 +414,27 @@ const reactions = {
       <h4>Share your reaction</h4>
       <label class="reaction-field">
         <span>Your memory or comment (optional):</span>
-        <textarea name="comment" rows="3" placeholder="Share your thoughts..."></textarea>
+        <textarea name="comment" rows="3" maxlength="500" placeholder="Share your thoughts..."></textarea>
       </label>
       <label class="reaction-field">
         <span>Your name (optional):</span>
-        <input type="text" name="author_name" placeholder="Anonymous">
+        <input type="text" name="author_name" maxlength="100" placeholder="Anonymous">
       </label>
       <label class="reaction-field">
         <span>Email (optional, for follow-up only):</span>
-        <input type="email" name="author_email" placeholder="you@example.com">
+        <input type="email" name="author_email" maxlength="254" placeholder="you@example.com">
       </label>
+      ${utils.honeypotHTML}
       <button type="submit" class="sf-btn sf-btn-primary">Submit Reaction</button>
       <p class="reaction-note">Your reaction will appear after moderation.</p>
     `;
     
+    form.dataset.openedAt = Date.now();
+    const thanks = '<p class="reaction-success">✓ Thank you! Your reaction will appear after review.</p>';
+    
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (utils.looksLikeBot(form)) { form.innerHTML = thanks; return; }
       const fd = new FormData(form);
       const btn = form.querySelector('button[type="submit"]');
       const oldText = btn.textContent;
@@ -427,7 +442,7 @@ const reactions = {
       btn.disabled = true;
       btn.textContent = 'Submitting...';
       
-      const success = await this.submit(
+      const result = await this.submit(
         articleId,
         fd.get('reaction_type'),
         fd.get('comment'),
@@ -435,12 +450,12 @@ const reactions = {
         fd.get('author_email')
       );
       
-      if (success) {
-        form.innerHTML = '<p class="reaction-success">✓ Thank you! Your reaction will appear after review.</p>';
+      if (result.ok) {
+        form.innerHTML = thanks;
       } else {
         btn.disabled = false;
         btn.textContent = oldText;
-        alert('Failed to submit. Please try again.');
+        alert(utils.submitErrorMessage(result.error));
       }
     });
     
@@ -593,7 +608,7 @@ async function loadArticles() {
   try {
     const { data, error } = await state.db
       .from('articles')
-      .select('*')
+      .select(ARTICLE_COLUMNS)
       .eq('active', true)
       .order('id', { ascending: true });
     
@@ -658,8 +673,9 @@ async function initMap() {
   const config = isMobile ? CONFIG.map.mobile : CONFIG.map.desktop;
   
   state.map = L.map('map').setView(config.center, config.zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(state.map);
   
   // Article markers with clustering
@@ -1531,15 +1547,19 @@ function showStoryForm() {
           <section id="story-share-content" class="sf-blurb">Loading…</section>
           <form id="story-form" class="sf-form">
             <label>Story Title
-              <input name="title" required placeholder="e.g. Life on O'Daly Road">
+              <input name="title" required maxlength="200" placeholder="e.g. Life on O'Daly Road">
             </label>
-            <label>Your Email (optional)
-              <input name="contributor" type="email" placeholder="you@example.com">
+            <label>Your Name (shown with your story)
+              <input name="contributor" maxlength="120" autocomplete="name" placeholder="e.g. Mary from Hardiman Road">
+            </label>
+            <label>Your Email (optional, never shown, only so we can follow up)
+              <input name="contributor_email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com">
             </label>
             <label>Your Story
-              <textarea name="description" required rows="6"
+              <textarea name="description" required rows="6" maxlength="20000"
                 placeholder="Your memories of people, places, traditions and memorable events."></textarea>
             </label>
+            ${utils.honeypotHTML}
             <footer class="sf-footer">
               <button type="button" id="sf-back" class="sf-btn sf-btn-ghost">Back</button>
               <button type="submit" class="sf-btn sf-btn-primary">Submit</button>
@@ -1565,27 +1585,37 @@ function showStoryForm() {
       const fd = new FormData(e.target);
       const title = fd.get('title')?.toString().trim();
       const description = fd.get('description')?.toString().trim();
-      const contributor = fd.get('contributor')?.toString().trim();
+      const contributor = fd.get('contributor')?.toString().trim() || null;
+      const contributor_email = fd.get('contributor_email')?.toString().trim() || null;
+      const thanks = 'Thank you for your story! It will be reviewed and added soon.';
       
       if (!title || !description) return;
       
+      if (utils.looksLikeBot(e.target, 8000)) {
+        e.target.reset();
+        alert(thanks);
+        closeForm();
+        return;
+      }
+      
       try {
         const { error } = await state.db.from('articles').insert([{
-          title,
-          description,
+          title: title.slice(0, 200),
+          description: description.slice(0, 20000),
           short_desc: description.slice(0, 100) + '…',
           contributor,
+          contributor_email,
           active: false
         }]);
         
         if (error) throw error;
         
         e.target.reset();
-        alert('Thank you for your story! It will be reviewed and added soon.');
+        alert(thanks);
         closeForm();
       } catch (err) {
         console.error('Submit failed:', err);
-        alert('Error submitting your story. Please try again.');
+        alert(utils.submitErrorMessage(err));
       }
     });
   }
@@ -1611,7 +1641,11 @@ function showStoryForm() {
   })();
   
   try {
-    if (!dlg.open) dlg.showModal();
+    if (!dlg.open) {
+      const sf = dlg.querySelector('#story-form');
+      if (sf) sf.dataset.openedAt = Date.now();
+      dlg.showModal();
+    }
   } catch(e) {}
 }
 
@@ -1632,7 +1666,7 @@ async function handleDeepLink() {
     try {
       const { data } = await state.db
         .from('articles')
-        .select('*')
+        .select(ARTICLE_COLUMNS)
         .eq('id', id)
         .eq('active', true)
         .maybeSingle();
