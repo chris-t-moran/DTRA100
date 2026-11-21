@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://triangle100.ie/sitemap.xml

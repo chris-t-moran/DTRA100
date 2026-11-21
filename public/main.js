@@ -11,6 +11,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 import { CONFIG as IMPORTED_CONFIG } from './config.js';
 import { initHistoryFeatures, showHouseLookup, showNumbers, handleHouseLink, storiesForHouse } from './history-features.js';
+import { slugMap } from './slug.js';
 const CONFIG = IMPORTED_CONFIG;
 
 // Public article columns (contributor_email is private and not readable by visitors)
@@ -188,9 +189,14 @@ const utils = {
     history[replace ? 'replaceState' : 'pushState']({}, '', url);
   },
   
+  // Shared links go to the story's own page (with a proper preview on WhatsApp, Facebook etc.)
   getPermalink: (articleId) => {
     if (!articleId) return window.location.href;
-    return `${window.location.origin}${window.location.pathname}?article=${articleId}`;
+    state.slugs = state.slugs || slugMap(state.articles || []);
+    const slug = state.slugs.get(Number(articleId));
+    return slug
+      ? `${window.location.origin}/stories/${slug}/`
+      : `${window.location.origin}/?article=${articleId}`;
   }
 };
 
