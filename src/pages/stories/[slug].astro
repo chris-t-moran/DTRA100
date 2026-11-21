@@ -1,0 +1,80 @@
+---
+// One page per published story: triangle100.ie/stories/<slug>/
+import PageHead from '../../components/PageHead.astro';
+import { loadSiteData, roadName, houseParam, LOGO } from '../../lib/data.js';
+import { storyHtml, plainText, readingMinutes } from '../../lib/text.js';
+
+export async function getStaticPaths() {
+  const { articles, slugs, residentsById } = await loadSiteData();
+  return articles.map((article, i) => ({
+    params: { slug: slugs.get(Number(article.id)) },
+    props: {
+      article,
+      house: article.resident_id != null ? residentsById.get(Number(article.resident_id)) || null : null,
+      prev: { a: articles[(i - 1 + articles.length) % articles.length] },
+      next: { a: articles[(i + 1) % articles.length] },
+      slugs
+    }
+  }));
+}
+
+const { article, house, prev, next, slugs } = Astro.props;
+const url = new URL(Astro.url.pathname, Astro.site).href;
+const body = storyHtml(article.description);
+const description = article.short_desc
+  ? `${article.short_desc}. ${plainText(article.description, 140)}`
+  : plainText(article.description, 180);
+const image = /^https:\/\//.test(article.img || '') ? article.img : LOGO;
+const linkTo = (a) => `/stories/${slugs.get(Number(a.id))}/`;
+const mins = readingMinutes(article.description);
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <PageHead title={article.title} description={description} url={url} image={image} type="article" />
+  <script type="application/ld+json" set:html={JSON.stringify({
+    '@context': 'https://schema.org', '@type': 'Article',
+    headline: article.title, description, image, url,
+    author: article.contributor ? { '@type': 'Person', name: article.contributor } : undefined,
+    datePublished: article.inserted_at || undefined, dateModified: article.updated_at || undefined,
+    publisher: { '@type': 'Organization', name: 'Triangle100', logo: { '@type': 'ImageObject', url: LOGO } }
+  })} />
+</head>
+<body class="page">
+  <header class="page-top">
+    <a class="page-brand" href="/"><img src={LOGO} alt="" width="36" height="36" /><span>Triangle100</span></a>
+    <a class="btn btn-secondary btn-sm" href={`/?article=${article.id}`}>Open on the map</a>
+  </header>
+
+  <main class="page-story">
+    {image !== LOGO
+      ? <div class="story-hero"><img src={image} alt="" /></div>
+      : <div class="story-hero no-image"></div>}
+    <article class="story-body">
+      <p class="story-eyebrow"><b>{article.theme || 'Story'}</b>{mins} min read</p>
+      <h1 class="story-title">{article.title}</h1>
+      {(article.short_desc || article.contributor) &&
+        <p class="story-dek">{[article.short_desc, article.contributor && `Shared by ${article.contributor}`].filter(Boolean).join(' · ')}</p>}
+      {house &&
+        <a class="modal-house-link" href={`/?house=${houseParam(house)}`}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+          <span>In 1929, {house.housenumber} {roadName(house.road)} was first leased to <strong>{house.lessee || 'a family not yet traced'}</strong></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </a>}
+      <div class="modal-description" set:html={body} />
+      <div class="page-cta">
+        <h2>Do you remember?</h2>
+        <p>Add a memory or comment to this story, or share your own.</p>
+        <div class="page-cta-actions">
+          <a class="btn btn-primary" href={`/?article=${article.id}`}>Add a memory</a>
+          <a class="btn btn-secondary" href="/stories/">All stories</a>
+        </div>
+      </div>
+    </article>
+    <nav class="story-nav page-nav" aria-label="More stories">
+      <a class="nav-btn nav-prev" href={linkTo(prev.a)}>‹ <span>{prev.a.title}</span></a>
+      <a class="nav-btn nav-next" href={linkTo(next.a)}><span>{next.a.title}</span> ›</a>
+    </nav>
+  </main>
+</body>
+</html>

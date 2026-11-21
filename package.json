@@ -1,0 +1,19 @@
+{
+  "name": "triangle100",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Triangle100: a century of stories from the Drumcondra Triangle",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^7.4.13",
+    "sanitize-html": "^2.18.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

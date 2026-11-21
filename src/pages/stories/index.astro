@@ -1,0 +1,47 @@
+---
+// triangle100.ie/stories/: every published story as a list (also helps search engines find them all)
+import PageHead from '../../components/PageHead.astro';
+import { loadSiteData, roadName, LOGO } from '../../lib/data.js';
+
+const { articles, slugs, residentsById } = await loadSiteData();
+const ordered = [...articles].sort((a, b) => String(b.inserted_at || '').localeCompare(String(a.inserted_at || '')));
+const url = new URL('/stories/', Astro.site).href;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <PageHead title="Stories from the Triangle"
+    description={`${articles.length} stories of the people and places of the Drumcondra Triangle, Dublin, from its first residents in 1929 to today.`}
+    url={url} />
+</head>
+<body class="page">
+  <header class="page-top">
+    <a class="page-brand" href="/"><img src={LOGO} alt="" width="36" height="36" /><span>Triangle100</span></a>
+    <a class="btn btn-secondary btn-sm" href="/">Explore the map</a>
+  </header>
+  <main class="page-list">
+    <h1 class="story-title">Stories from the Triangle</h1>
+    <p class="panel-count">{articles.length} stories</p>
+    <ul class="grid">
+      {ordered.map(a => {
+        const house = a.resident_id != null ? residentsById.get(Number(a.resident_id)) : null;
+        const where = house ? `${house.housenumber} ${roadName(house.road)}` : '';
+        return (
+          <li>
+            <a class="story-row" href={`/stories/${slugs.get(Number(a.id))}/`}>
+              {/^https:\/\//.test(a.img || '')
+                ? <img class="story-thumb" src={a.img} alt="" loading="lazy" />
+                : <span class="story-thumb placeholder" aria-hidden="true"></span>}
+              <span class="story-meta">
+                <strong>{a.title}</strong>
+                {a.short_desc && <span>{a.short_desc}</span>}
+                <small>{[a.theme, where].filter(Boolean).join(' · ')}</small>
+              </span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </main>
+</body>
+</html>
