@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Triangle100 – A celebration of community</title>
   <meta name="description" content="Drumcondra Triangle Centenary Project: stories, residents and walking tours of the Triangle." />
+  <meta name="theme-color" content="#1F6B43" />
+  <!-- Fonts: Fraunces (headings, story text) + Inter (interface) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" />
   <!-- Global styles for the site -->
   <link rel="stylesheet" href="styles.css" />
   <!-- Leaflet CSS & marker cluster CSS -->
@@ -26,47 +31,82 @@
   />
 </head>
 <body>
+  <a class="skip-link" href="#content">Skip to stories</a>
   <div id="mainpage">
-    <!-- Sidebar / content section -->
-    <section id="content" aria-label="Site content">
-      <!-- Logo and heading -->
-      <header id="head_logo" class="draggable-content">
-          <img
-            src="https://vqkoapgiozhytoqscxxx.supabase.co/storage/v1/object/public/icons/T100_icon/T100_transparent_cropped_logo.PNG"
-            alt="Triangle100 logo: the Hardiman Road lamppost"
-            width="150"
-            height="150"
-          />
-        <h1>A celebration of community</h1>
-      </header>
-      <!-- Drag handle for mobile: visible on small screens to allow dragging the panel -->
-      <div id="content-handle" class="content-handle"></div>
-      <!-- Introductory text -->
-      <section id="intro">
-      <!-- Content populated dynamically -->
-      </section>
-      <!-- Theme/category buttons will be injected here -->
-      <nav id="themes" aria-label="Story categories"></nav>
-      <!-- Share your story button -->
-      <button
-        id="share-story-btn"
-        class="btn-share"
-        title="Get involved and share your story"
-        type="button"
-      >
-        Get involved and share your story!
-      </button>
-      <!-- Article listing will be injected here -->
-      <section id="article-list" aria-live="polite"></section>
-      <!-- About section placeholder -->
-      <section id="about-project">
-        <!-- Content populated dynamically from Supabase (str_contentType='ABOUT') -->
-      </section>
-    </section>
-    <!-- Map container -->
+    <!-- Map fills the screen; everything else sits over it -->
     <section id="map" aria-label="Interactive map"></section>
+
+    <!-- Top bar: brand + Today/1929 switch -->
+    <header id="topbar">
+      <a id="brand" href="./" aria-label="Triangle100 home">
+        <img src="https://vqkoapgiozhytoqscxxx.supabase.co/storage/v1/object/public/icons/T100_icon/T100_transparent_cropped_logo.PNG"
+             alt="" width="36" height="36" />
+        <span>Triangle100</span>
+      </a>
+      <div id="era-toggle" class="segmented" role="group" aria-label="Map era">
+        <button type="button" data-era="today" aria-pressed="true">Today</button>
+        <button type="button" data-era="1929" aria-pressed="false">1929</button>
+      </div>
+    </header>
+
+    <!-- The panel: slides up on phones, sits beside the map on larger screens -->
+    <section id="content" aria-label="Stories">
+      <div id="content-handle" class="content-handle" aria-hidden="true"></div>
+      <header id="panel-header">
+        <h1 id="panel-title">Stories from the Triangle</h1>
+        <p id="panel-count" class="panel-count"></p>
+      </header>
+
+      <!-- Today: search, filters and story list -->
+      <div id="era-today-panel">
+        <nav id="themes" aria-label="Story categories"></nav>
+        <section id="intro" class="panel-card"></section>
+        <section id="article-list" aria-live="polite"></section>
+      </div>
+
+      <!-- 1929: first residents tools -->
+      <div id="era-1929-panel" hidden>
+        <p class="panel-lede">The Drumcondra scheme's first families got their keys in 1929. Tap a house on the map, or look up your own.</p>
+        <div class="panel-actions">
+          <button type="button" id="btn-house" class="btn btn-primary">Who first lived in my house?</button>
+          <button type="button" id="btn-numbers" class="btn btn-secondary">1929 in numbers</button>
+        </div>
+        <label class="field">
+          <span>Search the 1929 map by address or name</span>
+          <input id="resident-search" type="search" placeholder="e.g. Hardiman Road or Sexton" autocomplete="off" />
+        </label>
+        <p class="panel-hint"><span class="legend-dot legend-moved" aria-hidden="true"></span> Glowing houses: tap to see where that family moved from.</p>
+      </div>
+
+      <button id="share-story-btn" class="btn btn-share" type="button">Share your story</button>
+      <section id="about-project" class="panel-card"></section>
+    </section>
+
+    <!-- Bottom tabs (phones) / panel tabs (larger screens) -->
+    <nav id="tabbar" aria-label="Main">
+      <button type="button" data-tab="explore" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+        <span>Explore</span>
+      </button>
+      <button type="button" data-tab="stories">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2V5Z"/><path d="M4 19v2M8 7h6"/></svg>
+        <span>Stories</span>
+      </button>
+      <button type="button" data-tab="1929">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+        <span>1929</span>
+      </button>
+      <button type="button" data-tab="tours">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h6a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h6"/></svg>
+        <span>Tours</span>
+      </button>
+      <button type="button" data-tab="share">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        <span>Share</span>
+      </button>
+    </nav>
   </div>
-  
+
   <!-- CRITICAL: Scripts must load in this exact order -->
   <!-- 1. Leaflet core (everything else depends on this) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

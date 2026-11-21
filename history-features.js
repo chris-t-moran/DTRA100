@@ -16,7 +16,18 @@ const ROAD_DISPLAY = {
 const WOMEN_STATUS = /^(married woman|widow|spinster|housewife|single woman)$/i;
 const NOT_RECORDED = /^(unknown|n\/?a|none|-)?$/i;
 
-let ctx = null; // { state, utils, a11y, openModal, showStoryForm, toggleResidents }
+let ctx = null; // { state, utils, a11y, openModal, showStoryForm, toggleResidents, setEra, sheet }
+
+// 1929 money in today's terms. CSO "Purchasing power of IR£/€" table (reference date: mid-January 2024):
+// 1929 averaged about 1.53c for what €1 bought then; pounds converted at IR£1 = €1.269738.
+// Planned: move this figure into Supabase (price_benchmarks) so it can be updated without a code change.
+const EUR_PER_1929_POUND = 82.85;
+const TODAY_MONEY_NOTE = 'In January 2024 money, from the CSO table “Purchasing power of IR£/€”.';
+const todayMoney = (pounds) => {
+  const v = Number(pounds);
+  if (!(v > 0)) return null;
+  return '€' + (Math.round(v * EUR_PER_1929_POUND / 100) * 100).toLocaleString('en-IE');
+};
 
 const roadName = (r) => ROAD_DISPLAY[r] || r || '';
 const slug = (s) => roadName(s).toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -45,6 +56,15 @@ function priceRange(list) {
 export function storiesForHouse(r) {
   if (!r) return [];
   return (ctx?.state.articles || []).filter(a => a.active && a.resident_id != null && Number(a.resident_id) === Number(r.id));
+}
+
+// Link to the household's 1926 census return, shown only once someone has filled it in
+function censusLink(r) {
+  const url = ctx.utils.safeUrl(r.census1926_url);
+  if (!url || !/^https:/i.test(String(r.census1926_url))) return '';
+  return `<a class="census-link" href="${url}" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+    <span>Before the Triangle: this family in the 1926 census <span class="hx-muted">(National Archives)</span></span></a>`;
 }
 
 // -----------------------------------------------------------------------------
@@ -155,11 +175,13 @@ function renderHouse(out, road, num) {
         <dl class="hx-facts">
           ${occ ? `<div><dt>Occupation</dt><dd>${esc(occ)}</dd></div>` : ''}
           ${r.formeraddress ? `<div><dt>Moved from</dt><dd>${esc(r.formeraddress)}</dd></div>` : ''}
-          ${price ? `<div><dt>Price paid</dt><dd>${price}${range && range[0] !== range[1]
-              ? ` <span class="hx-muted">(houses on ${esc(roadName(road))} went for ${money(range[0])}–${money(range[1])})</span>` : ''}</dd></div>` : ''}
+          ${price ? `<div><dt>Price paid</dt><dd>${price} <span class="hx-today">≈ ${todayMoney(r.consideration)} today*</span>${range && range[0] !== range[1]
+              ? `<br><span class="hx-muted">Houses on ${esc(roadName(road))} went for ${money(range[0])}–${money(range[1])}</span>` : ''}</dd></div>` : ''}
           ${r.MilitaryHistory ? `<div><dt>Note</dt><dd>A military history has been recorded for this household</dd></div>` : ''}
         </dl>
-        ${stories.map(a => `<button type="button" class="hx-story-link" data-article="${a.id}">📖 A story from this house: ${esc(a.title)}</button>`).join('')}
+        ${price ? `<p class="hx-source">*${TODAY_MONEY_NOTE}</p>` : ''}
+        ${censusLink(r)}
+        ${stories.map(a => `<button type="button" class="hx-story-link" data-article="${a.id}">A story from this house: ${esc(a.title)}</button>`).join('')}
       </article>`;
   }).join('');
 
@@ -167,9 +189,9 @@ function renderHouse(out, road, num) {
     ${found.length > 1 ? `<p class="hx-hint">The records show ${found.length} names for this house.</p>` : ''}
     ${cards}
     <div class="hx-actions">
-      <button type="button" class="sf-btn sf-btn-primary" data-act="map">📍 Show on the 1929 map</button>
-      <button type="button" class="sf-btn sf-btn-ghost" data-act="share">🔗 Share</button>
-      <button type="button" class="sf-btn sf-btn-ghost" data-act="print">🖨️ Print a house card</button>
+      <button type="button" class="sf-btn sf-btn-primary" data-act="map">Show on map</button>
+      <button type="button" class="sf-btn sf-btn-ghost" data-act="share">Share</button>
+      <button type="button" class="sf-btn sf-btn-ghost" data-act="print">Print house card</button>
     </div>
     <p class="hx-small">Know more about the family? <a href="#" class="hx-share-story">Add to their story</a>.</p>`;
 
@@ -198,11 +220,8 @@ function renderHouse(out, road, num) {
 function showOnMap(r) {
   document.getElementById('house-dialog')?.close();
   const { state } = ctx;
-  const showing = state.residentMarkers.length && state.map.hasLayer(state.residentMarkers[0]);
-  if (!showing) {
-    const btn = document.querySelector('.residents-toggle-btn');
-    if (btn) ctx.toggleResidents(btn);
-  }
+  ctx.setEra('1929');
+  ctx.sheet?.set('peek');
   const marker = state.residentMarkers.find(m => m._resident === r);
   if (!marker) return;
   state.map.flyTo(marker.getLatLng(), 18, { duration: 0.8 });
@@ -296,11 +315,12 @@ export function showNumbers() {
   const moved = all.filter(r => r.formeraddress && r.formeraddress.trim()).length;
   const military = all.filter(r => r.MilitaryHistory).length;
 
-  const byRoad = [...roads].map(road => {
-    const list = all.filter(r => r.road === road);
-    const p = list.map(r => Number(r.consideration)).filter(n => n > 0);
-    return { label: roadName(road), value: p.length ? Math.round(p.reduce((a, b) => a + b, 0) / p.length) : 0, n: list.length };
-  }).filter(r => r.value).sort((a, b) => b.value - a.value);
+  // The scheme had three sizes of house, visible in the prices paid
+  const priced = all.map(r => Number(r.consideration)).filter(n => n > 0);
+  const tiers = [[0, 300], [300, 400], [400, Infinity]].map(([lo, hi]) => {
+    const p = priced.filter(n => n >= lo && n < hi);
+    return p.length ? { min: Math.min(...p), max: Math.max(...p), n: p.length } : null;
+  }).filter(Boolean);
 
   const households = [...roads].map(road => ({
     label: roadName(road), value: all.filter(r => r.road === road).length
@@ -321,12 +341,23 @@ export function showNumbers() {
       <h3>What they did for a living</h3>
       <p class="hx-sub">The ten most common occupations among ${withOcc} lessees whose trade is recorded</p>
       ${bars(topOcc)}
+      <div class="hx-compare">
+        <span>Women at work, Ireland</span><span>Professionals, Ireland</span>
+        <strong>26% → 47%</strong><strong>4% → 10%</strong>
+        <p class="hx-source">1926 → 2022. Source: CSO, <a href="https://www.cso.ie/en/releasesandpublications/ep/p-tnli/thenandnowlifeinirelandin1926and2022/occupations/" target="_blank" rel="noopener">Then and Now: Life in Ireland in 1926 and 2022</a>. Categories differ between the two censuses, so comparisons are approximate.</p>
+      </div>
     </section>
 
     <section>
-      <h3>What a house cost</h3>
-      <p class="hx-sub">Average price paid, by road. The Triangle was built with two sizes of house.</p>
-      ${bars(byRoad, { fmt: money })}
+      <h3>Three sizes of house</h3>
+      <p class="hx-sub">Prices paid in 1929, with today's equivalent</p>
+      <div class="hx-tiers">
+        ${tiers.map(t => `<div class="hx-tier">
+          <strong>${money(t.min)}–${money(t.max)}</strong>
+          <span class="hx-today">≈ ${todayMoney(t.min)}–${todayMoney(t.max)}</span>
+          <span>${t.n} houses</span></div>`).join('')}
+      </div>
+      <p class="hx-source">${TODAY_MONEY_NOTE} Converted at IR£1 = €1.269738.</p>
     </section>
 
     <section>
@@ -345,7 +376,7 @@ export function showNumbers() {
     </div>
 
     <div class="hx-foot">
-      <button type="button" class="sf-btn sf-btn-primary" data-act="house">🏠 Find your own house</button>
+      <button type="button" class="sf-btn sf-btn-primary" data-act="house">Find your own house</button>
       <p class="hx-small">Spotted a mistake, or know a family we haven't traced?
         <a href="#" data-act="story">Tell us</a>.</p>
     </div>
@@ -356,9 +387,9 @@ export function showNumbers() {
   dlg.querySelector('[data-act="journeys"]').addEventListener('click', () => {
     dlg.close();
     const { state } = ctx;
-    const showing = state.residentMarkers.length && state.map.hasLayer(state.residentMarkers[0]);
-    if (!showing) { const btn = document.querySelector('.residents-toggle-btn'); if (btn) ctx.toggleResidents(btn); }
-    ctx.utils.toast('Tap a glowing orange house to see where that family moved from.', { duration: 6000 });
+    ctx.setEra('1929');
+    ctx.sheet?.set('peek');
+    ctx.utils.toast('Tap a glowing house to see where that family moved from.', { duration: 6000 });
   });
 }
 

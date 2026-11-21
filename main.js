@@ -111,7 +111,7 @@ const loadingUI = {
 // =============================================================================
 
 const utils = {
-  isMobile: () => window.innerWidth <= 500,
+  isMobile: () => window.innerWidth < 900,
   
   escape: (str) => String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -719,11 +719,11 @@ async function initMap() {
   
   state.articles.forEach(article => {
     const marker = L.circleMarker([article.lat, article.lon], {
-      radius: 7,
-      color: '#4caf50',
-      fillColor: 'orange',
-      fillOpacity: 0.8,
-      weight: 1
+      radius: 8,
+      color: '#FFFFFF',
+      fillColor: '#1F6B43',
+      fillOpacity: 1,
+      weight: 3
     });
     
     marker._article = article;
@@ -749,9 +749,6 @@ async function initMap() {
     if (article) { state.map.closePopup(); openModal(article); }
   });
   
-  // Controls
-  addResidentsToggle();
-  
   // Expose for debugging
   window.triMap = state.map;
   window.triState = state;
@@ -763,15 +760,15 @@ function createResidentMarkers() {
     
     const marker = L.circleMarker([r.lat, r.lon], hasFormer ? {
       radius: 8,
-      color: '#f97316',
-      weight: 2,
-      fillColor: '#ffedd5',
-      fillOpacity: 0.95
+      color: '#A8641C',
+      weight: 2.5,
+      fillColor: '#FBE7CF',
+      fillOpacity: 1
     } : {
-      radius: 7,
-      color: 'gold',
-      weight: 1,
-      fillColor: '#4caf50',
+      radius: 6,
+      color: '#FFFFFF',
+      weight: 1.5,
+      fillColor: '#A8641C',
       fillOpacity: 1
     });
     
@@ -871,72 +868,129 @@ function bezierCurve(from, to, curvature = 0.25, segments = 48) {
 // UI - Residents Toggle & Search
 // =============================================================================
 
-function addResidentsToggle() {
-  const ResidentsToggle = L.Control.extend({
-    options: { position: 'topright' },
-    onAdd: function() {
-      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-      const btn = L.DomUtil.create('a', 'residents-toggle-btn', container);
-      btn.href = '#';
-      btn.innerHTML = 'Switch to 1929';
-      btn.title = 'Show/Hide First Residents';
-      
-      L.DomEvent.on(btn, 'click', (e) => {
-        L.DomEvent.stopPropagation(e);
-        L.DomEvent.preventDefault(e);
-        toggleResidents(btn);
-      });
-      
-      return container;
-    }
+// Today / 1929 switch (top bar) and the 1929 tools in the panel
+function setupEraControls() {
+  document.querySelectorAll('#era-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => setEra(btn.dataset.era));
   });
-  
-  const ResidentsSearch = L.Control.extend({
-    options: { position: 'topright' },
-    onAdd: function() {
-      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-      container.style.cssText = 'padding:6px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)';
-      
-      const input = L.DomUtil.create('input', '', container);
-      input.type = 'search';
-      input.placeholder = 'Search address…';
-      input.style.cssText = 'width:180px;border:1px solid #ccc;padding:6px 8px;outline:none';
-      
-      L.DomEvent.disableClickPropagation(container);
-      L.DomEvent.disableScrollPropagation(container);
-      
-      input.addEventListener('input', utils.debounce(() => {
-        const q = input.value.trim();
-        q ? filterResidents(q) : clearResidentFilter();
-      }, 200));
-      
-      return container;
-    }
-  });
-  
-  state.map.addControl(new ResidentsToggle());
-  state.searchControl = new ResidentsSearch();
+  const input = document.getElementById('resident-search');
+  input?.addEventListener('input', utils.debounce(() => {
+    const q = input.value.trim();
+    q ? filterResidents(q) : clearResidentFilter();
+  }, 200));
+  document.getElementById('btn-house')?.addEventListener('click', () => showHouseLookup());
+  document.getElementById('btn-numbers')?.addEventListener('click', () => showNumbers());
 }
 
-function toggleResidents(btn) {
+function setEra(era) {
+  const past = era === '1929';
   const showing = state.residentMarkers.length > 0 && state.map.hasLayer(state.residentMarkers[0]);
-  const mapEl = document.getElementById('map');
-  
-  mapEl.classList.toggle('sepia', !showing);
-  
-  if (showing) {
-    state.residentMarkers.forEach(m => state.map.removeLayer(m));
-    if (state.articleMarkers) state.map.addLayer(state.articleMarkers);
-    if (state.residentMoveLayer) state.map.removeLayer(state.residentMoveLayer);
-    btn.innerHTML = 'Switch to 1929';
-    try { state.map.removeControl(state.searchControl); } catch(e) {}
-    clearResidentFilter();
-  } else {
-    if (state.articleMarkers) state.map.removeLayer(state.articleMarkers);
-    state.residentMarkers.forEach(m => m.addTo(state.map));
-    btn.innerHTML = 'Switch to Stories';
-    try { state.map.addControl(state.searchControl); } catch(e) {}
+  if (past !== showing) {
+    document.getElementById('map').classList.toggle('sepia', past);
+    if (past) {
+      if (state.articleMarkers) state.map.removeLayer(state.articleMarkers);
+      state.residentMarkers.forEach(m => m.addTo(state.map));
+    } else {
+      state.residentMarkers.forEach(m => state.map.removeLayer(m));
+      if (state.articleMarkers) state.map.addLayer(state.articleMarkers);
+      if (state.residentMoveLayer) state.map.removeLayer(state.residentMoveLayer);
+      const input = document.getElementById('resident-search');
+      if (input) input.value = '';
+      clearResidentFilter();
+    }
   }
+  state.era = past ? '1929' : 'today';
+  document.querySelectorAll('#era-toggle button').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.era === state.era));
+  });
+  document.getElementById('era-today-panel').hidden = past;
+  document.getElementById('era-1929-panel').hidden = !past;
+  updatePanelHeader();
+  setActiveTab(past ? '1929' : (state.activeTab === '1929' ? 'explore' : state.activeTab));
+}
+
+// Kept for older callers: flips between the two eras
+function toggleResidents() {
+  setEra(state.era === '1929' ? 'today' : '1929');
+}
+
+function updatePanelHeader(shown) {
+  const title = document.getElementById('panel-title');
+  const count = document.getElementById('panel-count');
+  if (!title || !count) return;
+  if (state.era === '1929') {
+    title.textContent = 'First residents, 1929';
+    count.textContent = `${state.residents.length} households traced so far`;
+  } else {
+    title.textContent = 'Stories from the Triangle';
+    const total = state.articles.length;
+    count.textContent = (shown != null && shown !== total)
+      ? `${shown} of ${total} stories`
+      : `${total} stories`;
+  }
+}
+
+// =============================================================================
+// Panel (sheet) and tab bar
+// =============================================================================
+
+const sheet = {
+  // Resting positions as a fraction of the viewport height (phones only)
+  stops: { peek: null, half: 0.52, full: 0.08 },
+  peekTop() {
+    // Show the handle, the heading and the filters above the tab bar
+    const tab = document.getElementById('tabbar')?.offsetHeight || 64;
+    return window.innerHeight - tab - 190;
+  },
+  topFor(name) {
+    if (name === 'peek') return this.peekTop();
+    return Math.round(window.innerHeight * this.stops[name]);
+  },
+  set(name) {
+    if (!utils.isMobile()) return;
+    state.sheetState = name;
+    document.documentElement.style.setProperty('--sheet-top', this.topFor(name) + 'px');
+  },
+  nearest(top) {
+    const names = ['full', 'half', 'peek'];
+    return names.reduce((best, n) => Math.abs(this.topFor(n) - top) < Math.abs(this.topFor(best) - top) ? n : best, 'half');
+  }
+};
+
+function setActiveTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('#tabbar button').forEach(b => {
+    if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
+}
+
+function setupTabs() {
+  document.querySelectorAll('#tabbar button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (currentModal) currentModal._close?.();
+      switch (tab) {
+        case 'explore':
+          setEra('today'); setActiveTab('explore'); sheet.set('peek');
+          break;
+        case 'stories':
+          setEra('today'); setActiveTab('stories'); sheet.set('full');
+          setTimeout(() => document.getElementById('article-search-input')?.focus({ preventScroll: true }), 350);
+          break;
+        case '1929':
+          setEra('1929'); sheet.set('half');
+          break;
+        case 'tours':
+          setEra('today');
+          showToursDialog();
+          break;
+        case 'share':
+          showStoryForm();
+          break;
+      }
+    });
+  });
 }
 
 function filterResidents(query) {
@@ -961,7 +1015,7 @@ function filterResidents(query) {
   
   state.residentMarkers.forEach(m => {
     const visible = matches.includes(m);
-    m.setStyle({ opacity: visible ? 1 : 0, fillOpacity: visible ? 0.7 : 0 });
+    m.setStyle({ opacity: visible ? 1 : 0, fillOpacity: visible ? 1 : 0 });
     const el = m.getElement();
     if (el) el.style.pointerEvents = visible ? '' : 'none';
   });
@@ -977,7 +1031,7 @@ function filterResidents(query) {
 
 function clearResidentFilter() {
   state.residentMarkers.forEach(m => {
-    m.setStyle({ opacity: 1, fillOpacity: 0.7 });
+    m.setStyle({ opacity: 1, fillOpacity: 1 });
     const el = m.getElement();
     if (el) el.style.pointerEvents = '';
   });
@@ -1102,69 +1156,60 @@ function renderThemes() {
     });
   }
   
-  // Create theme buttons container
+  // One row of filter chips
   const themesWrapper = document.createElement('div');
   themesWrapper.className = 'themes-buttons';
-  
-  Object.keys(themes).forEach(theme => {
-    const btn = document.createElement('div');
-    btn.className = 'theme';
-    btn.textContent = theme;
-    btn.addEventListener('click', () => {
-      // Clear search when selecting theme
+  themesWrapper.setAttribute('role', 'group');
+  themesWrapper.setAttribute('aria-label', 'Filter stories');
+
+  const makeChip = (label, value) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip theme';
+    chip.textContent = label;
+    chip.dataset.theme = value;
+    chip.setAttribute('aria-pressed', String(value === '' ));
+    return chip;
+  };
+
+  const allChip = makeChip('All', '');
+  allChip.addEventListener('click', () => {
+    searchInput.value = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+    state.activeTheme = null;
+    renderArticles(null);
+    setActiveTheme(null);
+  });
+  themesWrapper.appendChild(allChip);
+
+  Object.keys(themes).sort().forEach(theme => {
+    const chip = makeChip(theme, theme);
+    chip.addEventListener('click', () => {
       searchInput.value = '';
       if (clearBtn) clearBtn.style.display = 'none';
-      
-      if (state.activeTheme === theme) {
-        state.activeTheme = null;
-        renderArticles(null);
-        setActiveTheme(null);
-      } else {
-        state.activeTheme = theme;
-        renderArticles(theme);
-        setActiveTheme(theme);
-      }
+      const next = state.activeTheme === theme ? null : theme;
+      state.activeTheme = next;
+      renderArticles(next);
+      setActiveTheme(next);
     });
-    themesWrapper.appendChild(btn);
+    themesWrapper.appendChild(chip);
   });
-  
-  const lucky = document.createElement('div');
-  lucky.className = 'theme';
-  lucky.textContent = 'Lucky Dip!';
-  lucky.style.background = 'gold';
+
+  const lucky = makeChip('Lucky dip', '__lucky');
+  lucky.setAttribute('aria-pressed', 'false');
   lucky.addEventListener('click', () => {
     const random = state.articles[Math.floor(Math.random() * state.articles.length)];
     if (random) openModal(random);
   });
   themesWrapper.appendChild(lucky);
 
-  const toursBtn = document.createElement('div');
-  toursBtn.className = 'theme theme-tours';
-  toursBtn.textContent = '🚶 Guided Tours';
-  toursBtn.style.background = '#2563eb';
-  toursBtn.addEventListener('click', () => showToursDialog());
-  themesWrapper.appendChild(toursBtn);
-
-  const houseBtn = document.createElement('button');
-  houseBtn.type = 'button';
-  houseBtn.className = 'theme theme-house';
-  houseBtn.textContent = '🏠 Who lived in my house?';
-  houseBtn.addEventListener('click', () => showHouseLookup());
-  themesWrapper.appendChild(houseBtn);
-
-  const numbersBtn = document.createElement('button');
-  numbersBtn.type = 'button';
-  numbersBtn.className = 'theme theme-numbers';
-  numbersBtn.textContent = '📊 1929 in numbers';
-  numbersBtn.addEventListener('click', () => showNumbers());
-  themesWrapper.appendChild(numbersBtn);
-  
   container.appendChild(themesWrapper);
 }
 
 function setActiveTheme(theme) {
-  document.querySelectorAll('.themes-buttons .theme').forEach(el => {
-    el.classList.toggle('active', el.textContent === theme);
+  document.querySelectorAll('.themes-buttons .chip').forEach(el => {
+    if (el.dataset.theme === '__lucky') return;
+    el.setAttribute('aria-pressed', String(el.dataset.theme === (theme || '')));
   });
 }
 
@@ -1192,46 +1237,43 @@ function renderArticles(theme, searchQuery = null) {
     return;
   }
   
-  // Shuffle and limit to 10 articles
-  const shuffled = [...filtered].sort(() => Math.random() - 0.5);
-  const limited = shuffled.slice(0, 10);
-  
   list.innerHTML = '';
-  
   const grid = document.createElement('ul');
   grid.className = 'grid';
-  
-  limited.forEach(article => {
+
+  // Newest first, so new stories are easy to find
+  const ordered = [...filtered].sort((a, b) => String(b.inserted_at || '').localeCompare(String(a.inserted_at || '')));
+  ordered.forEach(article => {
     const li = document.createElement('li');
-    li.className = 'card';
     li.dataset.articleId = article.id;
-    
-    const link = document.createElement('a');
-    link.href = 'javascript:void(0)';
-    link.addEventListener('click', () => openModal(article));
-    link.innerHTML = `
-      <img src="${utils.safeUrl(article.img)}" 
-           alt="${utils.escape(article.title)}"
-           onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22150%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2214%22%3EImage unavailable%3C/text%3E%3C/svg%3E'" />
-      <div class="${article.active ? 'overlay' : 'inactiveoverlay'}">${utils.escape(article.title)}</div>
-    `;
-    
-    li.appendChild(link);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'story-row';
+    btn.addEventListener('click', () => openModal(article));
+    const img = utils.safeUrl(article.img);
+    const house = article.resident_id != null
+      ? state.residents.find(r => Number(r.id) === Number(article.resident_id)) : null;
+    const where = house ? `${house.housenumber} ${roadDisplayName(house.road)}` : '';
+    btn.innerHTML = `
+      ${img
+        ? `<img class="story-thumb" src="${img}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'story-thumb placeholder'}))">`
+        : `<span class="story-thumb placeholder" aria-hidden="true"></span>`}
+      <span class="story-meta">
+        <strong>${utils.escape(article.title)}</strong>
+        ${article.short_desc ? `<span>${utils.escape(article.short_desc)}</span>` : ''}
+        <small>${utils.escape([article.theme, where].filter(Boolean).join(' · '))}</small>
+      </span>`;
+    li.appendChild(btn);
     grid.appendChild(li);
   });
-  
   list.appendChild(grid);
-  
-  // Show count message
-  if (filtered.length > 10) {
-    const msg = document.createElement('p');
-    msg.textContent = `Showing 10 of ${filtered.length} stories`;
-    msg.style.cssText = 'text-align:center;margin-top:1rem;font-size:0.9rem';
-    list.appendChild(msg);
-  }
-  
-  // Update search results count
+
+  updatePanelHeader(filtered.length);
   articleSearch.updateResultsCount(filtered.length, state.articles.length, query);
+}
+
+function roadDisplayName(road) {
+  return road === "O'Neachtain" ? "O'Neachtain Road" : road === 'Coymn Place' ? 'Comyn Place' : (road || '');
 }
 
 // =============================================================================
@@ -1244,10 +1286,10 @@ function selectMarker(marker) {
   }
   
   marker.setStyle({
-    color: '#f97316',
-    fillColor: '#ffedd5',
+    color: '#1C2420',
+    fillColor: '#1F6B43',
     weight: 3,
-    radius: Math.max(marker.options.radius || 7, 9)
+    radius: Math.max(marker.options.radius || 8, 11)
   });
   
   if (!utils.isMobile() && marker.getLatLng) {
@@ -1402,6 +1444,7 @@ function createModal(article) {
   
   // Store what triggered the modal for focus restoration
   modal._triggerElement = document.activeElement;
+  modal._close = closeModal;
   
   // Backdrop click
   modal.addEventListener('click', (e) => {
@@ -1410,6 +1453,7 @@ function createModal(article) {
   
   content.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (e.target.closest('.story-close')) { closeModal(); return; }
     const link = e.target.closest('.modal-house-link');
     if (link) {
       closeModal();
@@ -1480,32 +1524,54 @@ function createModal(article) {
   return modal;
 }
 
+function storyNeighbours(article) {
+  const idx = state.articles.findIndex(a => a.id === article.id);
+  const len = state.articles.length;
+  return {
+    prev: state.articles[(idx - 1 + len) % len],
+    next: state.articles[(idx + 1) % len]
+  };
+}
+
+function readingTime(html) {
+  const words = String(html || '').replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 220));
+}
+
+const ICONS = {
+  back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+  share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
+  house: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>'
+};
+
 function getModalHTML(article) {
   const esc = utils.escape;
+  const img = utils.safeUrl(article.img);
+  const { prev, next } = storyNeighbours(article);
+  const mins = readingTime(article.description);
+  const by = article.contributor ? `Shared by ${esc(article.contributor)}` : '';
   return `
-    <button class="modal-share-btn" aria-label="Share">
-      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 3l4 4-1.41 1.41L13 7.83V14h-2V7.83L9.41 8.41 8 7l4-4zM5 10h2v8h10v-8h2v10H5V10z" fill="currentColor"/></svg>
-    </button>
-    <header>
-      <h2>${esc(article.title)}</h2>
-      <h3>${esc(article.short_desc)}</h3>
-    </header>
-    <div class="imgWrapper">
-      <img src="${utils.safeUrl(article.img)}" alt="${esc(article.title)}" />
-      <div class="modal-nav">
-        <button class="nav-btn nav-prev" aria-label="Previous">‹</button>
-        <button class="nav-btn nav-next" aria-label="Next">›</button>
+    <div class="story-hero${img ? '' : ' no-image'}">
+      ${img ? `<img src="${img}" alt="" />` : ''}
+      <div class="story-hero-bar">
+        <button type="button" class="icon-btn story-close" aria-label="Close story">${ICONS.back}</button>
+        <button type="button" class="icon-btn modal-share-btn" aria-label="Share this story">${ICONS.share}</button>
       </div>
     </div>
-    <div class="descriptionWrapper">
-      <div class="modal-description">${utils.richText(article.description)}</div>
+    <article class="story-body">
+      <p class="story-eyebrow"><b>${esc(article.theme || 'Story')}</b>${mins} min read</p>
+      <h2 id="modal-title" class="story-title">${esc(article.title)}</h2>
+      ${(article.short_desc || by) ? `<p class="story-dek">${[esc(article.short_desc || ''), by].filter(Boolean).join(' · ')}</p>` : ''}
       ${modalHouseNote(article)}
+      <div class="modal-description">${utils.richText(article.description)}</div>
       <div id="reactions-container-${article.id}"></div>
       <div id="reaction-form-container-${article.id}"></div>
-    </div>
-    <footer class="modal-footer">
-      <span class="modal-contrib">Shared by: ${esc(article.contributor || '')}</span>
-    </footer>
+    </article>
+    <nav class="story-nav" aria-label="More stories">
+      <button type="button" class="nav-btn nav-prev" aria-label="Previous story: ${esc(prev?.title || '')}">‹ <span>${esc(prev?.title || 'Previous')}</span></button>
+      <button type="button" class="nav-btn nav-next" aria-label="Next story: ${esc(next?.title || '')}"><span>${esc(next?.title || 'Next')}</span> ›</button>
+    </nav>
   `;
 }
 
@@ -1513,10 +1579,10 @@ function modalHouseNote(article) {
   if (article.resident_id == null) return '';
   const r = state.residents.find(x => Number(x.id) === Number(article.resident_id));
   if (!r) return '';
-  const road = r.road === "O'Neachtain" ? "O'Neachtain Road" : r.road === 'Coymn Place' ? 'Comyn Place' : r.road;
   return `<p class="modal-house"><button type="button" class="modal-house-link"
-      data-road="${utils.escape(r.road)}" data-num="${utils.escape(r.housenumber)}">🏠 In 1929, ${utils.escape(r.housenumber)} ${utils.escape(road)}
-      was first leased to ${utils.escape(r.lessee || 'a family not yet traced')}. Find out more →</button></p>`;
+      data-road="${utils.escape(r.road)}" data-num="${utils.escape(r.housenumber)}">${ICONS.house}
+      <span>In 1929, ${utils.escape(r.housenumber)} ${utils.escape(roadDisplayName(r.road))} was first leased to
+      <strong>${utils.escape(r.lessee || 'a family not yet traced')}</strong></span>${ICONS.chevron}</button></p>`;
 }
 
 function updateModalContent(article) {
@@ -1527,7 +1593,15 @@ function updateModalContent(article) {
   
   setTimeout(() => {
     content.innerHTML = getModalHTML(article);
+    content.scrollTop = 0;
     content.classList.remove('fade-out');
+    (async () => {
+      const data = await reactions.load(article.id);
+      const container = content.querySelector(`#reactions-container-${article.id}`);
+      if (container) container.innerHTML = reactions.render(data);
+      const formContainer = content.querySelector(`#reaction-form-container-${article.id}`);
+      if (formContainer) formContainer.appendChild(reactions.createForm(article.id));
+    })();
     currentModal.dataset.articleId = article.id;
     utils.updateURL(article.id, true);
     
@@ -1593,7 +1667,7 @@ function createResidentPopup(r) {
       <div class="rp-body">
         ${former}
         ${occ}
-        ${storiesForHouse(r).map(a => `<button type="button" class="rp-story" data-article="${a.id}">📖 A story from this house: ${esc(a.title)}</button>`).join('')}
+        ${storiesForHouse(r).map(a => `<button type="button" class="rp-story" data-article="${a.id}">A story from this house: ${esc(a.title)}</button>`).join('')}
       </div>
     </div>
   `;
@@ -1780,47 +1854,59 @@ window.addEventListener('popstate', async () => {
 
 function setupMobileDrag() {
   const content = document.getElementById('content');
-  const handles = [
-    document.getElementById('head_logo'),
-    document.getElementById('content-handle')
-  ].filter(Boolean);
-  
-  if (!handles.length) return;
-  
-  let isDragging = false;
-  let startY = 0;
-  let startTop = 0;
-  
-  handles.forEach(handle => {
-    handle.addEventListener('touchstart', (e) => {
-      if (!utils.isMobile()) return;
-      
-      isDragging = true;
-      startY = e.touches[0].clientY;
-      startTop = content.getBoundingClientRect().top;
-      content.style.transform = '';
-      content.style.overflowY = 'hidden';
-      e.preventDefault();
-    });
+  const handles = [document.getElementById('content-handle'), document.getElementById('panel-header')].filter(Boolean);
+  if (!content || !handles.length) return;
+
+  let dragging = false, startY = 0, startTop = 0, lastTop = 0, moved = false;
+
+  const onStart = (y) => {
+    if (!utils.isMobile()) return false;
+    dragging = true; moved = false;
+    startY = y;
+    startTop = lastTop = content.getBoundingClientRect().top;
+    content.classList.add('dragging');
+    return true;
+  };
+  const onMove = (y) => {
+    if (!dragging) return;
+    const top = Math.max(48, Math.min(startTop + (y - startY), window.innerHeight - 160));
+    if (Math.abs(y - startY) > 4) moved = true;
+    lastTop = top;
+    document.documentElement.style.setProperty('--sheet-top', top + 'px');
+  };
+  const onEnd = () => {
+    if (!dragging) return;
+    dragging = false;
+    content.classList.remove('dragging');
+    if (!moved) {
+      // A tap on the handle toggles between half and full
+      sheet.set(state.sheetState === 'full' ? 'half' : 'full');
+      return;
+    }
+    sheet.set(sheet.nearest(lastTop));
+  };
+
+  handles.forEach(h => {
+    h.addEventListener('touchstart', (e) => { if (onStart(e.touches[0].clientY)) e.preventDefault(); }, { passive: false });
+    h.addEventListener('mousedown', (e) => { if (onStart(e.clientY)) e.preventDefault(); });
   });
-  
-  window.addEventListener('touchmove', (e) => {
-    if (!isDragging) return;
-    
-    const deltaY = (e.touches[0].clientY - startY) * 1.2;
-    let newTop = startTop + deltaY;
-    
-    const maxTop = window.innerHeight - 100;
-    newTop = Math.max(0, Math.min(newTop, maxTop));
-    
-    content.style.top = `${newTop}px`;
-    e.preventDefault();
-  }, { passive: false });
-  
-  window.addEventListener('touchend', () => {
-    isDragging = false;
-    content.style.overflowY = 'auto';
+  window.addEventListener('touchmove', (e) => { if (dragging) { onMove(e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
+  window.addEventListener('mousemove', (e) => onMove(e.clientY));
+  window.addEventListener('touchend', onEnd);
+  window.addEventListener('mouseup', onEnd);
+
+  // Keyboard: the handle works as a button
+  const handle = document.getElementById('content-handle');
+  handle.setAttribute('role', 'button');
+  handle.setAttribute('tabindex', '0');
+  handle.setAttribute('aria-label', 'Expand or collapse the stories panel');
+  handle.removeAttribute('aria-hidden');
+  handle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sheet.set(state.sheetState === 'full' ? 'half' : 'full'); }
   });
+
+  sheet.set('half');
+  window.addEventListener('resize', utils.debounce(() => sheet.set(state.sheetState || 'half'), 150));
 }
 
 // =============================================================================
@@ -1848,19 +1934,21 @@ async function init() {
       return;
     }
     
-    initHistoryFeatures({ state, utils, a11y, openModal, showStoryForm, toggleResidents });
+    initHistoryFeatures({ state, utils, a11y, openModal, showStoryForm, toggleResidents, setEra, sheet });
     await initMap();
     loadingUI.hideMapLoading();
     
     renderThemes();
     renderArticles(null);
     setupMobileDrag();
+    setupEraControls();
+    setupTabs();
+    state.era = 'today';
+    updatePanelHeader();
     
     document.getElementById('share-story-btn')?.addEventListener('click', (e) => {
       e.preventDefault();
-      const content = document.getElementById('content');
-      content.classList.add('fade-out');
-      setTimeout(() => showStoryForm(), 600);
+      showStoryForm();
     });
     
     await handleDeepLink();
@@ -1897,37 +1985,8 @@ if (document.readyState === 'loading') {
 // Tours System with Loading States
 // =============================================================================
 
-function slideContentPanelDown() {
-  if (!utils.isMobile()) return;
-  
-  const content = document.getElementById('content');
-  if (!content) return;
-  
-  const vh = window.innerHeight;
-  const targetTop = Math.round(vh * 0.85);
-  
-  const prev = content.style.transition;
-  content.style.transition = 'top 400ms ease';
-  content.style.top = targetTop + 'px';
-  
-  setTimeout(() => { content.style.transition = prev || ''; }, 500);
-}
-
-function restoreContentPanel() {
-  if (!utils.isMobile()) return;
-  
-  const content = document.getElementById('content');
-  if (!content) return;
-  
-  const vh = window.innerHeight;
-  const defaultTop = Math.round(vh * 0.5);
-  
-  const prev = content.style.transition;
-  content.style.transition = 'top 400ms ease';
-  content.style.top = defaultTop + 'px';
-  
-  setTimeout(() => { content.style.transition = prev || ''; }, 500);
-}
+function slideContentPanelDown() { sheet.set('peek'); }
+function restoreContentPanel() { sheet.set('half'); }
 
 const tours = {
   async loadAll() {
